@@ -11,7 +11,20 @@ import (
 	"net/http"
 )
 
-func RetrieveBundle(storageId string) ([]types.DataItem, error) {
+func NewBundlesReactor(blockCh chan<- *types.Block, quitCh chan<- int, poolId, fromHeight, toHeight int64) {
+	bundle, err := retrieveArweaveBundle("jerFfGxb0ltU1ZV_cszlrr9SOipOcu-mD6IBoEMnsDo")
+	if err != nil {
+		panic(fmt.Errorf("failed to retrieve bundle from Arweave: %w", err))
+	}
+
+	for _, dataItem := range bundle {
+		blockCh <- dataItem.Value
+	}
+
+	quitCh <- 0
+}
+
+func retrieveArweaveBundle(storageId string) ([]types.DataItem, error) {
 	raw, err := downloadFromUrl(fmt.Sprintf("https://arweave.net/%s", storageId))
 	if err != nil {
 		return nil, err

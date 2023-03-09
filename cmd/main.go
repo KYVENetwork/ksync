@@ -3,8 +3,10 @@ package main
 import (
 	"KYVENetwork/kyve-tm-bsync/blocks"
 	log "KYVENetwork/kyve-tm-bsync/logger"
+	"KYVENetwork/kyve-tm-bsync/sync"
 	cfg "KYVENetwork/kyve-tm-bsync/sync/config"
 	s "KYVENetwork/kyve-tm-bsync/sync/state"
+	"KYVENetwork/kyve-tm-bsync/types"
 	"fmt"
 )
 
@@ -29,13 +31,13 @@ func main() {
 
 	logger.Info(fmt.Sprintf("%d", state.LastBlockHeight))
 
-	bundle, err := blocks.RetrieveBundle("jerFfGxb0ltU1ZV_cszlrr9SOipOcu-mD6IBoEMnsDo")
-	if err != nil {
-		panic(fmt.Errorf("failed to retrieve bundle: %w", err))
-	}
+	blockCh := make(chan *types.Block)
+	quitCh := make(chan int)
 
-	for _, item := range bundle {
-		fmt.Println(item.Key)
-		fmt.Println(item.Value.Header.AppHash)
-	}
+	go blocks.NewBundlesReactor(blockCh, quitCh, 0, 0, 0)
+	go sync.NewBlockSyncReactor(blockCh, quitCh)
+
+	<-quitCh
+
+	fmt.Println("done")
 }
