@@ -25,7 +25,9 @@ func GetStateDBs(config *tmCfg.Config) (dbm.DB, state.Store, error) {
 		return nil, nil, err
 	}
 
-	stateStore := state.NewStore(stateDB)
+	stateStore := state.NewStore(stateDB, state.StoreOptions{
+		DiscardABCIResponses: false,
+	})
 
 	return stateDB, stateStore, nil
 }

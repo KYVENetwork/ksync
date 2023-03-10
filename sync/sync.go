@@ -66,7 +66,7 @@ func NewBlockSyncReactor(blockCh <-chan *types.Block, quitCh <-chan int, homeDir
 
 	_, mempool := helpers.CreateMempoolAndMempoolReactor(config, proxyApp, state)
 
-	_, evidencePool, err := helpers.CreateEvidenceReactor(config, stateDB, blockStore)
+	_, evidencePool, err := helpers.CreateEvidenceReactor(config, stateStore, blockStore)
 	if err != nil {
 		panic(fmt.Errorf("failed to create evidence reactor: %w", err))
 	}

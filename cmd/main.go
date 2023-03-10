@@ -8,13 +8,15 @@ import (
 )
 
 func main() {
-	homeDir := "/Users/troykessler/.kyve"
+	// needed cli flags
+	home := "/Users/troykessler/.kyve"
+	pool := int64(0)
 
 	blockCh := make(chan *types.Block)
 	quitCh := make(chan int)
 
-	go blocks.NewBundlesReactor(blockCh, quitCh, 0, 0, 0)
-	go sync.NewBlockSyncReactor(blockCh, quitCh, homeDir)
+	go blocks.NewBundlesReactor(blockCh, quitCh, pool, 0, 0)
+	go sync.NewBlockSyncReactor(blockCh, quitCh, home)
 
 	<-quitCh
 

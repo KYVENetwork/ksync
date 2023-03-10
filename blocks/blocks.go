@@ -17,18 +17,29 @@ func NewBundlesReactor(blockCh chan<- *types.Block, quitCh chan<- int, poolId, f
 		panic(fmt.Errorf("failed to retrieve bundle from Arweave: %w", err))
 	}
 
-	for _, dataItem := range bundle {
+	for _, dataItem := range *bundle {
 		blockCh <- dataItem.Value
 	}
 
 	quitCh <- 0
 }
 
-func retrieveArweaveBundle(storageId string) ([]types.DataItem, error) {
+//func retrieveKYVEBundle(poolId, bundleId string) (*types.FinalizedBundle, error) {
+//	raw, err := downloadFromUrl(fmt.Sprintf("http://0.0.0.0:1317/kyve/query/v1beta1/finalized_bundles/%s/%s", poolId, bundleId))
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	return raw, err
+//}
+
+func retrieveArweaveBundle(storageId string) (*types.Bundle, error) {
 	raw, err := downloadFromUrl(fmt.Sprintf("https://arweave.net/%s", storageId))
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO: handle invalid checksum
 
 	fmt.Println(len(raw))
 	fmt.Println(createChecksum(raw))
@@ -38,13 +49,13 @@ func retrieveArweaveBundle(storageId string) ([]types.DataItem, error) {
 		return nil, err
 	}
 
-	var bundle []types.DataItem
+	var bundle types.Bundle
 
 	if err := json.Unmarshal(deflated[:], &bundle); err != nil {
 		return nil, err
 	}
 
-	return bundle, nil
+	return &bundle, nil
 }
 
 func downloadFromUrl(url string) ([]byte, error) {

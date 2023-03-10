@@ -6,7 +6,7 @@ import (
 	tmCfg "github.com/tendermint/tendermint/config"
 	cs "github.com/tendermint/tendermint/consensus"
 	"github.com/tendermint/tendermint/evidence"
-	mempl "github.com/tendermint/tendermint/mempool"
+	mempl "github.com/tendermint/tendermint/mempool/v0"
 	"github.com/tendermint/tendermint/proxy"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/store"
@@ -83,13 +83,13 @@ func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
 	return dbm.NewDB(ctx.ID, dbType, ctx.Config.DBDir())
 }
 
-func CreateEvidenceReactor(config *tmCfg.Config, stateDB dbm.DB, blockStore *store.BlockStore) (*evidence.Reactor, *evidence.Pool, error) {
-	evidenceDB, err := DefaultDBProvider(&DBContext{"evidence", config})
+func CreateEvidenceReactor(config *tmCfg.Config, stateStore sm.Store, blockStore *store.BlockStore) (*evidence.Reactor, *evidence.Pool, error) {
+	evidenceDB, err := DefaultDBProvider(&DBContext{ID: "evidence", Config: config})
 	if err != nil {
 		return nil, nil, err
 	}
 	evidenceLogger := logger.With("module", "evidence")
-	evidencePool, err := evidence.NewPool(evidenceDB, sm.NewStore(stateDB), blockStore)
+	evidencePool, err := evidence.NewPool(evidenceDB, stateStore, blockStore)
 	if err != nil {
 		return nil, nil, err
 	}
