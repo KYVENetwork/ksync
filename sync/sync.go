@@ -3,25 +3,16 @@ package sync
 import (
 	log "KYVENetwork/kyve-tm-bsync/logger"
 	cfg "KYVENetwork/kyve-tm-bsync/sync/config"
-	s "KYVENetwork/kyve-tm-bsync/sync/state"
+	"KYVENetwork/kyve-tm-bsync/sync/db"
+	"KYVENetwork/kyve-tm-bsync/sync/helpers"
 	"KYVENetwork/kyve-tm-bsync/types"
 	"fmt"
-	c "github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/proxy"
+	nm "github.com/tendermint/tendermint/node"
 )
 
 var (
 	logger = log.Logger()
 )
-
-func createAndStartProxyAppConns(config *c.Config) (proxy.AppConns, error) {
-	proxyApp := proxy.NewAppConns(proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()))
-	proxyApp.SetLogger(logger.With("module", "proxy"))
-	if err := proxyApp.Start(); err != nil {
-		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
-	}
-	return proxyApp, nil
-}
 
 func NewBlockSyncReactor(blockCh <-chan *types.Block, quitCh <-chan int, homeDir string) {
 	config, err := cfg.LoadConfig(homeDir)
@@ -31,19 +22,48 @@ func NewBlockSyncReactor(blockCh <-chan *types.Block, quitCh <-chan int, homeDir
 
 	logger.Info(fmt.Sprintf("Config loaded. Moniker = %s", config.Moniker))
 
-	state, err := s.GetState(config)
+	stateDB, stateStore, err := db.GetStateDBs(config)
 	if err != nil {
-		panic(fmt.Errorf("failed to load state: %w", err))
+		panic(fmt.Errorf("failed to load state db: %w", err))
+	}
+
+	blockStoreDB, blockStore, err := db.GetBlockstoreDBs(config)
+	if err != nil {
+		panic(fmt.Errorf("failed to load blockstore db: %w", err))
+	}
+
+	_ = stateDB
+	_ = blockStoreDB
+
+	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
+	state, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(stateDB, defaultDocProvider)
+	if err != nil {
+		panic(fmt.Errorf("failed to load state and genDoc: %w", err))
 	}
 
 	logger.Info(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
 
-	proxyApp, err := createAndStartProxyAppConns(config)
+	proxyApp, err := helpers.CreateAndStartProxyAppConns(config)
 	if err != nil {
 		panic(fmt.Errorf("failed to start proxy app: %w", err))
 	}
 
+	eventBus, err := helpers.CreateAndStartEventBus()
+	if err != nil {
+		panic(fmt.Errorf("failed to start event bus: %w", err))
+	}
+
+	if err := helpers.DoHandshake(stateStore, state, blockStore, genDoc, eventBus, proxyApp); err != nil {
+		panic(fmt.Errorf("failed to do handshake: %w", err))
+	}
+
+	state, err = stateStore.Load()
+	if err != nil {
+		panic(fmt.Errorf("failed to reload state: %w", err))
+	}
+
 	_ = proxyApp
+	_ = eventBus
 
 	for {
 		select {

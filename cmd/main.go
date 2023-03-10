@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	homeDir := "/Users/troykessler/.chain"
+	homeDir := "/Users/troykessler/.kyve"
 
 	blockCh := make(chan *types.Block)
 	quitCh := make(chan int)
