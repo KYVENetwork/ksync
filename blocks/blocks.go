@@ -14,12 +14,32 @@ func NewBundlesReactor(blockCh chan<- *types.Block, quitCh chan<- int, poolId, f
 	}
 
 	for _, bundle := range bundles {
-		data, dataErr := retrieveArweaveBundle(bundle.StorageId)
+		// retrieve bundle from storage provider
+		data, dataErr := retrieveBundleFromStorageProvider(bundle.StorageId)
 		if dataErr != nil {
-			panic(fmt.Errorf("failed to retrieve bundle from Arweave: %w", err))
+			panic(fmt.Errorf("failed to retrieve bundle from Storage Provider: %w", err))
 		}
 
-		for _, dataItem := range *data {
+		// validate bundle with sha256 checksum
+		if utils.CreateChecksum(data) != bundle.DataHash {
+			panic(fmt.Errorf("found different checksum on bundle: provided = %s found = %s", utils.CreateChecksum(data), bundle.DataHash))
+		}
+
+		// decompress bundle
+		deflated, err := utils.DecompressGzip(data)
+		if err != nil {
+			panic(fmt.Errorf("failed to decompress bundle with gzip: %w", err))
+		}
+
+		// parse bundle
+		var bundle types.Bundle
+
+		if err := json.Unmarshal(deflated, &bundle); err != nil {
+			panic(fmt.Errorf("failed to unmarshal bundle: %w", err))
+		}
+
+		// send bundle to sync reactor
+		for _, dataItem := range bundle {
 			blockCh <- dataItem.Value
 		}
 	}
@@ -28,7 +48,14 @@ func NewBundlesReactor(blockCh chan<- *types.Block, quitCh chan<- int, poolId, f
 }
 
 func retrieveFinalizedBundles(poolId int64) ([]types.FinalizedBundle, error) {
-	raw, err := utils.DownloadFromUrl(fmt.Sprintf("http://0.0.0.0:1317/kyve/query/v1beta1/finalized_bundles/%d?pagination.limit=5", poolId))
+	paginationKey := ""
+
+	raw, err := utils.DownloadFromUrl(fmt.Sprintf(
+		"http://0.0.0.0:1317/kyve/query/v1beta1/finalized_bundles/%d?pagination.limit=%d&pagination.key=%s",
+		poolId,
+		utils.BUNDLES_PAGE_LIMIT,
+		paginationKey,
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -42,27 +69,11 @@ func retrieveFinalizedBundles(poolId int64) ([]types.FinalizedBundle, error) {
 	return bundlesResponse.FinalizedBundles, nil
 }
 
-func retrieveArweaveBundle(storageId string) (*types.Bundle, error) {
-	raw, err := utils.DownloadFromUrl(fmt.Sprintf("https://arweave.net/%s", storageId))
+func retrieveBundleFromStorageProvider(storageId string) (data []byte, err error) {
+	data, err = utils.DownloadFromUrl(fmt.Sprintf("https://arweave.net/%s", storageId))
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: handle invalid checksum
-
-	fmt.Println(len(raw))
-	fmt.Println(utils.CreateChecksum(raw))
-
-	deflated, err := utils.DecompressGzip(raw)
-	if err != nil {
-		return nil, err
-	}
-
-	var bundle types.Bundle
-
-	if err := json.Unmarshal(deflated[:], &bundle); err != nil {
-		return nil, err
-	}
-
-	return &bundle, nil
+	return
 }
