@@ -1,7 +1,8 @@
 package types
 
 import (
-	kyveTypes "github.com/KYVENetwork/chain/x/bundles/types"
+	bundleTypes "github.com/KYVENetwork/chain/x/bundles/types"
+	queryTypes "github.com/KYVENetwork/chain/x/query/types"
 	tmTypes "github.com/tendermint/tendermint/types"
 )
 
@@ -14,4 +15,6 @@ type DataItem struct {
 
 type Bundle = []DataItem
 
-type FinalizedBundle = kyveTypes.FinalizedBundle
+type FinalizedBundleResponse = queryTypes.QueryFinalizedBundlesResponse
+
+type FinalizedBundle = bundleTypes.FinalizedBundle

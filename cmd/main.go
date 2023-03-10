@@ -12,7 +12,7 @@ func main() {
 	home := "/Users/troykessler/.kyve"
 	pool := int64(0)
 
-	blockCh := make(chan *types.Block)
+	blockCh := make(chan *types.Block, 100)
 	quitCh := make(chan int)
 
 	go blocks.NewBundlesReactor(blockCh, quitCh, pool, 0, 0)
