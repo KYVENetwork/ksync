@@ -8,6 +8,8 @@ import (
 	"KYVENetwork/kyve-tm-bsync/types"
 	"fmt"
 	nm "github.com/tendermint/tendermint/node"
+	sm "github.com/tendermint/tendermint/state"
+	tmTypes "github.com/tendermint/tendermint/types"
 )
 
 var (
@@ -62,13 +64,34 @@ func NewBlockSyncReactor(blockCh <-chan *types.Block, quitCh <-chan int, homeDir
 		panic(fmt.Errorf("failed to reload state: %w", err))
 	}
 
-	_ = proxyApp
-	_ = eventBus
+	_, mempool := helpers.CreateMempoolAndMempoolReactor(config, proxyApp, state)
+
+	_, evidencePool, err := helpers.CreateEvidenceReactor(config, stateDB, blockStore)
+	if err != nil {
+		panic(fmt.Errorf("failed to create evidence reactor: %w", err))
+	}
+
+	blockExec := sm.NewBlockExecutor(
+		stateStore,
+		logger.With("module", "state"),
+		proxyApp.Consensus(),
+		mempool,
+		evidencePool,
+	)
+
+	_ = blockExec
 
 	for {
 		select {
 		case block := <-blockCh:
 			logger.Info(fmt.Sprintf("%v %s", block.Header.Height, block.Header.AppHash))
+
+			blockId := tmTypes.BlockID{Hash: block.Hash(), PartSetHeader: block.MakePartSet(tmTypes.BlockPartSizeBytes).Header()}
+			state, _, err = blockExec.ApplyBlock(state, blockId, block)
+
+			if err != nil {
+				panic(fmt.Errorf("failed to apply block: %w", err))
+			}
 		case <-quitCh:
 			return
 		}

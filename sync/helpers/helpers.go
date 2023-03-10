@@ -5,9 +5,13 @@ import (
 	"fmt"
 	tmCfg "github.com/tendermint/tendermint/config"
 	cs "github.com/tendermint/tendermint/consensus"
+	"github.com/tendermint/tendermint/evidence"
+	mempl "github.com/tendermint/tendermint/mempool"
 	"github.com/tendermint/tendermint/proxy"
 	sm "github.com/tendermint/tendermint/state"
+	"github.com/tendermint/tendermint/store"
 	tmTypes "github.com/tendermint/tendermint/types"
+	dbm "github.com/tendermint/tm-db"
 )
 
 var (
@@ -47,4 +51,49 @@ func DoHandshake(
 		return fmt.Errorf("error during handshake: %v", err)
 	}
 	return nil
+}
+
+func CreateMempoolAndMempoolReactor(config *tmCfg.Config, proxyApp proxy.AppConns,
+	state sm.State) (*mempl.Reactor, *mempl.CListMempool) {
+
+	mempool := mempl.NewCListMempool(
+		config.Mempool,
+		proxyApp.Mempool(),
+		state.LastBlockHeight,
+		mempl.WithPreCheck(sm.TxPreCheck(state)),
+		mempl.WithPostCheck(sm.TxPostCheck(state)),
+	)
+	mempoolLogger := logger.With("module", "mempool")
+	mempoolReactor := mempl.NewReactor(config.Mempool, mempool)
+	mempoolReactor.SetLogger(mempoolLogger)
+
+	if config.Consensus.WaitForTxs() {
+		mempool.EnableTxsAvailable()
+	}
+	return mempoolReactor, mempool
+}
+
+type DBContext struct {
+	ID     string
+	Config *tmCfg.Config
+}
+
+func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
+	dbType := dbm.BackendType(ctx.Config.DBBackend)
+	return dbm.NewDB(ctx.ID, dbType, ctx.Config.DBDir())
+}
+
+func CreateEvidenceReactor(config *tmCfg.Config, stateDB dbm.DB, blockStore *store.BlockStore) (*evidence.Reactor, *evidence.Pool, error) {
+	evidenceDB, err := DefaultDBProvider(&DBContext{"evidence", config})
+	if err != nil {
+		return nil, nil, err
+	}
+	evidenceLogger := logger.With("module", "evidence")
+	evidencePool, err := evidence.NewPool(evidenceDB, sm.NewStore(stateDB), blockStore)
+	if err != nil {
+		return nil, nil, err
+	}
+	evidenceReactor := evidence.NewReactor(evidencePool)
+	evidenceReactor.SetLogger(evidenceLogger)
+	return evidenceReactor, evidencePool, nil
 }
