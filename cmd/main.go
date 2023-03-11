@@ -12,6 +12,12 @@ func main() {
 	home := "/Users/troykessler/.kyve"
 	pool := int64(0)
 
+	// process
+	// - find out current height from data/ folder
+	// - find kyve bundle with corresponding height
+	// - start downloading bundles from storage provider from that height
+	// - apply blocks against blockchain application
+
 	blockCh := make(chan *types.Block, 100)
 	quitCh := make(chan int)
 
