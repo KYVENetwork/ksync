@@ -1,8 +1,8 @@
 package blocks
 
 import (
-	"KYVENetwork/kyve-tm-bsync/types"
-	"KYVENetwork/kyve-tm-bsync/utils"
+	"KYVENetwork/ksync/types"
+	"KYVENetwork/ksync/utils"
 	"fmt"
 	"github.com/tendermint/tendermint/libs/json"
 )

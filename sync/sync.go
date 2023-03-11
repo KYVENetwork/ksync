@@ -1,11 +1,11 @@
 package sync
 
 import (
-	log "KYVENetwork/kyve-tm-bsync/logger"
-	cfg "KYVENetwork/kyve-tm-bsync/sync/config"
-	"KYVENetwork/kyve-tm-bsync/sync/db"
-	"KYVENetwork/kyve-tm-bsync/sync/helpers"
-	"KYVENetwork/kyve-tm-bsync/types"
+	log "KYVENetwork/ksync/logger"
+	cfg "KYVENetwork/ksync/sync/config"
+	"KYVENetwork/ksync/sync/db"
+	"KYVENetwork/ksync/sync/helpers"
+	"KYVENetwork/ksync/types"
 	"fmt"
 	nm "github.com/tendermint/tendermint/node"
 	sm "github.com/tendermint/tendermint/state"

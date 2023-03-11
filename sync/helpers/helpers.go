@@ -1,7 +1,7 @@
 package helpers
 
 import (
-	log "KYVENetwork/kyve-tm-bsync/logger"
+	log "KYVENetwork/ksync/logger"
 	"fmt"
 	tmCfg "github.com/tendermint/tendermint/config"
 	cs "github.com/tendermint/tendermint/consensus"
