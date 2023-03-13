@@ -1,8 +1,8 @@
 package sync
 
 import (
+	cfg "KYVENetwork/ksync/config"
 	log "KYVENetwork/ksync/logger"
-	cfg "KYVENetwork/ksync/sync/config"
 	"KYVENetwork/ksync/sync/db"
 	"KYVENetwork/ksync/sync/helpers"
 	"KYVENetwork/ksync/types"

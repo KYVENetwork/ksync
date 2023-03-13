@@ -1,17 +1,16 @@
 package db
 
 import (
-	tmCfg "github.com/tendermint/tendermint/config"
+	"KYVENetwork/ksync/types"
 	nm "github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/store"
-	"github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 )
 
 type DBContext struct {
 	ID     string
-	Config *tmCfg.Config
+	Config *types.Config
 }
 
 func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
@@ -19,7 +18,7 @@ func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
 	return dbm.NewDB(ctx.ID, dbType, ctx.Config.DBDir())
 }
 
-func GetStateDBs(config *tmCfg.Config) (dbm.DB, state.Store, error) {
+func GetStateDBs(config *types.Config) (dbm.DB, state.Store, error) {
 	stateDB, err := DefaultDBProvider(&DBContext{"state", config})
 	if err != nil {
 		return nil, nil, err
@@ -32,7 +31,7 @@ func GetStateDBs(config *tmCfg.Config) (dbm.DB, state.Store, error) {
 	return stateDB, stateStore, nil
 }
 
-func GetBlockstoreDBs(config *tmCfg.Config) (dbm.DB, *store.BlockStore, error) {
+func GetBlockstoreDBs(config *types.Config) (dbm.DB, *store.BlockStore, error) {
 	blockStoreDB, err := DefaultDBProvider(&DBContext{"blockstore", config})
 	if err != nil {
 		return nil, nil, err
@@ -43,7 +42,7 @@ func GetBlockstoreDBs(config *tmCfg.Config) (dbm.DB, *store.BlockStore, error) {
 	return blockStoreDB, blockStore, nil
 }
 
-func GetStateAndGenDoc(config *tmCfg.Config) (*state.State, *types.GenesisDoc, error) {
+func GetStateAndGenDoc(config *types.Config) (*state.State, *types.GenesisDoc, error) {
 	stateDB, _, err := GetStateDBs(config)
 	if err != nil {
 		return nil, nil, err

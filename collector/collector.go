@@ -1,13 +1,13 @@
-package blocks
+package collector
 
 import (
 	"KYVENetwork/ksync/types"
 	"KYVENetwork/ksync/utils"
+	"encoding/json"
 	"fmt"
-	"github.com/tendermint/tendermint/libs/json"
 )
 
-func NewBundlesReactor(blockCh chan<- *types.Block, quitCh chan<- int, poolId, fromHeight, toHeight int64) {
+func StartBlockCollector(blockCh chan<- *types.Block, quitCh chan<- int, poolId, fromHeight, toHeight int64) {
 	bundles, err := retrieveFinalizedBundles(poolId)
 	if err != nil {
 		panic(fmt.Errorf("failed to retrieve finalized bundles: %w", err))
@@ -53,7 +53,7 @@ func retrieveFinalizedBundles(poolId int64) ([]types.FinalizedBundle, error) {
 	raw, err := utils.DownloadFromUrl(fmt.Sprintf(
 		"http://0.0.0.0:1317/kyve/query/v1beta1/finalized_bundles/%d?pagination.limit=%d&pagination.key=%s",
 		poolId,
-		utils.BUNDLES_PAGE_LIMIT,
+		utils.BundlesPageLimit,
 		paginationKey,
 	))
 	if err != nil {
