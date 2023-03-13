@@ -86,12 +86,16 @@ func NewBlockSyncReactor(blockCh <-chan *types.Block, quitCh <-chan int, homeDir
 		case block := <-blockCh:
 			logger.Info(fmt.Sprintf("%v %s", block.Header.Height, block.Header.AppHash))
 
-			blockId := tmTypes.BlockID{Hash: block.Hash(), PartSetHeader: block.MakePartSet(tmTypes.BlockPartSizeBytes).Header()}
-			state, _, err = blockExec.ApplyBlock(state, blockId, block)
+			blockParts := block.MakePartSet(tmTypes.BlockPartSizeBytes)
+			blockId := tmTypes.BlockID{Hash: block.Hash(), PartSetHeader: blockParts.Header()}
 
+			blockStore.SaveBlock(block, blockParts, block.LastCommit)
+
+			state, _, err = blockExec.ApplyBlock(state, blockId, block)
 			if err != nil {
 				panic(fmt.Errorf("failed to apply block: %w", err))
 			}
+
 		case <-quitCh:
 			return
 		}
