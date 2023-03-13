@@ -59,7 +59,7 @@ var startCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		_, stateStore, err := db.GetStateDBs(config)
+		stateDB, stateStore, err := db.GetStateDBs(config)
 		if err != nil {
 			logger.Error(err.Error())
 			os.Exit(1)
@@ -71,8 +71,12 @@ var startCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		if err := stateDB.Close(); err != nil {
+			panic(err)
+		}
+
 		logger.Info(fmt.Sprintf("Found latest state, continuing from last block height = %d", state.LastBlockHeight))
-		
+
 		pool.VerifyPool(poolId, state.LastBlockHeight)
 
 		// process

@@ -2,6 +2,6 @@ package utils
 
 const (
 	BundlesPageLimit = 100
-	DefaultAPI       = "https://api.korellia.kyve.network"
+	DefaultAPI       = "http://0.0.0.0:1317"
 	KSyncRuntime     = "@kyvejs/tm-bsync"
 )

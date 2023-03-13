@@ -13,7 +13,7 @@ var (
 	logger = log.Logger()
 )
 
-func VerifyPool(poolId, lastBlockHeight int64) bool {
+func VerifyPool(poolId, lastBlockHeight int64) {
 	data, err := utils.DownloadFromUrl(fmt.Sprintf("%s/kyve/query/v1beta1/pool/%d", utils.DefaultAPI, poolId))
 	if err != nil {
 		logger.Error(err.Error())
@@ -26,6 +26,15 @@ func VerifyPool(poolId, lastBlockHeight int64) bool {
 		panic(err)
 	}
 
-	fmt.Println(poolResponse.Pool.Data.Runtime)
-	return true
+	if poolResponse.Pool.Data.Runtime != utils.KSyncRuntime {
+		logger.Error(fmt.Sprintf("Found invalid runtime on pool %d: Expected = %s Found = %s", poolId, utils.KSyncRuntime, poolResponse.Pool.Data.Runtime))
+		os.Exit(1)
+	}
+
+	if poolResponse.Pool.Data.StartKey > uint64(lastBlockHeight+1) {
+		logger.Error(fmt.Sprintf("Latest block with height %d not stored on pool %d. Earliest block on pool has height %d", lastBlockHeight, poolId, poolResponse.Pool.Data.StartKey))
+		os.Exit(1)
+	}
+
+	return
 }
