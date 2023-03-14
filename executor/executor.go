@@ -1,10 +1,10 @@
-package sync
+package executor
 
 import (
 	cfg "KYVENetwork/ksync/config"
+	"KYVENetwork/ksync/executor/db"
+	"KYVENetwork/ksync/executor/helpers"
 	log "KYVENetwork/ksync/logger"
-	"KYVENetwork/ksync/sync/db"
-	"KYVENetwork/ksync/sync/helpers"
 	"KYVENetwork/ksync/types"
 	"fmt"
 	nm "github.com/tendermint/tendermint/node"
@@ -16,7 +16,7 @@ var (
 	logger = log.Logger()
 )
 
-func NewBlockSyncReactor(blockCh <-chan *types.Block, quitCh <-chan int, homeDir string) {
+func StartBlockExecutor(blockCh <-chan *types.BlockPair, quitCh <-chan int, homeDir string) {
 	config, err := cfg.LoadConfig(homeDir)
 	if err != nil {
 		panic(fmt.Errorf("failed to load config: %w", err))
@@ -83,15 +83,15 @@ func NewBlockSyncReactor(blockCh <-chan *types.Block, quitCh <-chan int, homeDir
 
 	for {
 		select {
-		case block := <-blockCh:
-			logger.Info(fmt.Sprintf("%v %s", block.Header.Height, block.Header.AppHash))
+		case pair := <-blockCh:
+			logger.Info(fmt.Sprintf("first=%d second=%d", pair.First.Header.Height, pair.Second.Header.Height))
 
-			blockParts := block.MakePartSet(tmTypes.BlockPartSizeBytes)
-			blockId := tmTypes.BlockID{Hash: block.Hash(), PartSetHeader: blockParts.Header()}
+			blockParts := pair.First.MakePartSet(tmTypes.BlockPartSizeBytes)
+			blockId := tmTypes.BlockID{Hash: pair.First.Hash(), PartSetHeader: blockParts.Header()}
 
-			blockStore.SaveBlock(block, blockParts, block.LastCommit)
+			blockStore.SaveBlock(pair.First, blockParts, pair.Second.LastCommit)
 
-			state, _, err = blockExec.ApplyBlock(state, blockId, block)
+			state, _, err = blockExec.ApplyBlock(state, blockId, pair.First)
 			if err != nil {
 				panic(fmt.Errorf("failed to apply block: %w", err))
 			}

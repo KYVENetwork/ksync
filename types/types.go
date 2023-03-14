@@ -11,6 +11,11 @@ type Config = tmCfg.Config
 
 type GenesisDoc = tmTypes.GenesisDoc
 
+type BlockPair struct {
+	First  *Block
+	Second *Block
+}
+
 type Block = tmTypes.Block
 
 type PoolResponse = struct {

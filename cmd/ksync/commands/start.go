@@ -3,10 +3,10 @@ package commands
 import (
 	"KYVENetwork/ksync/collector"
 	cfg "KYVENetwork/ksync/config"
+	"KYVENetwork/ksync/executor"
+	"KYVENetwork/ksync/executor/db"
 	log "KYVENetwork/ksync/logger"
 	"KYVENetwork/ksync/pool"
-	"KYVENetwork/ksync/sync"
-	"KYVENetwork/ksync/sync/db"
 	"KYVENetwork/ksync/types"
 	"fmt"
 	"github.com/spf13/cobra"
@@ -36,8 +36,6 @@ func init() {
 	}
 
 	startCmd.Flags().Int64Var(&targetHeight, "target_height", 0, "target sync height")
-
-	startCmd.Flags().BoolVar(&fsync, "fsync", true, "enable tendermint fsync")
 
 	rootCmd.AddCommand(startCmd)
 }
@@ -75,9 +73,24 @@ var startCmd = &cobra.Command{
 			panic(err)
 		}
 
-		logger.Info(fmt.Sprintf("Found latest state, continuing from last block height = %d", state.LastBlockHeight))
+		logger.Info(fmt.Sprintf("statestore = %d", state.LastBlockHeight))
 
-		pool.VerifyPool(poolId, state.LastBlockHeight)
+		blockDB, blockStore, err := db.GetBlockstoreDBs(config)
+		if err != nil {
+			logger.Error(err.Error())
+			os.Exit(1)
+		}
+
+		blockHeight := blockStore.Height()
+
+		if err := blockDB.Close(); err != nil {
+			panic(err)
+		}
+
+		logger.Info(fmt.Sprintf("blockstore = %d", blockHeight))
+		logger.Info(fmt.Sprintf("continuing from block height = %d", blockHeight+1))
+
+		pool.VerifyPool(poolId, blockHeight)
 
 		// process
 		// - find out current height from data/ folder
@@ -87,13 +100,13 @@ var startCmd = &cobra.Command{
 		// - start downloading bundles from storage provider from that height
 		// - apply blocks against blockchain application
 
-		blockCh := make(chan *types.Block, 100)
+		blockCh := make(chan *types.BlockPair)
 		quitCh := make(chan int)
 
 		// collector
-		go collector.StartBlockCollector(blockCh, quitCh, poolId, state.LastBlockHeight, targetHeight)
+		go collector.StartBlockCollector(blockCh, quitCh, poolId, blockHeight+1, targetHeight)
 		// executor
-		go sync.NewBlockSyncReactor(blockCh, quitCh, home)
+		go executor.StartBlockExecutor(blockCh, quitCh, home)
 
 		<-quitCh
 
