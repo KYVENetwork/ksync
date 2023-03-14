@@ -1,7 +1,7 @@
 package utils
 
 const (
-	BundlesPageLimit = 100
-	DefaultAPI       = "http://0.0.0.0:1317"
-	KSyncRuntime     = "@kyvejs/tm-bsync"
+	BundlesPageLimit    = 100
+	DefaultRestEndpoint = "https://api-eu-1.kyve.network"
+	KSyncRuntime        = "@kyvejs/tm-bsync"
 )

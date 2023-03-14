@@ -13,8 +13,8 @@ var (
 	logger = log.Logger()
 )
 
-func VerifyPool(poolId, blockHeight int64) {
-	data, err := utils.DownloadFromUrl(fmt.Sprintf("%s/kyve/query/v1beta1/pool/%d", utils.DefaultAPI, poolId))
+func VerifyPool(restEndpoint string, poolId, blockHeight int64) {
+	data, err := utils.DownloadFromUrl(fmt.Sprintf("%s/kyve/query/v1beta1/pool/%d", restEndpoint, poolId))
 	if err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)

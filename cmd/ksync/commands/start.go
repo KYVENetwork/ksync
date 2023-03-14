@@ -8,6 +8,7 @@ import (
 	log "KYVENetwork/ksync/logger"
 	"KYVENetwork/ksync/pool"
 	"KYVENetwork/ksync/types"
+	"KYVENetwork/ksync/utils"
 	"fmt"
 	"github.com/spf13/cobra"
 	"os"
@@ -21,6 +22,7 @@ var (
 	home         string
 	poolId       int64
 	targetHeight int64
+	restEndpoint string
 )
 
 func init() {
@@ -28,6 +30,8 @@ func init() {
 	if err := startCmd.MarkFlagRequired("home"); err != nil {
 		panic(err)
 	}
+
+	startCmd.Flags().StringVar(&restEndpoint, "rest", utils.DefaultRestEndpoint, fmt.Sprintf("kyve chain rest endpoint [default = %s]", utils.DefaultRestEndpoint))
 
 	startCmd.Flags().Int64Var(&poolId, "pool-id", 0, "pool id")
 	if err := startCmd.MarkFlagRequired("pool-id"); err != nil {
@@ -68,13 +72,13 @@ var startCmd = &cobra.Command{
 
 		logger.Info(fmt.Sprintf("continuing from block height = %d", blockHeight+1))
 
-		pool.VerifyPool(poolId, blockHeight+1)
+		pool.VerifyPool(restEndpoint, poolId, blockHeight+1)
 
 		blockCh := make(chan *types.BlockPair)
 		quitCh := make(chan int)
 
 		// collector
-		go collector.StartBlockCollector(blockCh, quitCh, poolId, blockHeight+1, targetHeight)
+		go collector.StartBlockCollector(blockCh, quitCh, restEndpoint, poolId, blockHeight+1, targetHeight)
 		// executor
 		go executor.StartBlockExecutor(blockCh, quitCh, home)
 

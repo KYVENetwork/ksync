@@ -14,13 +14,13 @@ var (
 	logger = log.Logger()
 )
 
-func StartBlockCollector(blockCh chan<- *types.BlockPair, quitCh chan<- int, poolId, startHeight, targetHeight int64) {
+func StartBlockCollector(blockCh chan<- *types.BlockPair, quitCh chan<- int, restEndpoint string, poolId, startHeight, targetHeight int64) {
 	paginationKey := ""
 	var prevBlock *types.Block
 
 BundleCollector:
 	for {
-		bundles, nextKey, err := getBundlesPage(poolId, paginationKey)
+		bundles, nextKey, err := getBundlesPage(restEndpoint, poolId, paginationKey)
 		if err != nil {
 			panic(fmt.Errorf("failed to retrieve finalized bundles: %w", err))
 		}
@@ -105,10 +105,10 @@ BundleCollector:
 	quitCh <- 0
 }
 
-func getBundlesPage(poolId int64, paginationKey string) ([]types.FinalizedBundle, string, error) {
+func getBundlesPage(restEndpoint string, poolId int64, paginationKey string) ([]types.FinalizedBundle, string, error) {
 	raw, err := utils.DownloadFromUrl(fmt.Sprintf(
 		"%s/kyve/query/v1beta1/finalized_bundles/%d?pagination.limit=%d&pagination.key=%s",
-		utils.DefaultAPI,
+		restEndpoint,
 		poolId,
 		utils.BundlesPageLimit,
 		paginationKey,
