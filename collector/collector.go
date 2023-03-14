@@ -18,6 +18,7 @@ func StartBlockCollector(blockCh chan<- *types.BlockPair, quitCh chan<- int, poo
 	paginationKey := ""
 	var prevBlock *types.Block
 
+BundleCollector:
 	for {
 		bundles, nextKey, err := getBundlesPage(poolId, paginationKey)
 		if err != nil {
@@ -67,12 +68,13 @@ func StartBlockCollector(blockCh chan<- *types.BlockPair, quitCh chan<- int, poo
 					panic(err)
 				}
 
-				// skip blocks
+				// skip blocks until we reach start height
 				if dataItemKey < startHeight+1 {
 					prevBlock = dataItem.Value
 					continue
 				}
 
+				// skip if we have no previous block
 				if prevBlock == nil || dataItem.Value == nil {
 					prevBlock = dataItem.Value
 					continue
@@ -82,6 +84,11 @@ func StartBlockCollector(blockCh chan<- *types.BlockPair, quitCh chan<- int, poo
 				blockCh <- &types.BlockPair{
 					First:  prevBlock,
 					Second: dataItem.Value,
+				}
+
+				// exit if target height is reached
+				if targetHeight > 0 && prevBlock.Height == targetHeight+1 {
+					break BundleCollector
 				}
 
 				prevBlock = dataItem.Value

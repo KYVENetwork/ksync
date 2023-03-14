@@ -21,7 +21,6 @@ var (
 	home         string
 	poolId       int64
 	targetHeight int64
-	fsync        bool
 )
 
 func init() {
@@ -30,12 +29,12 @@ func init() {
 		panic(err)
 	}
 
-	startCmd.Flags().Int64Var(&poolId, "pool_id", 0, "pool id")
-	if err := startCmd.MarkFlagRequired("pool_id"); err != nil {
+	startCmd.Flags().Int64Var(&poolId, "pool-id", 0, "pool id")
+	if err := startCmd.MarkFlagRequired("pool-id"); err != nil {
 		panic(err)
 	}
 
-	startCmd.Flags().Int64Var(&targetHeight, "target_height", 0, "target sync height")
+	startCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target sync height (including)")
 
 	rootCmd.AddCommand(startCmd)
 }
@@ -44,36 +43,11 @@ var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start fast syncing blocks",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("starting ...")
-
-		fmt.Println(home)
-		fmt.Println(poolId)
-		fmt.Println(targetHeight)
-		fmt.Println(fsync)
-
 		config, err := cfg.LoadConfig(home)
 		if err != nil {
 			logger.Error(err.Error())
 			os.Exit(1)
 		}
-
-		stateDB, stateStore, err := db.GetStateDBs(config)
-		if err != nil {
-			logger.Error(err.Error())
-			os.Exit(1)
-		}
-
-		state, err := stateStore.Load()
-		if err != nil {
-			logger.Error(err.Error())
-			os.Exit(1)
-		}
-
-		if err := stateDB.Close(); err != nil {
-			panic(err)
-		}
-
-		logger.Info(fmt.Sprintf("statestore = %d", state.LastBlockHeight))
 
 		blockDB, blockStore, err := db.GetBlockstoreDBs(config)
 		if err != nil {
@@ -87,7 +61,11 @@ var startCmd = &cobra.Command{
 			panic(err)
 		}
 
-		logger.Info(fmt.Sprintf("blockstore = %d", blockHeight))
+		if targetHeight <= blockHeight {
+			logger.Error(fmt.Sprintf("target height %d is not greater than current block height %d", targetHeight, blockHeight))
+			os.Exit(1)
+		}
+
 		logger.Info(fmt.Sprintf("continuing from block height = %d", blockHeight+1))
 
 		pool.VerifyPool(poolId, blockHeight)
@@ -110,6 +88,6 @@ var startCmd = &cobra.Command{
 
 		<-quitCh
 
-		fmt.Println("done")
+		logger.Info("done")
 	},
 }

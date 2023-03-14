@@ -83,8 +83,6 @@ func StartBlockExecutor(blockCh <-chan *types.BlockPair, quitCh <-chan int, home
 	for {
 		select {
 		case pair := <-blockCh:
-			logger.Info(fmt.Sprintf("first=%d second=%d", pair.First.Height, pair.Second.Height))
-
 			// get block data
 			blockParts := pair.First.MakePartSet(tmTypes.BlockPartSizeBytes)
 			blockId := tmTypes.BlockID{Hash: pair.First.Hash(), PartSetHeader: blockParts.Header()}
@@ -107,8 +105,8 @@ func StartBlockExecutor(blockCh <-chan *types.BlockPair, quitCh <-chan int, home
 			if err != nil {
 				panic(fmt.Errorf("failed to apply block: %w", err))
 			}
-
 		case <-quitCh:
+			// block collector exited, shutting down block executor
 			return
 		}
 	}
