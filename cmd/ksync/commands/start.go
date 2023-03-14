@@ -28,14 +28,14 @@ var (
 func init() {
 	startCmd.Flags().StringVar(&home, "home", "", "home directory")
 	if err := startCmd.MarkFlagRequired("home"); err != nil {
-		panic(err)
+		panic(fmt.Errorf("flag 'home' should be required: %w", err))
 	}
 
 	startCmd.Flags().StringVar(&restEndpoint, "rest", utils.DefaultRestEndpoint, fmt.Sprintf("kyve chain rest endpoint [default = %s]", utils.DefaultRestEndpoint))
 
 	startCmd.Flags().Int64Var(&poolId, "pool-id", 0, "pool id")
 	if err := startCmd.MarkFlagRequired("pool-id"); err != nil {
-		panic(err)
+		panic(fmt.Errorf("flag 'pool-id' should be required: %w", err))
 	}
 
 	startCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target sync height (including)")
@@ -62,7 +62,7 @@ var startCmd = &cobra.Command{
 		blockHeight := blockStore.Height()
 
 		if err := blockDB.Close(); err != nil {
-			panic(err)
+			panic(fmt.Errorf("failed to close block db: %w", err))
 		}
 
 		if targetHeight <= blockHeight {

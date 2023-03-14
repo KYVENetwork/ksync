@@ -23,7 +23,7 @@ func VerifyPool(restEndpoint string, poolId, blockHeight int64) {
 	var poolResponse types.PoolResponse
 
 	if err := json.Unmarshal(data, &poolResponse); err != nil {
-		panic(err)
+		panic(fmt.Errorf("failed to unmarshal pool response: %w", err))
 	}
 
 	if poolResponse.Pool.Data.Runtime != utils.KSyncRuntime {

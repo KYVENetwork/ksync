@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/tendermint/tendermint/libs/json"
+	"os"
 	"strconv"
 )
 
@@ -28,7 +29,7 @@ BundleCollector:
 		for _, bundle := range bundles {
 			toHeight, err := strconv.ParseInt(bundle.ToKey, 10, 64)
 			if err != nil {
-				panic(err)
+				panic(fmt.Errorf("failed to parse bundle to key to int64: %w", err))
 			}
 
 			if toHeight < startHeight {
@@ -36,10 +37,8 @@ BundleCollector:
 				continue
 			}
 
-			// TODO: check storage_provider_id
-
 			// retrieve bundle from storage provider
-			data, err := retrieveBundleFromStorageProvider(bundle.StorageId)
+			data, err := retrieveBundleFromStorageProvider(bundle)
 			if err != nil {
 				panic(fmt.Errorf("failed to retrieve bundle from Storage Provider: %w", err))
 			}
@@ -50,9 +49,9 @@ BundleCollector:
 			}
 
 			// decompress bundle
-			deflated, err := utils.DecompressGzip(data)
+			deflated, err := decompressBundleFromStorageProvider(bundle, data)
 			if err != nil {
-				panic(fmt.Errorf("failed to decompress bundle with gzip: %w", err))
+				panic(fmt.Errorf("failed to decompress bundle: %w", err))
 			}
 
 			// parse bundle
@@ -63,13 +62,8 @@ BundleCollector:
 			}
 
 			for _, dataItem := range bundle {
-				dataItemKey, err := strconv.ParseInt(dataItem.Key, 10, 64)
-				if err != nil {
-					panic(err)
-				}
-
 				// skip blocks until we reach start height
-				if dataItemKey < startHeight+1 {
+				if dataItem.Value.Height < startHeight+1 {
 					prevBlock = dataItem.Value
 					continue
 				}
@@ -95,6 +89,7 @@ BundleCollector:
 			}
 		}
 
+		// if there is no new page we do not continue
 		if nextKey == "" {
 			break
 		}
@@ -128,10 +123,27 @@ func getBundlesPage(restEndpoint string, poolId int64, paginationKey string) ([]
 	return bundlesResponse.FinalizedBundles, nextKey, nil
 }
 
-func retrieveBundleFromStorageProvider(storageId string) (data []byte, err error) {
-	data, err = utils.DownloadFromUrl(fmt.Sprintf("https://arweave.net/%s", storageId))
-	if err != nil {
-		return nil, err
+func decompressBundleFromStorageProvider(bundle types.FinalizedBundle, data []byte) (deflated []byte, err error) {
+	switch bundle.CompressionId {
+	case 1:
+		return utils.DecompressGzip(data)
+	default:
+		logger.Error(fmt.Sprintf("bundle has an invalid storage provider id %d. canceling sync", bundle.StorageProviderId))
+		os.Exit(1)
+	}
+
+	return
+}
+
+func retrieveBundleFromStorageProvider(bundle types.FinalizedBundle) (data []byte, err error) {
+	switch bundle.StorageProviderId {
+	case 1:
+		return utils.DownloadFromUrl(fmt.Sprintf("https://arweave.net/%s", bundle.StorageId))
+	case 2:
+		return utils.DownloadFromUrl(fmt.Sprintf("https://arweave.net/%s", bundle.StorageId))
+	default:
+		logger.Error(fmt.Sprintf("bundle has an invalid storage provider id %d. canceling sync", bundle.StorageProviderId))
+		os.Exit(1)
 	}
 
 	return
