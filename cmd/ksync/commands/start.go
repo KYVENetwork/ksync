@@ -68,15 +68,7 @@ var startCmd = &cobra.Command{
 
 		logger.Info(fmt.Sprintf("continuing from block height = %d", blockHeight+1))
 
-		pool.VerifyPool(poolId, blockHeight)
-
-		// process
-		// - find out current height from data/ folder
-		// - verify pool supports this runtime
-		// - verify pool has the min height already archived
-		// - find kyve bundle with corresponding height
-		// - start downloading bundles from storage provider from that height
-		// - apply blocks against blockchain application
+		pool.VerifyPool(poolId, blockHeight+1)
 
 		blockCh := make(chan *types.BlockPair)
 		quitCh := make(chan int)
@@ -88,6 +80,6 @@ var startCmd = &cobra.Command{
 
 		<-quitCh
 
-		logger.Info("done")
+		logger.Info(fmt.Sprintf("synced blocks from height %d to %d. done", blockHeight, targetHeight))
 	},
 }

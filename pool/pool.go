@@ -13,7 +13,7 @@ var (
 	logger = log.Logger()
 )
 
-func VerifyPool(poolId, lastBlockHeight int64) {
+func VerifyPool(poolId, blockHeight int64) {
 	data, err := utils.DownloadFromUrl(fmt.Sprintf("%s/kyve/query/v1beta1/pool/%d", utils.DefaultAPI, poolId))
 	if err != nil {
 		logger.Error(err.Error())
@@ -31,8 +31,8 @@ func VerifyPool(poolId, lastBlockHeight int64) {
 		os.Exit(1)
 	}
 
-	if poolResponse.Pool.Data.StartKey > uint64(lastBlockHeight+1) {
-		logger.Error(fmt.Sprintf("Latest block with height %d not stored on pool %d. Earliest block on pool has height %d", lastBlockHeight, poolId, poolResponse.Pool.Data.StartKey))
+	if poolResponse.Pool.Data.StartKey > uint64(blockHeight) {
+		logger.Error(fmt.Sprintf("Next block with height %d not stored on pool %d. Earliest block on pool has height %d", blockHeight, poolId, poolResponse.Pool.Data.StartKey))
 		os.Exit(1)
 	}
 
