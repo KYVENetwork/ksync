@@ -25,17 +25,18 @@ func StartBlockExecutor(blockCh <-chan *types.BlockPair, quitCh <-chan int, home
 	logger.Info(fmt.Sprintf("Config loaded. Moniker = %s", config.Moniker))
 
 	stateDB, stateStore, err := db.GetStateDBs(config)
+	defer stateDB.Close()
+
 	if err != nil {
 		panic(fmt.Errorf("failed to load state db: %w", err))
 	}
 
 	blockStoreDB, blockStore, err := db.GetBlockstoreDBs(config)
+	defer blockStoreDB.Close()
+
 	if err != nil {
 		panic(fmt.Errorf("failed to load blockstore db: %w", err))
 	}
-
-	_ = stateDB
-	_ = blockStoreDB
 
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
 	state, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(stateDB, defaultDocProvider)
@@ -79,18 +80,29 @@ func StartBlockExecutor(blockCh <-chan *types.BlockPair, quitCh <-chan int, home
 		evidencePool,
 	)
 
-	_ = blockExec
-
 	for {
 		select {
 		case pair := <-blockCh:
-			logger.Info(fmt.Sprintf("first=%d second=%d", pair.First.Header.Height, pair.Second.Header.Height))
+			logger.Info(fmt.Sprintf("first=%d second=%d", pair.First.Height, pair.Second.Height))
 
+			// get block data
 			blockParts := pair.First.MakePartSet(tmTypes.BlockPartSizeBytes)
 			blockId := tmTypes.BlockID{Hash: pair.First.Hash(), PartSetHeader: blockParts.Header()}
 
+			// verify block
+			if err := blockExec.ValidateBlock(state, pair.First); err != nil {
+				logger.Error(fmt.Sprintf("block validation failed at height %d", pair.First.Height))
+			}
+
+			// verify commits
+			if err := state.Validators.VerifyCommitLight(state.ChainID, blockId, pair.First.Height, pair.Second.LastCommit); err != nil {
+				logger.Error(fmt.Sprintf("light commit verification failed at height %d", pair.First.Height))
+			}
+
+			// store block
 			blockStore.SaveBlock(pair.First, blockParts, pair.Second.LastCommit)
 
+			// execute block against app
 			state, _, err = blockExec.ApplyBlock(state, blockId, pair.First)
 			if err != nil {
 				panic(fmt.Errorf("failed to apply block: %w", err))
