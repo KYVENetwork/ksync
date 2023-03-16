@@ -65,7 +65,7 @@ var startCmd = &cobra.Command{
 			panic(fmt.Errorf("failed to close block db: %w", err))
 		}
 
-		if targetHeight <= blockHeight {
+		if targetHeight > 0 && targetHeight <= blockHeight {
 			logger.Error(fmt.Sprintf("target height %d is not greater than current block height %d", targetHeight, blockHeight))
 			os.Exit(1)
 		}
@@ -84,6 +84,7 @@ var startCmd = &cobra.Command{
 
 		<-quitCh
 
+		// TODO: load state again to showcase number of blocks synced
 		logger.Info(fmt.Sprintf("synced blocks from height %d to %d. done", blockHeight, targetHeight))
 	},
 }
