@@ -1,13 +1,9 @@
 package commands
 
 import (
-	"KYVENetwork/ksync/collector"
 	cfg "KYVENetwork/ksync/config"
-	"KYVENetwork/ksync/executor"
 	"KYVENetwork/ksync/executor/db"
 	log "KYVENetwork/ksync/logger"
-	"KYVENetwork/ksync/pool"
-	"KYVENetwork/ksync/types"
 	"KYVENetwork/ksync/utils"
 	"fmt"
 	"github.com/spf13/cobra"
@@ -72,15 +68,15 @@ var startCmd = &cobra.Command{
 
 		logger.Info(fmt.Sprintf("continuing from block height = %d", blockHeight+1))
 
-		pool.VerifyPool(restEndpoint, poolId, blockHeight+1)
+		//pool.VerifyPool(restEndpoint, poolId, blockHeight+1)
 
-		blockCh := make(chan *types.BlockPair)
+		//blockCh := make(chan *types.BlockPair)
 		quitCh := make(chan int)
 
 		// collector
-		go collector.StartBlockCollector(blockCh, quitCh, restEndpoint, poolId, blockHeight+1, targetHeight)
+		//go collector.StartBlockCollector(blockCh, quitCh, restEndpoint, poolId, blockHeight+1, targetHeight)
 		// executor
-		go executor.StartBlockExecutor(blockCh, quitCh, home)
+		//go executor.StartBlockExecutor(blockCh, quitCh, home)
 
 		<-quitCh
 

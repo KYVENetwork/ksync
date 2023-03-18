@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"fmt"
 	bcv0 "github.com/tendermint/tendermint/blockchain/v0"
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
@@ -14,13 +15,12 @@ func MakeNodeInfo(
 	config *cfg.Config,
 	nodeKey *p2p.NodeKey,
 	genDoc *tmTypes.GenesisDoc,
-	state sm.State,
 ) (p2p.NodeInfo, error) {
 	nodeInfo := p2p.DefaultNodeInfo{
 		ProtocolVersion: p2p.NewProtocolVersion(
 			version.P2PProtocol,
-			state.Version.Consensus.Block,
-			state.Version.Consensus.App,
+			sm.InitStateVersion.Consensus.Block,
+			sm.InitStateVersion.Consensus.App,
 		),
 		DefaultNodeID: nodeKey.ID(),
 		Network:       genDoc.ChainID,
@@ -40,6 +40,8 @@ func MakeNodeInfo(
 	}
 
 	nodeInfo.ListenAddr = lAddr
+
+	fmt.Println(fmt.Sprintf("%v", nodeInfo))
 
 	err := nodeInfo.Validate()
 	return nodeInfo, err

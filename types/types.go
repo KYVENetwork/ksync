@@ -1,8 +1,6 @@
 package types
 
 import (
-	bundleTypes "github.com/KYVENetwork/chain/x/bundles/types"
-	queryTypes "github.com/KYVENetwork/chain/x/query/types"
 	tmCfg "github.com/tendermint/tendermint/config"
 	tmTypes "github.com/tendermint/tendermint/types"
 )
@@ -34,5 +32,20 @@ type DataItem struct {
 
 type Bundle = []DataItem
 
-type FinalizedBundleResponse = queryTypes.QueryFinalizedBundlesResponse
-type FinalizedBundle = bundleTypes.FinalizedBundle
+type Pagination struct {
+	NextKey []byte `json:"next_key"`
+}
+
+type FinalizedBundle struct {
+	StorageId         string `json:"storage_id,omitempty"`
+	StorageProviderId uint32 `json:"storage_provider_id,omitempty"`
+	CompressionId     uint32 `json:"compression_id,omitempty"`
+	FromKey           string `json:"from_key,omitempty"`
+	ToKey             string `json:"to_key,omitempty"`
+	DataHash          string `json:"data_hash,omitempty"`
+}
+
+type FinalizedBundleResponse = struct {
+	FinalizedBundles []FinalizedBundle `json:"finalized_bundles"`
+	Pagination       Pagination        `json:"pagination"`
+}
