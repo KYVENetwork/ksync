@@ -6,5 +6,10 @@ import (
 )
 
 func Logger() log.Logger {
-	return log.NewTMLogger(log.NewSyncWriter(os.Stdout))
+	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
+	option, err := log.AllowLevel("info")
+	if err != nil {
+		panic(err)
+	}
+	return log.NewFilter(logger, option)
 }

@@ -59,6 +59,7 @@ func CreateSwitch(config *cfg.Config,
 		transport,
 	)
 	sw.SetLogger(p2pLogger)
+	bcReactor.SetLogger(p2pLogger)
 	sw.AddReactor("BLOCKCHAIN", bcReactor)
 
 	sw.SetNodeInfo(nodeInfo)

@@ -11,13 +11,14 @@ import (
 	nm "github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"net/url"
+	"strconv"
 )
 
 var (
 	logger = log.Logger()
 )
 
-func StartP2PExecutor(blockCh map[int64]chan *types.BlockPair, quitCh <-chan int, homeDir string) {
+func StartP2PExecutor(blockCh map[int64]chan *types.BlockPair, quitCh <-chan int, homeDir string, startHeight, currentHeight int64) {
 	// load config
 	config, err := cfg.LoadConfig(homeDir)
 	if err != nil {
@@ -25,9 +26,18 @@ func StartP2PExecutor(blockCh map[int64]chan *types.BlockPair, quitCh <-chan int
 	}
 
 	peerAddress := config.P2P.ListenAddress
+	peerHost, err := url.Parse(peerAddress)
+	if err != nil {
+		panic(fmt.Errorf("invalid peer address: %w", err))
+	}
 
-	// TODO: always use config.P2P.ListenAddress - 1
-	config.P2P.ListenAddress = "tcp://0.0.0.0:26655"
+	port, err := strconv.ParseInt(peerHost.Port(), 10, 64)
+	if err != nil {
+		panic(fmt.Errorf("invalid peer port: %w", err))
+	}
+
+	// this peer should listen to different port to avoid port collision
+	config.P2P.ListenAddress = fmt.Sprintf("tcp://%s:%d", peerHost.Hostname(), port-1)
 
 	logger.Info(fmt.Sprintf("Config loaded. Moniker = %s", config.Moniker))
 
@@ -43,13 +53,6 @@ func StartP2PExecutor(blockCh map[int64]chan *types.BlockPair, quitCh <-chan int
 
 	logger.Info(fmt.Sprintf("generated new node key with id = %s", ksyncNodeKey.ID()))
 
-	//stateDB, _, err := db.GetStateDBs(config)
-	//defer stateDB.Close()
-
-	//if err != nil {
-	//	panic(fmt.Errorf("failed to load state db: %w", err))
-	//}
-
 	genDoc, err := nm.DefaultGenesisDocProviderFunc(config)()
 	if err != nil {
 		panic(fmt.Errorf("failed to load state and genDoc: %w", err))
@@ -64,7 +67,7 @@ func StartP2PExecutor(blockCh map[int64]chan *types.BlockPair, quitCh <-chan int
 	logger.Info("created multiplex transport")
 
 	p2pLogger := logger.With("module", "p2p")
-	bcR := reactor.NewBlockchainReactor(blockCh, 0, 600)
+	bcR := reactor.NewBlockchainReactor(blockCh, startHeight, currentHeight)
 	sw := p2pHelpers.CreateSwitch(config, transport, bcR, nodeInfo, ksyncNodeKey, p2pLogger)
 
 	// start the transport
@@ -77,12 +80,8 @@ func StartP2PExecutor(blockCh map[int64]chan *types.BlockPair, quitCh <-chan int
 	}
 
 	persistentPeers := make([]string, 0)
-	peerHost, err := url.Parse(peerAddress)
-	if err != nil {
-		panic(fmt.Errorf("invalid peer address: %w", err))
-	}
-
-	persistentPeers = append(persistentPeers, fmt.Sprintf("%s@%s:%s", nodeKey.ID(), peerHost.Hostname(), peerHost.Port()))
+	peerString := fmt.Sprintf("%s@%s:%s", nodeKey.ID(), peerHost.Hostname(), peerHost.Port())
+	persistentPeers = append(persistentPeers, peerString)
 
 	if err := sw.AddPersistentPeers(persistentPeers); err != nil {
 		panic("could not add persistent peers")
@@ -95,9 +94,7 @@ func StartP2PExecutor(blockCh map[int64]chan *types.BlockPair, quitCh <-chan int
 	}
 
 	// get peer
-	peerHost, err = url.Parse(peerAddress)
-
-	peer, err := p2p.NewNetAddressString(fmt.Sprintf("%s@%s:%s", nodeKey.ID(), peerHost.Hostname(), peerHost.Port()))
+	peer, err := p2p.NewNetAddressString(peerString)
 	if err != nil {
 		panic(fmt.Errorf("invalid peer address: %w", err))
 	}

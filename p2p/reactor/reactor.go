@@ -19,15 +19,15 @@ type BlockchainReactor struct {
 
 	blockCh map[int64]chan *types.BlockPair
 
-	poolStartHeight   int64
-	poolCurrentHeight int64
+	startHeight   int64
+	currentHeight int64
 }
 
-func NewBlockchainReactor(blockCh map[int64]chan *types.BlockPair, poolStartHeight, poolCurrentHeight int64) *BlockchainReactor {
+func NewBlockchainReactor(blockCh map[int64]chan *types.BlockPair, startHeight, currentHeight int64) *BlockchainReactor {
 	bcR := &BlockchainReactor{
-		blockCh:           blockCh,
-		poolStartHeight:   poolStartHeight,
-		poolCurrentHeight: poolCurrentHeight,
+		blockCh:       blockCh,
+		startHeight:   startHeight,
+		currentHeight: currentHeight,
 	}
 	bcR.BaseReactor = *p2p.NewBaseReactor("BlockchainReactor", bcR)
 	return bcR
@@ -60,8 +60,8 @@ func (bcR *BlockchainReactor) GetChannels() []*p2p.ChannelDescriptor {
 
 func (bcR *BlockchainReactor) AddPeer(peer p2p.Peer) {
 	msgBytes, err := bc.EncodeMsg(&bcproto.StatusResponse{
-		Base:   bcR.poolStartHeight,
-		Height: bcR.poolCurrentHeight})
+		Base:   bcR.startHeight,
+		Height: bcR.currentHeight})
 	if err != nil {
 		bcR.Logger.Error("could not convert msg to protobuf", "err", err)
 		return
@@ -73,7 +73,6 @@ func (bcR *BlockchainReactor) AddPeer(peer p2p.Peer) {
 func (bcR *BlockchainReactor) respondToPeer(msg *bcproto.BlockRequest,
 	src p2p.Peer) (queued bool) {
 
-	fmt.Println(fmt.Sprintf("requested block with height %d, waiting ...", msg.Height))
 	pair := <-bcR.blockCh[msg.Height]
 	if pair.First != nil {
 		bl, err := pair.First.ToProto()
@@ -87,8 +86,6 @@ func (bcR *BlockchainReactor) respondToPeer(msg *bcproto.BlockRequest,
 			bcR.Logger.Error("could not marshal msg", "err", err)
 			return false
 		}
-
-		fmt.Println(fmt.Sprintf("sending requested block with height %d", msg.Height))
 
 		return src.TrySend(BlockchainChannel, msgBytes)
 	}
@@ -113,12 +110,22 @@ func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 	}
 
 	switch msg := msg.(type) {
+	case *bcproto.StatusRequest:
+		bcR.Logger.Info("Incoming status request")
+
+		msgBytes, err := bc.EncodeMsg(&bcproto.StatusResponse{
+			Base:   bcR.startHeight,
+			Height: bcR.currentHeight})
+		if err != nil {
+			bcR.Logger.Error("could not convert msg to protobuf", "err", err)
+			return
+		}
+
+		src.Send(BlockchainChannel, msgBytes)
 	case *bcproto.BlockRequest:
-		fmt.Println("Incoming block request")
-		bcR.Logger.Info("Incoming block request")
+		bcR.Logger.Info("Incoming block request", "height", msg.Height)
 		bcR.respondToPeer(msg, src)
 	default:
-		fmt.Println("unknown")
 		bcR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
 	}
 }

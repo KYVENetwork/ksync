@@ -19,8 +19,9 @@ type Block = tmTypes.Block
 type PoolResponse = struct {
 	Pool struct {
 		Data struct {
-			Runtime  string `json:"runtime"`
-			StartKey uint64 `json:"start_key"`
+			Runtime    string `json:"runtime"`
+			StartKey   int64  `json:"start_key"`
+			CurrentKey int64  `json:"current_key"`
 		} `json:"data"`
 	} `json:"pool"`
 }
