@@ -18,7 +18,7 @@ var (
 	logger = log.Logger()
 )
 
-func StartP2PExecutor(blockCh map[int64]chan *types.BlockPair, quitCh <-chan int, homeDir string, startHeight, currentHeight int64) {
+func StartP2PExecutor(blockCh <-chan *types.BlockPair, quitCh <-chan int, homeDir string, startHeight, currentHeight int64) {
 	// load config
 	config, err := cfg.LoadConfig(homeDir)
 	if err != nil {

@@ -15,7 +15,7 @@ var (
 	logger = log.Logger()
 )
 
-func StartBlockCollector(blockCh map[int64]chan *types.BlockPair, quitCh chan<- int, restEndpoint string, poolId, startHeight, targetHeight int64) {
+func StartBlockCollector(blockCh chan<- *types.BlockPair, quitCh chan<- int, restEndpoint string, poolId, startHeight, targetHeight int64) {
 	paginationKey := ""
 	var prevBlock *types.Block
 
@@ -75,8 +75,7 @@ BundleCollector:
 				}
 
 				// send bundle to sync reactor
-				fmt.Println(fmt.Sprintf("sending block %d in chanel", prevBlock.Height))
-				blockCh[prevBlock.Height] <- &types.BlockPair{
+				blockCh <- &types.BlockPair{
 					First:  prevBlock,
 					Second: dataItem.Value,
 				}

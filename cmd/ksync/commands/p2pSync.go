@@ -34,12 +34,8 @@ var p2pSyncCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		startHeight, currentHeight := pool.GetPoolInfo(restEndpoint, poolId)
 
-		var blockCh = make(map[int64]chan *types.BlockPair)
+		var blockCh = make(chan *types.BlockPair, 1000)
 		quitCh := make(chan int)
-
-		for h := startHeight; h <= currentHeight; h++ {
-			blockCh[h] = make(chan *types.BlockPair, 2)
-		}
 
 		// collector
 		go collector.StartBlockCollector(blockCh, quitCh, restEndpoint, poolId, startHeight, currentHeight)
