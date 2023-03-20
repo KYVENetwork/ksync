@@ -84,6 +84,8 @@ archived the first 600 blocks of the chain `osmosis-1`
 ./ksync start --mode=p2p --home="/Users/<user>/.osmosisd" --pool-id=3 --rest=http://35.158.99.65:1317
 ```
 
+**INFO**: The rest endpoint points to a local KYVE chain running with some testdata
+
 You should see the peer connecting and sending over blocks to the osmosis node. After the 600 blocks were applied
 you can abort both processes with CMD+C
 
@@ -137,6 +139,8 @@ archived the first 5000 blocks of the chain `cosmoshub-4`
 ```bash
 ./ksync start --mode=p2p --home="/Users/<user>/.gaia" --pool-id=0 --rest=http://35.158.99.65:1317
 ```
+
+**INFO**: The rest endpoint points to a local KYVE chain running with some testdata
 
 You should see the peer connecting and sending over blocks to the gaia node. After the 5000 blocks were applied
 you can abort both processes with CMD+C
