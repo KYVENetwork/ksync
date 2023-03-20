@@ -153,6 +153,10 @@ func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 		bcR.Logger.Info("Incoming block request", "height", msg.Height)
 		bcR.sendBlockToPeer(msg, src)
 		//bcR.sendStatusToPeer(src)
+	case *bcproto.StatusResponse:
+		bcR.Logger.Info("Incoming status response")
+		fmt.Println(msg.Base, msg.Height)
+		//bcR.sendStatusToPeer(src)
 	default:
 		bcR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
 	}
