@@ -15,9 +15,8 @@ var (
 	logger = log.Logger()
 )
 
-func StartBlockCollector(blockCh chan<- *types.BlockPair, quitCh chan<- int, restEndpoint string, poolId, startHeight, targetHeight int64) {
+func StartBlockCollector(blockCh chan<- *types.Block, quitCh chan<- int, restEndpoint string, poolId, startHeight, targetHeight int64) {
 	paginationKey := ""
-	var prevBlock *types.Block
 
 BundleCollector:
 	for {
@@ -63,29 +62,17 @@ BundleCollector:
 
 			for _, dataItem := range bundle {
 				// skip blocks until we reach start height
-				if dataItem.Value.Height < startHeight+1 {
-					prevBlock = dataItem.Value
-					continue
-				}
-
-				// skip if we have no previous block
-				if prevBlock == nil || dataItem.Value == nil {
-					prevBlock = dataItem.Value
+				if dataItem.Value.Height < startHeight {
 					continue
 				}
 
 				// send bundle to sync reactor
-				blockCh <- &types.BlockPair{
-					First:  prevBlock,
-					Second: dataItem.Value,
-				}
+				blockCh <- dataItem.Value
 
 				// exit if target height is reached
-				if targetHeight > 0 && prevBlock.Height == targetHeight+1 {
+				if targetHeight > 0 && dataItem.Value.Height == targetHeight+1 {
 					break BundleCollector
 				}
-
-				prevBlock = dataItem.Value
 			}
 		}
 

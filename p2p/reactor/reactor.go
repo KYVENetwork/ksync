@@ -19,7 +19,7 @@ const (
 type BlockchainReactor struct {
 	p2p.BaseReactor
 
-	blockCh <-chan *types.BlockPair
+	blockCh <-chan *types.Block
 
 	blocks map[int64]*types.Block
 	height int64
@@ -28,7 +28,7 @@ type BlockchainReactor struct {
 	targetHeight int64
 }
 
-func NewBlockchainReactor(blockCh <-chan *types.BlockPair, startHeight, targetHeight int64) *BlockchainReactor {
+func NewBlockchainReactor(blockCh <-chan *types.Block, startHeight, targetHeight int64) *BlockchainReactor {
 	bcR := &BlockchainReactor{
 		blockCh:      blockCh,
 		blocks:       make(map[int64]*types.Block),
@@ -53,8 +53,8 @@ func (bcR *BlockchainReactor) OnStart() error {
 
 func (bcR *BlockchainReactor) retrieveBlocks() {
 	for {
-		pair := <-bcR.blockCh
-		bcR.blocks[pair.First.Height] = pair.First
+		block := <-bcR.blockCh
+		bcR.blocks[block.Height] = block
 	}
 }
 
@@ -93,8 +93,6 @@ func (bcR *BlockchainReactor) sendStatusToPeer(src p2p.Peer) (queued bool) {
 	//	bcR.Logger.Error("could not convert msg to protobuf", "err", err)
 	//	return
 	//}
-
-	fmt.Println(bcR.startHeight, bcR.height)
 
 	return src.Send(BlockchainChannel, msgBytes)
 }
