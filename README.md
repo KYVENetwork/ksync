@@ -11,9 +11,10 @@ with KYVE and can later be retrieved with this script.
 
 ## How does it work?
 
-This script acts and mimics a peer in the network. When the node starts the addrbook should be empty, therefore looking
-for a peer it can connect to. When this script starts it mimics a peer which has all the blocks. Once the node requests
-those blocks the script pulls them from Arweave, checks the checksum of KYVE and forwards them through the p2p channels.
+This script acts and mimics a peer in the network. When the node starts the addrbook and any peers in the config should be empty, therefore looking
+for new peers it can connect to. When this script starts it mimics a peer which has all the blocks and tries to connect with the node. Once the node accepts the new peer it requests
+those blocks, which the script pulls down from Arweave, checks the checksum of KYVE and forwards them through the p2p channels. After the node has synced blocks with 
+KYVE it can connect to other, "real" peers and continue on consensus or pull down remaining blocks.
 
 ## Important
 
@@ -24,7 +25,7 @@ data are shown below. This is **not** production ready and future plans are maki
 so it can be used by every cosmos chain to sync historical or recent blocks. Further plans are to include state sync
 so nodes can join networks even faster without worrying if the snapshots are valid or available.
 
-**Important** After a sync the node can continue normally and take part in consensus or futher fast sync remaining blocks.
+**NOTE**: After a sync the node can continue normally and take part in consensus or futher fast sync remaining blocks.
 For now to restart the sync the data folder has to be cleared. For that the command `./bin unsafe-reset-all` can be used.
 
 ## Install
@@ -37,7 +38,7 @@ cd ksync
 go build -o ksync cmd/ksync/main.go
 ```
 
-## Sync Osmosis
+## Example 1: Sync Osmosis
 
 To sync osmosis you have to download and set up the correct osmosis binary. To sync from genesis the version `v3.1.0` has
 to be used. You can download them [here](https://github.com/osmosis-labs/osmosis/releases/tag/v3.1.0) or build them from source: [https://github.com/osmosis-labs/osmosis](https://github.com/osmosis-labs/osmosis)
@@ -46,7 +47,7 @@ Verify installation with
 
 ```bash
 ./osmosisd version
--> 3.1.0
+3.1.0
 ```
 
 After the installation init the config
@@ -89,7 +90,7 @@ you can abort both processes with CMD+C
 When you want to continue to sync normally you can now add an addrbook or add peers in `persistent_peers`. When you start
 the node again the node should continue normally and tries to sync the remaining blocks.
 
-## Sync Cosmos
+## Example 2: Sync Cosmos
 
 To sync cosmos you have to download and set up the correct gaia binary. To sync from genesis the version `v4.2.1` has
 to be used. You can download them [here](https://github.com/cosmos/gaia/releases/tag/v4.2.1) or build them from source: [https://github.com/cosmos/gaia](https://github.com/cosmos/gaia)
@@ -98,7 +99,7 @@ Verify installation with
 
 ```bash
 ./gaiad version
--> 4.2.1
+4.2.1
 ```
 
 After the installation init the config
