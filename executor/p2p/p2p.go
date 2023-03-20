@@ -2,9 +2,9 @@ package p2p
 
 import (
 	cfg "KYVENetwork/ksync/config"
+	p2pHelpers "KYVENetwork/ksync/executor/p2p/helpers"
+	"KYVENetwork/ksync/executor/p2p/reactor"
 	log "KYVENetwork/ksync/logger"
-	p2pHelpers "KYVENetwork/ksync/p2p/helpers"
-	"KYVENetwork/ksync/p2p/reactor"
 	"KYVENetwork/ksync/types"
 	"fmt"
 	"github.com/tendermint/tendermint/crypto/ed25519"
@@ -18,7 +18,7 @@ var (
 	logger = log.Logger()
 )
 
-func StartP2PExecutor(blockCh <-chan *types.Block, quitCh <-chan int, homeDir string, startHeight, currentHeight int64) {
+func StartP2PExecutor(blockCh <-chan *types.Block, quitCh chan<- int, homeDir string, startHeight, endHeight int64) {
 	// load config
 	config, err := cfg.LoadConfig(homeDir)
 	if err != nil {
@@ -67,7 +67,7 @@ func StartP2PExecutor(blockCh <-chan *types.Block, quitCh <-chan int, homeDir st
 	logger.Info("created multiplex transport")
 
 	p2pLogger := logger.With("module", "p2p")
-	bcR := reactor.NewBlockchainReactor(blockCh, startHeight, currentHeight)
+	bcR := reactor.NewBlockchainReactor(blockCh, quitCh, startHeight, endHeight)
 	sw := p2pHelpers.CreateSwitch(config, transport, bcR, nodeInfo, ksyncNodeKey, p2pLogger)
 
 	// start the transport

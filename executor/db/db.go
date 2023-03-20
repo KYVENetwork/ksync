@@ -1,57 +1,123 @@
 package db
 
 import (
+	cfg "KYVENetwork/ksync/config"
+	"KYVENetwork/ksync/executor/db/helpers"
+	"KYVENetwork/ksync/executor/db/store"
+	log "KYVENetwork/ksync/logger"
 	"KYVENetwork/ksync/types"
+	"fmt"
 	nm "github.com/tendermint/tendermint/node"
-	"github.com/tendermint/tendermint/state"
-	"github.com/tendermint/tendermint/store"
-	dbm "github.com/tendermint/tm-db"
+	sm "github.com/tendermint/tendermint/state"
+	tmTypes "github.com/tendermint/tendermint/types"
 )
 
-type DBContext struct {
-	ID     string
-	Config *types.Config
-}
+var (
+	logger = log.Logger()
+)
 
-func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
-	dbType := dbm.BackendType(ctx.Config.DBBackend)
-	return dbm.NewDB(ctx.ID, dbType, ctx.Config.DBDir())
-}
-
-func GetStateDBs(config *types.Config) (dbm.DB, state.Store, error) {
-	stateDB, err := DefaultDBProvider(&DBContext{"state", config})
+func StartDBExecutor(blockCh <-chan *types.Block, quitCh <-chan int, homeDir string, startHeight, endHeight int64) {
+	config, err := cfg.LoadConfig(homeDir)
 	if err != nil {
-		return nil, nil, err
+		panic(fmt.Errorf("failed to load config: %w", err))
 	}
 
-	stateStore := state.NewStore(stateDB)
+	logger.Info(fmt.Sprintf("Config loaded. Moniker = %s", config.Moniker))
 
-	return stateDB, stateStore, nil
-}
+	stateDB, stateStore, err := store.GetStateDBs(config)
+	defer stateDB.Close()
 
-func GetBlockstoreDBs(config *types.Config) (dbm.DB, *store.BlockStore, error) {
-	blockStoreDB, err := DefaultDBProvider(&DBContext{"blockstore", config})
 	if err != nil {
-		return nil, nil, err
+		panic(fmt.Errorf("failed to load state db: %w", err))
 	}
 
-	blockStore := store.NewBlockStore(blockStoreDB)
+	blockStoreDB, blockStore, err := store.GetBlockstoreDBs(config)
+	defer blockStoreDB.Close()
 
-	return blockStoreDB, blockStore, nil
-}
-
-func GetStateAndGenDoc(config *types.Config) (*state.State, *types.GenesisDoc, error) {
-	stateDB, _, err := GetStateDBs(config)
 	if err != nil {
-		return nil, nil, err
+		panic(fmt.Errorf("failed to load blockstore db: %w", err))
 	}
 
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
-
-	s, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(stateDB, defaultDocProvider)
+	state, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(stateDB, defaultDocProvider)
 	if err != nil {
-		return nil, nil, err
+		panic(fmt.Errorf("failed to load state and genDoc: %w", err))
 	}
 
-	return &s, genDoc, nil
+	logger.Info(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
+
+	proxyApp, err := helpers.CreateAndStartProxyAppConns(config)
+	if err != nil {
+		panic(fmt.Errorf("failed to start proxy app: %w", err))
+	}
+
+	eventBus, err := helpers.CreateAndStartEventBus()
+	if err != nil {
+		panic(fmt.Errorf("failed to start event bus: %w", err))
+	}
+
+	if err := helpers.DoHandshake(stateStore, state, blockStore, genDoc, eventBus, proxyApp); err != nil {
+		panic(fmt.Errorf("failed to do handshake: %w", err))
+	}
+
+	state, err = stateStore.Load()
+	if err != nil {
+		panic(fmt.Errorf("failed to reload state: %w", err))
+	}
+
+	_, mempool := helpers.CreateMempoolAndMempoolReactor(config, proxyApp, state)
+
+	_, evidencePool, err := helpers.CreateEvidenceReactor(config, stateStore, blockStore)
+	if err != nil {
+		panic(fmt.Errorf("failed to create evidence reactor: %w", err))
+	}
+
+	blockExec := sm.NewBlockExecutor(
+		stateStore,
+		logger.With("module", "state"),
+		proxyApp.Consensus(),
+		mempool,
+		evidencePool,
+	)
+
+	var prevBlock *types.Block
+
+	for {
+		block := <-blockCh
+
+		// set previous block
+		if prevBlock == nil {
+			prevBlock = block
+			continue
+		}
+
+		// get block data
+		blockParts := prevBlock.MakePartSet(tmTypes.BlockPartSizeBytes)
+		blockId := tmTypes.BlockID{Hash: prevBlock.Hash(), PartSetHeader: blockParts.Header()}
+
+		// verify block
+		if err := blockExec.ValidateBlock(state, prevBlock); err != nil {
+			logger.Error(fmt.Sprintf("block validation failed at height %d", prevBlock.Height))
+		}
+
+		// verify commits
+		if err := state.Validators.VerifyCommitLight(state.ChainID, blockId, prevBlock.Height, block.LastCommit); err != nil {
+			logger.Error(fmt.Sprintf("light commit verification failed at height %d", prevBlock.Height))
+		}
+
+		// store block
+		blockStore.SaveBlock(prevBlock, blockParts, block.LastCommit)
+
+		// execute block against app
+		state, _, err = blockExec.ApplyBlock(state, blockId, prevBlock)
+		if err != nil {
+			panic(fmt.Errorf("failed to apply block: %w", err))
+		}
+
+		if block.Height == endHeight {
+			break
+		} else {
+			prevBlock = block
+		}
+	}
 }

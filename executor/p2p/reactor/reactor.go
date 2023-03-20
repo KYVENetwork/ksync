@@ -20,21 +20,22 @@ type BlockchainReactor struct {
 	p2p.BaseReactor
 
 	blockCh <-chan *types.Block
+	quitCh  chan<- int
 
 	blocks map[int64]*types.Block
 	height int64
 
-	startHeight  int64
-	targetHeight int64
+	startHeight int64
+	endHeight   int64
 }
 
-func NewBlockchainReactor(blockCh <-chan *types.Block, startHeight, targetHeight int64) *BlockchainReactor {
+func NewBlockchainReactor(blockCh <-chan *types.Block, quitCh chan<- int, startHeight, endHeight int64) *BlockchainReactor {
 	bcR := &BlockchainReactor{
-		blockCh:      blockCh,
-		blocks:       make(map[int64]*types.Block),
-		height:       startHeight + BlockDelta,
-		startHeight:  startHeight,
-		targetHeight: targetHeight,
+		blockCh:     blockCh,
+		blocks:      make(map[int64]*types.Block),
+		height:      startHeight + BlockDelta,
+		startHeight: startHeight,
+		endHeight:   endHeight,
 	}
 	bcR.BaseReactor = *p2p.NewBaseReactor("BlockchainReactor", bcR)
 	return bcR
@@ -81,7 +82,7 @@ func (bcR *BlockchainReactor) AddPeer(peer p2p.Peer) {
 func (bcR *BlockchainReactor) sendStatusToPeer(src p2p.Peer) (queued bool) {
 	msgBytes, err := bc.EncodeMsg(&bcproto.StatusResponse{
 		Base:   bcR.startHeight,
-		Height: bcR.targetHeight})
+		Height: bcR.endHeight})
 	if err != nil {
 		bcR.Logger.Error("could not convert msg to protobuf", "err", err)
 		return
@@ -130,6 +131,8 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 	}
 
 	delete(bcR.blocks, block.Height)
+
+	bcR.Stop()
 
 	return src.TrySend(BlockchainChannel, msgBytes)
 }

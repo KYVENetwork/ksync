@@ -15,7 +15,7 @@ var (
 	logger = log.Logger()
 )
 
-func StartBlockCollector(blockCh chan<- *types.Block, quitCh chan<- int, restEndpoint string, poolId, startHeight, targetHeight int64) {
+func StartBlockCollector(blockCh chan<- *types.Block, restEndpoint string, poolId, startHeight, targetHeight int64) {
 	paginationKey := ""
 
 BundleCollector:

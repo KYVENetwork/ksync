@@ -13,7 +13,7 @@ var (
 	logger = log.Logger()
 )
 
-func GetPoolInfo(restEndpoint string, poolId int64) (startHeight, currentHeight int64) {
+func GetPoolInfo(restEndpoint string, poolId int64) (int64, int64) {
 	data, err := utils.DownloadFromUrl(fmt.Sprintf("%s/kyve/query/v1beta1/pool/%d", restEndpoint, poolId))
 	if err != nil {
 		logger.Error(err.Error())
