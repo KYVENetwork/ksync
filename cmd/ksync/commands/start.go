@@ -20,6 +20,7 @@ var (
 	mode         string
 	home         string
 	poolId       int64
+	targetHeight int64
 	restEndpoint string
 )
 
@@ -41,6 +42,8 @@ func init() {
 		panic(fmt.Errorf("flag 'pool-id' should be required: %w", err))
 	}
 
+	startCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target height (including)")
+
 	rootCmd.AddCommand(startCmd)
 }
 
@@ -52,43 +55,18 @@ var startCmd = &cobra.Command{
 			logger.Error("flag sync-mode has to be either \"p2p\" or \"db\"")
 		}
 
-		//config, err := cfg.LoadConfig(home)
-		//if err != nil {
-		//	logger.Error(err.Error())
-		//	os.Exit(1)
-		//}
-		//
-		//blockDB, blockStore, err := db.GetBlockstoreDBs(config)
-		//if err != nil {
-		//	logger.Error(err.Error())
-		//	os.Exit(1)
-		//}
-		//
-		//blockHeight := blockStore.Height()
-		//
-		//if err := blockDB.Close(); err != nil {
-		//	panic(fmt.Errorf("failed to close block db: %w", err))
-		//}
-		//
-		//logger.Info(fmt.Sprintf("continuing from block height = %d", blockHeight+1))
-
-		startHeight, endHeight := pool.GetPoolInfo(restEndpoint, poolId)
+		startHeight, latestHeight := pool.GetPoolInfo(restEndpoint, poolId)
 
 		blockCh := make(chan *types.Block, 1000)
 		quitCh := make(chan int)
 
-		// collector
-		go collector.StartBlockCollector(blockCh, restEndpoint, poolId, startHeight, endHeight)
-
-		// executor
 		if mode == "p2p" {
-			go p2p.StartP2PExecutor(blockCh, quitCh, home, startHeight, endHeight)
+			go p2p.StartP2PExecutor(home, poolId, restEndpoint, targetHeight)
 		} else {
-			go db.StartDBExecutor(blockCh, quitCh, home, startHeight, endHeight)
+			go collector.StartBlockCollector(blockCh, restEndpoint, poolId, startHeight, latestHeight)
+			go db.StartDBExecutor(blockCh, quitCh, home, startHeight, latestHeight)
 		}
 
 		<-quitCh
-
-		logger.Info(fmt.Sprintf("synced blocks from height %d to %d. done", startHeight, endHeight))
 	},
 }

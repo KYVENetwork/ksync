@@ -1,6 +1,7 @@
 package reactor
 
 import (
+	"KYVENetwork/ksync/collector"
 	"KYVENetwork/ksync/types"
 	"fmt"
 	bc "github.com/tendermint/tendermint/blockchain"
@@ -19,23 +20,31 @@ const (
 type BlockchainReactor struct {
 	p2p.BaseReactor
 
-	blockCh <-chan *types.Block
-	quitCh  chan<- int
+	blockCh chan *types.Block
+	quitCh  chan int
 
 	blocks     map[int64]*types.Block
+	sent       map[int64]bool
 	peerHeight int64
+
+	poolId       int64
+	restEndpoint string
 
 	startHeight int64
 	endHeight   int64
 }
 
-func NewBlockchainReactor(blockCh <-chan *types.Block, quitCh chan<- int, startHeight, endHeight int64) *BlockchainReactor {
+func NewBlockchainReactor(blockCh chan *types.Block, quitCh chan int, poolId int64, restEndpoint string, startHeight, endHeight int64) *BlockchainReactor {
 	bcR := &BlockchainReactor{
-		blockCh:     blockCh,
-		blocks:      make(map[int64]*types.Block),
-		peerHeight:  startHeight,
-		startHeight: startHeight,
-		endHeight:   endHeight,
+		blockCh:      blockCh,
+		quitCh:       quitCh,
+		blocks:       make(map[int64]*types.Block),
+		sent:         make(map[int64]bool),
+		peerHeight:   startHeight,
+		poolId:       poolId,
+		restEndpoint: restEndpoint,
+		startHeight:  startHeight,
+		endHeight:    endHeight,
 	}
 	bcR.BaseReactor = *p2p.NewBaseReactor("BlockchainReactor", bcR)
 	return bcR
@@ -94,7 +103,7 @@ func (bcR *BlockchainReactor) sendStatusToPeer(src p2p.Peer) (queued bool) {
 		return
 	}
 
-	fmt.Println("send status = ", bcR.startHeight, height)
+	bcR.Logger.Info("Sent status to peer", "base", bcR.startHeight, "height", height)
 
 	return src.Send(BlockchainChannel, msgBytes)
 }
@@ -125,25 +134,27 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 		return false
 	}
 
-	bcR.Logger.Info("Sent block to peer", "height", block.Height)
+	height := bcR.peerHeight
+	bcR.sent[block.Height] = true
 
-	minHeight := block.Height
-
-	for k := range bcR.blocks {
-		if k < minHeight {
-			minHeight = k
+	// check if this new block could update the potential peer height
+	for h := bcR.peerHeight; h < bcR.endHeight; h++ {
+		if s := bcR.sent[h]; !s {
+			break
 		}
+
+		height = h
+		delete(bcR.sent, h-1)
 	}
 
-	// check if peer height has changed
-	if bcR.peerHeight < minHeight {
-		bcR.peerHeight = minHeight
+	// if new peer height increased we send an updated status
+	if height > bcR.peerHeight {
+		bcR.peerHeight = height
 		bcR.sendStatusToPeer(src)
 	}
 
+	bcR.Logger.Info("Sent block to peer", "height", block.Height)
 	delete(bcR.blocks, block.Height)
-
-	fmt.Println("peer height = ", bcR.peerHeight)
 
 	return src.TrySend(BlockchainChannel, msgBytes)
 }
@@ -164,8 +175,11 @@ func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 		bcR.Logger.Info("Incoming block request", "height", msg.Height)
 		bcR.sendBlockToPeer(msg, src)
 	case *bcproto.StatusResponse:
-		bcR.Logger.Info("Incoming status response")
-		fmt.Println(msg.Base, msg.Height)
+		bcR.Logger.Info("Incoming status response", "base", msg.Base, "height", msg.Height)
+		go collector.StartBlockCollector(bcR.blockCh, bcR.restEndpoint, bcR.poolId, msg.Height+1, bcR.endHeight)
+
+		bcR.peerHeight = msg.Height + 1
+		bcR.sendStatusToPeer(src)
 	default:
 		bcR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
 	}

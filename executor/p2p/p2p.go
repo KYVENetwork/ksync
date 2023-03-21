@@ -5,24 +5,42 @@ import (
 	p2pHelpers "KYVENetwork/ksync/executor/p2p/helpers"
 	"KYVENetwork/ksync/executor/p2p/reactor"
 	log "KYVENetwork/ksync/logger"
+	"KYVENetwork/ksync/pool"
 	"KYVENetwork/ksync/types"
 	"fmt"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	nm "github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"net/url"
+	"os"
 	"strconv"
 )
 
 var (
-	logger = log.Logger()
+	blockCh = make(chan *types.Block, 1000)
+	quitCh  = make(chan int)
+	logger  = log.Logger()
 )
 
-func StartP2PExecutor(blockCh <-chan *types.Block, quitCh chan<- int, homeDir string, startHeight, endHeight int64) {
+func StartP2PExecutor(homeDir string, poolId int64, restEndpoint string, targetHeight int64) {
 	// load config
 	config, err := cfg.LoadConfig(homeDir)
 	if err != nil {
 		panic(fmt.Errorf("failed to load config: %w", err))
+	}
+
+	// load start and latest height
+	startHeight, latestHeight := pool.GetPoolInfo(restEndpoint, poolId)
+
+	// if target height is smaller than the base height of the pool we exit
+	if targetHeight > 0 && targetHeight < startHeight {
+		logger.Error(fmt.Sprintf("target height %d is smaller than pool starting height %d", targetHeight, startHeight))
+		os.Exit(1)
+	}
+
+	// if the latest height of the pool is smaller than the target height we decrease the target height to this value
+	if latestHeight < targetHeight {
+		targetHeight = latestHeight
 	}
 
 	peerAddress := config.P2P.ListenAddress
@@ -67,7 +85,7 @@ func StartP2PExecutor(blockCh <-chan *types.Block, quitCh chan<- int, homeDir st
 	logger.Info("created multiplex transport")
 
 	p2pLogger := logger.With("module", "p2p")
-	bcR := reactor.NewBlockchainReactor(blockCh, quitCh, startHeight, endHeight)
+	bcR := reactor.NewBlockchainReactor(blockCh, quitCh, poolId, restEndpoint, startHeight, latestHeight)
 	sw := p2pHelpers.CreateSwitch(config, transport, bcR, nodeInfo, ksyncNodeKey, p2pLogger)
 
 	// start the transport
