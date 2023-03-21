@@ -38,6 +38,8 @@ cd ksync
 go build -o ksync cmd/ksync/main.go
 ```
 
+For every example the ulimit has to be increased with `ulimit -n 16384`
+
 ## Example 1: Sync Osmosis
 
 To sync osmosis you have to download and set up the correct osmosis binary. To sync from genesis the version `v3.1.0` has
