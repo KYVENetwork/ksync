@@ -30,17 +30,18 @@ func StartP2PExecutor(homeDir string, poolId int64, restEndpoint string, targetH
 	}
 
 	// load start and latest height
-	startHeight, latestHeight := pool.GetPoolInfo(restEndpoint, poolId)
+	startHeight, endHeight := pool.GetPoolInfo(restEndpoint, poolId)
 
-	// if target height is smaller than the base height of the pool we exit
-	if targetHeight > 0 && targetHeight < startHeight {
-		logger.Error(fmt.Sprintf("target height %d is smaller than pool starting height %d", targetHeight, startHeight))
-		os.Exit(1)
+	// if target height was set and is smaller than latest height this will be our new target height
+	// we add +1 to make target height including
+	if targetHeight > 0 && targetHeight+1 < endHeight {
+		endHeight = targetHeight + 1
 	}
 
-	// if the latest height of the pool is smaller than the target height we decrease the target height to this value
-	if latestHeight < targetHeight {
-		targetHeight = latestHeight
+	// if target height is smaller than the base height of the pool we exit
+	if endHeight <= startHeight {
+		logger.Error(fmt.Sprintf("target height %d has to be bigger than starting height %d", endHeight, startHeight))
+		os.Exit(1)
 	}
 
 	peerAddress := config.P2P.ListenAddress
@@ -85,7 +86,7 @@ func StartP2PExecutor(homeDir string, poolId int64, restEndpoint string, targetH
 	logger.Info("created multiplex transport")
 
 	p2pLogger := logger.With("module", "p2p")
-	bcR := reactor.NewBlockchainReactor(blockCh, quitCh, poolId, restEndpoint, startHeight, latestHeight)
+	bcR := reactor.NewBlockchainReactor(blockCh, quitCh, poolId, restEndpoint, startHeight, endHeight)
 	sw := p2pHelpers.CreateSwitch(config, transport, bcR, nodeInfo, ksyncNodeKey, p2pLogger)
 
 	// start the transport

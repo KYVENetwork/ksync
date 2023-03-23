@@ -8,6 +8,7 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
 	bcproto "github.com/tendermint/tendermint/proto/tendermint/blockchain"
+	"os"
 	"reflect"
 	"time"
 )
@@ -91,6 +92,7 @@ func (bcR *BlockchainReactor) AddPeer(peer p2p.Peer) {
 func (bcR *BlockchainReactor) sendStatusToPeer(src p2p.Peer) (queued bool) {
 	height := bcR.peerHeight + BlockDelta
 
+	// limit height to target height
 	if height > bcR.endHeight {
 		height = bcR.endHeight
 	}
@@ -112,10 +114,9 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 	var block *types.Block
 	var found bool
 
+	// check if requested block is already available, wait a bit longer if not
 	for {
-		block, found = bcR.blocks[msg.Height]
-
-		if found {
+		if block, found = bcR.blocks[msg.Height]; found {
 			break
 		}
 
@@ -138,7 +139,7 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 	bcR.sent[block.Height] = true
 
 	// check if this new block could update the potential peer height
-	for h := bcR.peerHeight; h < bcR.endHeight; h++ {
+	for h := bcR.peerHeight; h <= bcR.endHeight; h++ {
 		if s := bcR.sent[h]; !s {
 			break
 		}
@@ -155,6 +156,12 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 
 	bcR.Logger.Info("Sent block to peer", "height", block.Height)
 	delete(bcR.blocks, block.Height)
+
+	// check exit condition
+	if bcR.peerHeight == bcR.endHeight {
+		bcR.Logger.Info(fmt.Sprintf("Synced from height %d to target height %d", bcR.startHeight, bcR.endHeight))
+		bcR.Logger.Info("Done.")
+	}
 
 	return src.TrySend(BlockchainChannel, msgBytes)
 }
@@ -176,9 +183,16 @@ func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 		bcR.sendBlockToPeer(msg, src)
 	case *bcproto.StatusResponse:
 		bcR.Logger.Info("Incoming status response", "base", msg.Base, "height", msg.Height)
-		go collector.StartBlockCollector(bcR.blockCh, bcR.restEndpoint, bcR.poolId, msg.Height+1, bcR.endHeight)
+		bcR.startHeight = msg.Height + 1
 
-		bcR.peerHeight = msg.Height + 1
+		if bcR.endHeight <= bcR.startHeight {
+			bcR.Logger.Error(fmt.Sprintf("Target height %d has to be bigger than current height %d", bcR.endHeight, bcR.startHeight))
+			os.Exit(1)
+		}
+
+		go collector.StartBlockCollector(bcR.blockCh, bcR.restEndpoint, bcR.poolId, bcR.startHeight, bcR.endHeight)
+
+		bcR.peerHeight = bcR.startHeight
 		bcR.sendStatusToPeer(src)
 	default:
 		bcR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
