@@ -1,4 +1,4 @@
-module KYVENetwork/ksync
+module github.com/KYVENetwork/ksync
 
 go 1.19
 
