@@ -1,9 +1,9 @@
 package reactor
 
 import (
-	"KYVENetwork/ksync/collector"
-	"KYVENetwork/ksync/types"
 	"fmt"
+	"github.com/KYVENetwork/ksync/collector"
+	"github.com/KYVENetwork/ksync/types"
 	bc "github.com/tendermint/tendermint/blockchain"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"

@@ -1,12 +1,12 @@
 package p2p
 
 import (
-	cfg "KYVENetwork/ksync/config"
-	p2pHelpers "KYVENetwork/ksync/executor/p2p/helpers"
-	"KYVENetwork/ksync/executor/p2p/reactor"
-	log "KYVENetwork/ksync/logger"
-	"KYVENetwork/ksync/pool"
 	"fmt"
+	cfg "github.com/KYVENetwork/ksync/config"
+	p2pHelpers "github.com/KYVENetwork/ksync/executor/p2p/helpers"
+	"github.com/KYVENetwork/ksync/executor/p2p/reactor"
+	log "github.com/KYVENetwork/ksync/logger"
+	"github.com/KYVENetwork/ksync/pool"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	nm "github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"

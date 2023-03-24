@@ -1,11 +1,11 @@
 package collector
 
 import (
-	log "KYVENetwork/ksync/logger"
-	"KYVENetwork/ksync/types"
-	"KYVENetwork/ksync/utils"
 	"encoding/base64"
 	"fmt"
+	log "github.com/KYVENetwork/ksync/logger"
+	"github.com/KYVENetwork/ksync/types"
+	"github.com/KYVENetwork/ksync/utils"
 	"github.com/tendermint/tendermint/libs/json"
 	"os"
 	"strconv"

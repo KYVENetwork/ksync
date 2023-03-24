@@ -1,14 +1,14 @@
 package db
 
 import (
-	"KYVENetwork/ksync/collector"
-	cfg "KYVENetwork/ksync/config"
-	"KYVENetwork/ksync/executor/db/helpers"
-	"KYVENetwork/ksync/executor/db/store"
-	log "KYVENetwork/ksync/logger"
-	"KYVENetwork/ksync/pool"
-	"KYVENetwork/ksync/types"
 	"fmt"
+	"github.com/KYVENetwork/ksync/collector"
+	cfg "github.com/KYVENetwork/ksync/config"
+	"github.com/KYVENetwork/ksync/executor/db/helpers"
+	"github.com/KYVENetwork/ksync/executor/db/store"
+	log "github.com/KYVENetwork/ksync/logger"
+	"github.com/KYVENetwork/ksync/pool"
+	"github.com/KYVENetwork/ksync/types"
 	nm "github.com/tendermint/tendermint/node"
 	sm "github.com/tendermint/tendermint/state"
 	tmTypes "github.com/tendermint/tendermint/types"

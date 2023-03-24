@@ -1,7 +1,7 @@
 package store
 
 import (
-	"KYVENetwork/ksync/types"
+	"github.com/KYVENetwork/ksync/types"
 	nm "github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/store"

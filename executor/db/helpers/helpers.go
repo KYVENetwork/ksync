@@ -1,8 +1,8 @@
 package helpers
 
 import (
-	log "KYVENetwork/ksync/logger"
 	"fmt"
+	log "github.com/KYVENetwork/ksync/logger"
 	tmCfg "github.com/tendermint/tendermint/config"
 	cs "github.com/tendermint/tendermint/consensus"
 	"github.com/tendermint/tendermint/evidence"

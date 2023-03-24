@@ -1,11 +1,11 @@
 package commands
 
 import (
-	"KYVENetwork/ksync/executor/db"
-	"KYVENetwork/ksync/executor/p2p"
-	log "KYVENetwork/ksync/logger"
-	"KYVENetwork/ksync/utils"
 	"fmt"
+	"github.com/KYVENetwork/ksync/executor/db"
+	"github.com/KYVENetwork/ksync/executor/p2p"
+	log "github.com/KYVENetwork/ksync/logger"
+	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 )
 

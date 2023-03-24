@@ -1,7 +1,7 @@
 package main
 
 import (
-	cmd "KYVENetwork/ksync/cmd/ksync/commands"
+	cmd "github.com/KYVENetwork/ksync/cmd/ksync/commands"
 )
 
 func main() {

@@ -1,7 +1,7 @@
 package state
 
-import "KYVENetwork/ksync/types"
+import "github.com/KYVENetwork/ksync/types"
 
-func GetState(config types.Config) () {
+func GetState(config types.Config) {
 
 }
