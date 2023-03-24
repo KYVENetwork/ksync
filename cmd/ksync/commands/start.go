@@ -1,12 +1,9 @@
 package commands
 
 import (
-	"KYVENetwork/ksync/collector"
 	"KYVENetwork/ksync/executor/db"
 	"KYVENetwork/ksync/executor/p2p"
 	log "KYVENetwork/ksync/logger"
-	"KYVENetwork/ksync/pool"
-	"KYVENetwork/ksync/types"
 	"KYVENetwork/ksync/utils"
 	"fmt"
 	"github.com/spf13/cobra"
@@ -22,6 +19,8 @@ var (
 	poolId       int64
 	targetHeight int64
 	restEndpoint string
+
+	quitCh = make(chan int)
 )
 
 func init() {
@@ -55,18 +54,13 @@ var startCmd = &cobra.Command{
 			logger.Error("flag sync-mode has to be either \"p2p\" or \"db\"")
 		}
 
-		startHeight, latestHeight := pool.GetPoolInfo(restEndpoint, poolId)
-
-		blockCh := make(chan *types.Block, 1000)
-		quitCh := make(chan int)
-
 		if mode == "p2p" {
-			go p2p.StartP2PExecutor(home, poolId, restEndpoint, targetHeight)
+			go p2p.StartP2PExecutor(quitCh, home, poolId, restEndpoint, targetHeight)
 		} else {
-			go collector.StartBlockCollector(blockCh, restEndpoint, poolId, startHeight, latestHeight)
-			go db.StartDBExecutor(blockCh, quitCh, home, startHeight, latestHeight)
+			go db.StartDBExecutor(quitCh, home, poolId, restEndpoint, targetHeight)
 		}
 
+		// wait for executor to finish
 		<-quitCh
 	},
 }

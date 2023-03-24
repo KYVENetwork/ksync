@@ -15,14 +15,18 @@ import (
 
 const (
 	BlockchainChannel = byte(0x40)
-	BlockDelta        = int64(10)
+	BlockDelta        = int64(30)
+)
+
+var (
+	blockCh = make(chan *types.Block, 1000)
 )
 
 type BlockchainReactor struct {
 	p2p.BaseReactor
 
-	blockCh chan *types.Block
-	quitCh  chan int
+	quitCh           chan<- int
+	collectorRunning bool
 
 	blocks     map[int64]*types.Block
 	sent       map[int64]bool
@@ -35,17 +39,17 @@ type BlockchainReactor struct {
 	endHeight   int64
 }
 
-func NewBlockchainReactor(blockCh chan *types.Block, quitCh chan int, poolId int64, restEndpoint string, startHeight, endHeight int64) *BlockchainReactor {
+func NewBlockchainReactor(quitCh chan<- int, poolId int64, restEndpoint string, startHeight, endHeight int64) *BlockchainReactor {
 	bcR := &BlockchainReactor{
-		blockCh:      blockCh,
-		quitCh:       quitCh,
-		blocks:       make(map[int64]*types.Block),
-		sent:         make(map[int64]bool),
-		peerHeight:   startHeight,
-		poolId:       poolId,
-		restEndpoint: restEndpoint,
-		startHeight:  startHeight,
-		endHeight:    endHeight,
+		quitCh:           quitCh,
+		collectorRunning: false,
+		blocks:           make(map[int64]*types.Block),
+		sent:             make(map[int64]bool),
+		peerHeight:       startHeight,
+		poolId:           poolId,
+		restEndpoint:     restEndpoint,
+		startHeight:      startHeight,
+		endHeight:        endHeight,
 	}
 	bcR.BaseReactor = *p2p.NewBaseReactor("BlockchainReactor", bcR)
 	return bcR
@@ -64,8 +68,23 @@ func (bcR *BlockchainReactor) OnStart() error {
 
 func (bcR *BlockchainReactor) retrieveBlocks() {
 	for {
-		block := <-bcR.blockCh
+		block := <-blockCh
 		bcR.blocks[block.Height] = block
+	}
+}
+
+func (bcR *BlockchainReactor) retrieveStatusResponses(src p2p.Peer) {
+	for {
+		msgBytes, err := bc.EncodeMsg(&bcproto.StatusRequest{})
+		if err != nil {
+			bcR.Logger.Error("could not convert msg to protobuf", "err", err)
+			return
+		}
+
+		bcR.Logger.Info("Sent status request to peer")
+
+		src.Send(BlockchainChannel, msgBytes)
+		time.Sleep(5 * time.Second)
 	}
 }
 
@@ -157,12 +176,6 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 	bcR.Logger.Info("Sent block to peer", "height", block.Height)
 	delete(bcR.blocks, block.Height)
 
-	// check exit condition
-	if bcR.peerHeight == bcR.endHeight {
-		bcR.Logger.Info(fmt.Sprintf("Synced from height %d to target height %d", bcR.startHeight, bcR.endHeight))
-		bcR.Logger.Info("Done.")
-	}
-
 	return src.TrySend(BlockchainChannel, msgBytes)
 }
 
@@ -183,17 +196,35 @@ func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 		bcR.sendBlockToPeer(msg, src)
 	case *bcproto.StatusResponse:
 		bcR.Logger.Info("Incoming status response", "base", msg.Base, "height", msg.Height)
-		bcR.startHeight = msg.Height + 1
 
-		if bcR.endHeight <= bcR.startHeight {
-			bcR.Logger.Error(fmt.Sprintf("Target height %d has to be bigger than current height %d", bcR.endHeight, bcR.startHeight))
-			os.Exit(1)
+		if bcR.collectorRunning {
+			// check exit condition
+			if msg.Height == bcR.endHeight-1 {
+				bcR.Logger.Info(fmt.Sprintf("Synced from height %d to target height %d", bcR.startHeight, bcR.endHeight-1))
+				bcR.Logger.Info("Done.")
+
+				bcR.quitCh <- 0
+			}
+		} else {
+			// set starting height and start block collector
+			bcR.startHeight = msg.Height + 1
+			bcR.peerHeight = bcR.startHeight
+
+			if bcR.endHeight <= bcR.startHeight {
+				bcR.Logger.Error(fmt.Sprintf("Target height %d has to be bigger than current height %d", bcR.endHeight, bcR.startHeight))
+				os.Exit(1)
+			}
+
+			// notify peer that we have all the needed blocks
+			bcR.sendStatusToPeer(src)
+
+			// start block collector
+			go collector.StartBlockCollector(blockCh, bcR.restEndpoint, bcR.poolId, bcR.startHeight, bcR.endHeight)
+			bcR.collectorRunning = true
+
+			// retrieve status responses to check for exit condition
+			go bcR.retrieveStatusResponses(src)
 		}
-
-		go collector.StartBlockCollector(bcR.blockCh, bcR.restEndpoint, bcR.poolId, bcR.startHeight, bcR.endHeight)
-
-		bcR.peerHeight = bcR.startHeight
-		bcR.sendStatusToPeer(src)
 	default:
 		bcR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
 	}

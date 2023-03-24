@@ -1,28 +1,45 @@
 package db
 
 import (
+	"KYVENetwork/ksync/collector"
 	cfg "KYVENetwork/ksync/config"
 	"KYVENetwork/ksync/executor/db/helpers"
 	"KYVENetwork/ksync/executor/db/store"
 	log "KYVENetwork/ksync/logger"
+	"KYVENetwork/ksync/pool"
 	"KYVENetwork/ksync/types"
 	"fmt"
 	nm "github.com/tendermint/tendermint/node"
 	sm "github.com/tendermint/tendermint/state"
 	tmTypes "github.com/tendermint/tendermint/types"
+	"os"
 )
 
 var (
-	logger = log.Logger()
+	logger  = log.Logger()
+	blockCh = make(chan *types.Block, 1000)
 )
 
-func StartDBExecutor(blockCh <-chan *types.Block, quitCh <-chan int, homeDir string, startHeight, endHeight int64) {
+func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string, targetHeight int64) {
 	config, err := cfg.LoadConfig(homeDir)
 	if err != nil {
 		panic(fmt.Errorf("failed to load config: %w", err))
 	}
 
-	logger.Info(fmt.Sprintf("Config loaded. Moniker = %s", config.Moniker))
+	// load start and latest height
+	startHeight, endHeight := pool.GetPoolInfo(restEndpoint, poolId)
+
+	// if target height was set and is smaller than latest height this will be our new target height
+	// we add +1 to make target height including
+	if targetHeight > 0 && targetHeight+1 < endHeight {
+		endHeight = targetHeight + 1
+	}
+
+	// if target height is smaller than the base height of the pool we exit
+	if endHeight <= startHeight {
+		logger.Error(fmt.Sprintf("target height %d has to be bigger than starting height %d", endHeight, startHeight))
+		os.Exit(1)
+	}
 
 	stateDB, stateStore, err := store.GetStateDBs(config)
 	defer stateDB.Close()
@@ -37,6 +54,17 @@ func StartDBExecutor(blockCh <-chan *types.Block, quitCh <-chan int, homeDir str
 	if err != nil {
 		panic(fmt.Errorf("failed to load blockstore db: %w", err))
 	}
+
+	// get continuation height
+	startHeight = blockStore.Height() + 1
+
+	if endHeight <= startHeight {
+		logger.Error(fmt.Sprintf("Target height %d has to be bigger than current height %d", endHeight, startHeight))
+		os.Exit(1)
+	}
+
+	// start block collector
+	go collector.StartBlockCollector(blockCh, restEndpoint, poolId, startHeight, endHeight)
 
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
 	state, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(stateDB, defaultDocProvider)
@@ -120,4 +148,9 @@ func StartDBExecutor(blockCh <-chan *types.Block, quitCh <-chan int, homeDir str
 			prevBlock = block
 		}
 	}
+
+	logger.Info(fmt.Sprintf("Synced from height %d to target height %d", startHeight, endHeight-1))
+	logger.Info("Done.")
+
+	quitCh <- 0
 }
