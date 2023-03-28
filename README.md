@@ -1,6 +1,12 @@
-# KSYNC
+<div align="center">
+  <h1>@ksync</h1>
+</div>
 
-Fast Sync _archived_ and _validated_ blocks from KYVE to every Tendermint based Blockchain Application
+![banner](assets/ksync.png)
+
+<p align="center">
+<strong>Fast Sync archived and validated blocks from KYVE to every Tendermint based Blockchain Application</strong>
+</p>
 
 ## What is KSYNC?
 
@@ -30,12 +36,79 @@ TODO: installation with `go install`
 
 Depending on the blockchain application you are trying to sync the following sync modes can be used.
 
-> **_IMPORTANT:_**  If you sync from genesis and the genesis file is **bigger** than 100MB you can **not** use DB-SYNC
+Whichever sync mode you're using you still have to make sure that the blocks for your node are actually available.
+You can check out available storage pools for every KYVE network below: 
+
+- **KYVE (Mainnet)**: https://app.kyve.network/#/pools
+- **Kaon (Testnet)**: https://app.kaon.kyve.network/#/pools
+- **Korellia (Devent)**: https://app.korellia.kyve.network/#/pools
+
+> **_ATTENTION:_**  If you want to use KSYNC for production do not sync blocks from the test- or devnet
 
 ### P2P-SYNC
 
 In this sync mode this tool pretends to be a peer which has all the blocks the actual peer node needs. The
 blocks are then streamed over the dedicated block channels and storing them is handled by the node itself.
+
+#### Requirements
+
+It does not matter if you want to sync a node from genesis or from an existing height, the following settings have
+to be changed in order to run p2p sync.
+
+Make sure that `persistent_peers` are empty in the `config.toml` config file:
+
+`~/.<chain>/config/config.toml`
+```toml
+[p2p]
+
+persistent_peers = ""
+```
+
+Make sure that your `addrbook.json` is empty or delete it entirely:
+
+```bash
+rm ~/.<chain>/config/addrbook.json
+```
+
+And finally enable the following setting:
+
+`~/.<chain>/config/config.toml`
+```toml
+[p2p]
+
+allow_duplicate_ip = true
+```
+
+#### Sync node
+
+Now you can start your node simply with the `start` command like you would start the node normally. When you see that 
+the  node is trying to search for peers but is unable to find any you can start KSYNC.
+
+> **_ATTENTION:_**  If the node actually finds peers the configuration is wrong, in this case double-check the settings
+> above
+
+You can then start KSYNC in a **new** terminal with the following command. Please make sure to replace `<user>` and 
+`<chain>` with your specific values. This of course is also true for `<pool>` and `<network-api-endpoint>`.
+
+```bash
+ksync start mode=p2p --home="/Users/<user>/.<chain>" --pool-id=<pool> --rest=<network-api-endpoint>
+```
+
+Available rest endpoints for every network maintained by KYVE:
+
+- **KYVE (Mainnet)**
+  - https://eu-api-1.kyve.network
+  - https://us-api-1.kyve.network
+- **Kaon (Testnet)**
+  - https://eu-api-1.kaon.kyve.network
+  - https://us-api-1.kaon.kyve.network
+- **Korellia (Devent)**
+  - https://api.korellia.kyve.network
+
+Once KSYNC starts it automatically continues from the latest height found in the node and starts downloading
+the blocks from the storage provider and validates the checksum. You should see blocks streaming over and the node
+committing those blocks. If you run this command without a `--target-height` it will sync all blocks which are
+available in the pool. You can simply exit the sync process by killing KSYNC with CMD+C.
 
 ### DB-SYNC
 
@@ -43,7 +116,7 @@ In this sync mode this tool pretends to be the tendermint process which communic
 blockchain application over ABCI and replays the blocks against the app and manually writes the results
 to the DB directly.
 
-## Example: Sync Cosmos Hub over P2P-SYNC
+## Live Example: Sync Cosmos Hub over P2P-SYNC
 
 To sync cosmos you have to download and set up the correct gaia binary. To sync from genesis the version `v4.2.1` has
 to be used. You can download them [here](https://github.com/cosmos/gaia/releases/tag/v4.2.1) or build them from source: [https://github.com/cosmos/gaia](https://github.com/cosmos/gaia)
