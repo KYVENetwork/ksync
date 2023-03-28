@@ -43,7 +43,13 @@ You can check out available storage pools for every KYVE network below:
 - **Kaon (Testnet)**: https://app.kaon.kyve.network/#/pools
 - **Korellia (Devent)**: https://app.korellia.kyve.network/#/pools
 
-> **_ATTENTION:_**  If you want to use KSYNC for production do not sync blocks from the test- or devnet
+### Limitations
+
+If you want to sync a node from genesis and the genesis file is bigger than 100MB you have to use P2P because of a
+message size limitation in the Tendermint Socket Protocol (TSP).
+
+Currently, p2p sync is only supported for nodes using `github.com/tendermint/tendermint`. If nodes use CometBFT db sync
+has to be used. CometBFT support will be added in the future.
 
 ### P2P-SYNC
 
@@ -97,11 +103,11 @@ ksync start mode=p2p --home="/Users/<user>/.<chain>" --pool-id=<pool> --rest=<ne
 Available rest endpoints for every network maintained by KYVE:
 
 - **KYVE (Mainnet)**
-  - https://eu-api-1.kyve.network
-  - https://us-api-1.kyve.network
+  - https://api-eu-1.kyve.network
+  - https://api-us-1.kyve.network
 - **Kaon (Testnet)**
-  - https://eu-api-1.kaon.kyve.network
-  - https://us-api-1.kaon.kyve.network
+  - https://api-eu-1.kaon.kyve.network
+  - https://api-us-1.kaon.kyve.network
 - **Korellia (Devent)**
   - https://api.korellia.kyve.network
 
@@ -116,10 +122,61 @@ In this sync mode this tool pretends to be the tendermint process which communic
 blockchain application over ABCI and replays the blocks against the app and manually writes the results
 to the DB directly.
 
+#### Requirements
+
+It does not matter if you want to sync a node from genesis or from an existing height, the following settings have
+to be changed in order to run DB sync.
+
+Make sure that `proxy_app` and `abci` have the following default values in the `config.toml` config file:
+
+`~/.<chain>/config/config.toml`
+```toml
+#######################################################################
+###                   Main Base Config Options                      ###
+#######################################################################
+
+proxy_app = "tcp://127.0.0.1:26658"
+abci = "socket"
+```
+
+#### Sync node
+
+Now you can start your node with a special flag, so it does not start with tendermint as an embedded process:
+
+```bash
+./<chain> start --with-tendermint=false
+```
+
+If you see that the abci server is waiting for new connections you can proceed with starting KSYNC in a **new** 
+terminal with the following command. Please make sure to replace `<user>` and
+`<chain>` with your specific values. This of course is also true for `<pool>` and `<network-api-endpoint>`.
+
+```bash
+ksync start mode=db --home="/Users/<user>/.<chain>" --pool-id=<pool> --rest=<network-api-endpoint>
+```
+
+Available rest endpoints for every network maintained by KYVE:
+
+- **KYVE (Mainnet)**
+  - https://api-eu-1.kyve.network
+  - https://api-us-1.kyve.network
+- **Kaon (Testnet)**
+  - https://api-eu-1.kaon.kyve.network
+  - https://api-us-1.kaon.kyve.network
+- **Korellia (Devent)**
+  - https://api.korellia.kyve.network
+
+Once KSYNC starts it automatically continues from the latest height found in the node and starts downloading
+the blocks from the storage provider and validates the checksum. You should KSYNC committing blocks against the app.
+If you run this command without a `--target-height` it will sync all blocks which are
+available in the pool. KSYNC will automatically exit once a target height is reached, or you can simply exit the sync 
+process by killing KSYNC with CMD+C.
+
 ## Live Example: Sync Cosmos Hub over P2P-SYNC
 
 To sync cosmos you have to download and set up the correct gaia binary. To sync from genesis the version `v4.2.1` has
-to be used. You can download them [here](https://github.com/cosmos/gaia/releases/tag/v4.2.1) or build them from source: [https://github.com/cosmos/gaia](https://github.com/cosmos/gaia)
+to be used. You can download them [here](https://github.com/cosmos/gaia/releases/tag/v4.2.1) or build them from source: 
+[https://github.com/cosmos/gaia](https://github.com/cosmos/gaia)
 
 Verify installation with
 
@@ -148,24 +205,25 @@ and edit the following in `~/.gaia/config/config.toml`. TIP: those settings can 
 allow_duplicate_ip = true
 ```
 
-Important: Don't include an addrbook.json and make sure persistent_peers and etc. are empty for now or else the node will connect to other peers. It should only connect
-to our peer.
+Important: Don't include an addrbook.json and make sure persistent_peers and etc. are empty for now or else the node 
+will connect to other peers. It should only connect to our peer.
 
-when the config is done the node can be started. NOTE: this can take a while (~5mins) since the genesis file is quite big.
+when the config is done the node can be started. NOTE: this can take a while (~5mins) since the genesis file is 
+quite big.
 
 ```bash
 ./gaiad start --x-crisis-skip-assert-invariants
 ```
 
-After you see that the node is searching for peers you can start the tool. You can see the latest height which KYVE has
-archived [here](https://app.korellia.kyve.network/#/pools/24) under _Latest Key_
+After you see that the node is searching for peers you can start the tool. You can see the latest height which KYVE 
+has  archived [here](https://app.korellia.kyve.network/#/pools/24) under _Latest Key_
 
 ```bash
-./ksync start --mode=p2p --home="/Users/<user>/.gaia" --pool-id=24 --rest=https://api.korellia.kyve.network
+ksync start --mode=p2p --home="/Users/<user>/.gaia" --pool-id=24 --rest=https://api.korellia.kyve.network
 ```
 
 You should see the peer connecting and sending over blocks to the gaia node. After all the blocks have been applied
 the tool shows _Done_ and you can safely exit the process with CMD+C.
 
-When you want to continue to sync normally you can now add an addrbook or add peers in `persistent_peers`. When you start
-the node again the node should continue normally and tries to sync the remaining blocks.
+When you want to continue to sync normally you can now add an addrbook or add peers in `persistent_peers`. 
+When you start  the node again the node should continue normally and tries to sync the remaining blocks.
