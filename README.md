@@ -30,7 +30,36 @@ with this tool.
 
 ## Installation
 
-TODO: installation with `go install`
+To install the latest version of `ksync`, run the following command:
+
+```bash
+go install github.com/KYVENetwork/ksync/cmd/ksync@latest
+```
+
+To install a previous version, you can specify the version.
+
+```bash
+go install github.com/KYVENetwork/ksync/cmd/ksync@v0.1.0
+```
+
+Run `ksync version` to check the ksync version.
+
+You can also install from source by pulling the ksync repository and switching to the correct version and building
+as follows:
+
+```bash
+git clone git@github.com:KYVENetwork/ksync.git
+cd ksync
+git checkout tags/vx.x.x -b vx.x.x
+make ksync
+```
+
+This will build ksync in `/build` directory. Afterwards you may want to put it into your machine's PATH like
+as follows:
+
+```bash
+cp build/ksync ~/go/bin/ksync
+```
 
 ## Usage
 
@@ -87,8 +116,13 @@ allow_duplicate_ip = true
 
 #### Sync node
 
-Now you can start your node simply with the `start` command like you would start the node normally. When you see that 
-the  node is trying to search for peers but is unable to find any you can start KSYNC.
+Now you can start your node simply with the `start` command like you would start the node normally.
+
+```bash
+./<chaind> start
+```
+
+When you see that the  node is trying to search for peers but is unable to find any you can start KSYNC.
 
 > **_ATTENTION:_**  If the node actually finds peers the configuration is wrong, in this case double-check the settings
 > above
@@ -144,7 +178,7 @@ abci = "socket"
 Now you can start your node with a special flag, so it does not start with tendermint as an embedded process:
 
 ```bash
-./<chain> start --with-tendermint=false
+./<chaind> start --with-tendermint=false
 ```
 
 If you see that the abci server is waiting for new connections you can proceed with starting KSYNC in a **new** 
