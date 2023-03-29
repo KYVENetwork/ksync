@@ -14,7 +14,7 @@ func init() {
 func getVersion() string {
 	version, ok := debug.ReadBuildInfo()
 	if !ok {
-		panic("failed to get cosmovisor version")
+		panic("failed to get ksync version")
 	}
 
 	return strings.TrimSpace(version.Main.Version)

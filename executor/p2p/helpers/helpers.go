@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"fmt"
 	bcv0 "github.com/tendermint/tendermint/blockchain/v0"
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
@@ -40,8 +39,6 @@ func MakeNodeInfo(
 	}
 
 	nodeInfo.ListenAddr = lAddr
-
-	fmt.Println(fmt.Sprintf("%v", nodeInfo))
 
 	err := nodeInfo.Validate()
 	return nodeInfo, err
