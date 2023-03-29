@@ -85,6 +85,8 @@ has to be used. CometBFT support will be added in the future.
 In this sync mode this tool pretends to be a peer which has all the blocks the actual peer node needs. The
 blocks are then streamed over the dedicated block channels and storing them is handled by the node itself.
 
+![p2p-sync](assets/p2p_sync.png)
+
 #### Requirements
 
 It does not matter if you want to sync a node from genesis or from an existing height, the following settings have
@@ -155,6 +157,8 @@ available in the pool. You can simply exit the sync process by killing KSYNC wit
 In this sync mode this tool pretends to be the tendermint process which communicates directly with the
 blockchain application over ABCI and replays the blocks against the app and manually writes the results
 to the DB directly.
+
+![p2p-sync](assets/db_sync.png)
 
 #### Requirements
 
