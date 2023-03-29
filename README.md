@@ -8,6 +8,23 @@
 <strong>Fast Sync archived and validated blocks from KYVE to every Tendermint based Blockchain Application</strong>
 </p>
 
+## Content
+
+- [What is KSYNC?](#what-is-ksync)
+- [How does it work?](#how-does-it-work)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Limitations](#limitations)
+  - [P2P-SYNC](#p2p-sync)
+    - [Requirements](#p2p-requirements)
+    - [Sync node](#sync-node-with-p2p)
+  - [DB-SYNC](#db-sync)
+    - [Requirements](#db-requirements)
+    - [Sync node](#sync-node-with-db)
+  - [Examples](#examples)
+    - [1. Sync Osmosis with DB-SYNC](#1-sync-osmosis-with-db-sync)
+    - [2. Sync Cosmos Hub with P2P-SYNC](#2-sync-cosmos-hub-over-p2p-sync)
+
 ## What is KSYNC?
 
 Since KYVE is validating and archiving blocks from several blockchains permanently this data can be
@@ -89,7 +106,7 @@ blocks are then streamed over the dedicated block channels and storing them is h
   <img width="70%" src="assets/p2p_sync.png" />
 </p>
 
-#### Requirements
+#### P2P Requirements
 
 It does not matter if you want to sync a node from genesis or from an existing height, the following settings have
 to be changed in order to run p2p sync.
@@ -118,7 +135,7 @@ And finally enable the following setting:
 allow_duplicate_ip = true
 ```
 
-#### Sync node
+#### Sync node with P2P
 
 Now you can start your node simply with the `start` command like you would start the node normally.
 
@@ -164,7 +181,7 @@ to the DB directly.
   <img width="70%" src="assets/db_sync.png" />
 </p>
 
-#### Requirements
+#### DB Requirements
 
 It does not matter if you want to sync a node from genesis or from an existing height, the following settings have
 to be changed in order to run DB sync.
@@ -181,7 +198,7 @@ proxy_app = "tcp://127.0.0.1:26658"
 abci = "socket"
 ```
 
-#### Sync node
+#### Sync node with DB
 
 Now you can start your node with a special flag, so it does not start with tendermint as an embedded process:
 
