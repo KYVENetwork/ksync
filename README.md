@@ -37,7 +37,7 @@ to sync blocks and join the network.
 
 KSYNC comes with two sync modes which can be applied depending on the type of application. There is DB-SYNC
 which syncs blocks by directly communicating with the app and writing the data directly to the database and then there
-P2P-SYNC where KSYNC pretends to be a peer in the network which has all the required blocks, streaming them over
+P2P-SYNC where KSYNC mocks a peer in the network which has all the required blocks, streaming them over
 the dedicated block channels over to the node.
 
 After a node has been successfully synced with KSYNC the node simply can fetch remaining blocks and switch to live mode
@@ -99,7 +99,7 @@ has to be used. CometBFT support will be added in the future.
 
 ### P2P-SYNC
 
-In this sync mode this tool pretends to be a peer which has all the blocks the actual peer node needs. The
+In this sync mode this tool mocks a peer which has all the blocks the actual peer node needs. The
 blocks are then streamed over the dedicated block channels and storing them is handled by the node itself.
 
 <p align="center">
@@ -173,7 +173,7 @@ available in the pool. You can simply exit the sync process by killing KSYNC wit
 
 ### DB-SYNC
 
-In this sync mode this tool pretends to be the tendermint process which communicates directly with the
+In this sync mode this tool mocks the tendermint process which communicates directly with the
 blockchain application over ABCI and replays the blocks against the app and manually writes the results
 to the DB directly.
 
