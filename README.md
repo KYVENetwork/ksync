@@ -21,9 +21,9 @@
   - [DB-SYNC](#db-sync)
     - [Requirements](#db-requirements)
     - [Sync node](#sync-node-with-db)
-  - [Examples](#examples)
-    - [1. Sync Osmosis with DB-SYNC](#1-sync-osmosis-with-db-sync)
-    - [2. Sync Cosmos Hub with P2P-SYNC](#2-sync-cosmos-hub-over-p2p-sync)
+- [Examples](#examples)
+  - [1. Sync Osmosis with DB-SYNC](#1-sync-osmosis-with-db-sync)
+  - [2. Sync Cosmos Hub with P2P-SYNC](#2-sync-cosmos-hub-over-p2p-sync)
 
 ## What is KSYNC?
 
