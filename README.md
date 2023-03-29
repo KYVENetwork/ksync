@@ -248,7 +248,7 @@ After you see that the node is waiting for incoming connections you can open a *
 the sync.
 
 ```bash
-./ksync start --mode=db --home="/Users/<user>/.osmosisd" --pool-id=3 --rest=http://35.158.99.65:1317
+ksync start --mode=db --home="/Users/<user>/.osmosisd" --pool-id=3 --rest=http://35.158.99.65:1317
 ```
 
 You should see KSYNC connecting to Osmosis and applying the blocks against the app. After the ~600 blocks were 
