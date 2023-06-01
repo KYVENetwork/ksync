@@ -126,11 +126,13 @@ Make sure that your `addrbook.json` is empty or delete it entirely:
 rm ~/.<chain>/config/addrbook.json
 ```
 
-And finally enable the following setting:
+And finally make the following settings:
 
 `~/.<chain>/config/config.toml`
 ```toml
 [p2p]
+
+pex = false
 
 allow_duplicate_ip = true
 ```
@@ -314,6 +316,7 @@ mv genesis.cosmoshub-4.json ~/.gaia/config/genesis.json
 and edit the following in `~/.gaia/config/config.toml`. TIP: those settings can be found under "p2p"
 
 ```toml
+pex = false
 allow_duplicate_ip = true
 ```
 

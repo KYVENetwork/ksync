@@ -84,7 +84,7 @@ func (bcR *BlockchainReactor) retrieveStatusResponses(src p2p.Peer) {
 		bcR.Logger.Info("Sent status request to peer")
 
 		src.Send(BlockchainChannel, msgBytes)
-		time.Sleep(5 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 }
 
@@ -207,8 +207,10 @@ func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 			}
 		} else {
 			// set starting height and start block collector
-			bcR.startHeight = msg.Height + 1
-			bcR.peerHeight = bcR.startHeight
+			if msg.Height > 0 {
+				bcR.startHeight = msg.Height + 1
+				bcR.peerHeight = bcR.startHeight
+			}
 
 			if bcR.endHeight <= bcR.startHeight {
 				bcR.Logger.Error(fmt.Sprintf("Target height %d has to be bigger than current height %d", bcR.endHeight, bcR.startHeight))
