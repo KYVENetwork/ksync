@@ -9,18 +9,19 @@ import (
 	"github.com/tendermint/tendermint/libs/json"
 	"os"
 	"strconv"
+	"time"
 )
 
 var (
 	logger = log.Logger()
 )
 
-func StartBlockCollector(blockCh chan<- *types.Block, restEndpoint string, poolId, startHeight, targetHeight int64) {
+func StartBlockCollector(blockCh chan<- *types.Block, restEndpoint string, pool types.PoolResponse, startHeight, targetHeight int64) {
 	paginationKey := ""
 
 BundleCollector:
 	for {
-		bundles, nextKey, err := getBundlesPage(restEndpoint, poolId, paginationKey)
+		bundles, nextKey, err := getBundlesPage(restEndpoint, pool.Pool.Id, paginationKey)
 		if err != nil {
 			panic(fmt.Errorf("failed to retrieve finalized bundles: %w", err))
 		}
@@ -34,17 +35,23 @@ BundleCollector:
 			if toHeight < startHeight {
 				logger.Info(fmt.Sprintf("skipping bundle with storage id %s", bundle.StorageId))
 				continue
+			} else {
+				logger.Info(fmt.Sprintf("downloading bundle with storage id %s", bundle.StorageId))
 			}
 
 			// retrieve bundle from storage provider
 			data, err := retrieveBundleFromStorageProvider(bundle)
-			if err != nil {
-				panic(fmt.Errorf("failed to retrieve bundle from Storage Provider: %w", err))
+			for err != nil {
+				logger.Error(fmt.Sprintf("failed to retrieve bundle with storage id %s from Storage Provider: %s. Retrying in 10s ...", bundle.StorageId, err))
+
+				// sleep 10 seconds after an unsuccessful request
+				time.Sleep(10 * time.Second)
+				data, err = retrieveBundleFromStorageProvider(bundle)
 			}
 
 			// validate bundle with sha256 checksum
 			if utils.CreateChecksum(data) != bundle.DataHash {
-				panic(fmt.Errorf("found different checksum on bundle: expected = %s found = %s", utils.CreateChecksum(data), bundle.DataHash))
+				panic(fmt.Errorf("found different checksum on bundle with storage id %s: expected = %s found = %s", bundle.StorageId, utils.CreateChecksum(data), bundle.DataHash))
 			}
 
 			// decompress bundle
@@ -53,25 +60,50 @@ BundleCollector:
 				panic(fmt.Errorf("failed to decompress bundle: %w", err))
 			}
 
-			// parse bundle
-			var bundle types.Bundle
+			// depending on runtime the data items can look differently
+			if pool.Pool.Data.Runtime == utils.KSyncRuntimeTendermint {
+				// parse bundle
+				var bundle types.TendermintBundle
 
-			if err := json.Unmarshal(deflated, &bundle); err != nil {
-				panic(fmt.Errorf("failed to unmarshal bundle: %w", err))
-			}
-
-			for _, dataItem := range bundle {
-				// skip blocks until we reach start height
-				if dataItem.Value.Height < startHeight {
-					continue
+				if err := json.Unmarshal(deflated, &bundle); err != nil {
+					panic(fmt.Errorf("failed to unmarshal tendermint bundle: %w", err))
 				}
 
-				// send bundle to sync reactor
-				blockCh <- dataItem.Value
+				for _, dataItem := range bundle {
+					// skip blocks until we reach start height
+					if dataItem.Value.Block.Block.Height < startHeight {
+						continue
+					}
 
-				// exit if target height is reached
-				if targetHeight > 0 && dataItem.Value.Height == targetHeight+1 {
-					break BundleCollector
+					// send bundle to sync reactor
+					blockCh <- dataItem.Value.Block.Block
+
+					// exit if target height is reached
+					if targetHeight > 0 && dataItem.Value.Block.Block.Height == targetHeight+1 {
+						break BundleCollector
+					}
+				}
+			} else if pool.Pool.Data.Runtime == utils.KSyncRuntimeTendermintBsync {
+				// parse bundle
+				var bundle types.TendermintBsyncBundle
+
+				if err := json.Unmarshal(deflated, &bundle); err != nil {
+					panic(fmt.Errorf("failed to unmarshal tendermint bsync bundle: %w", err))
+				}
+
+				for _, dataItem := range bundle {
+					// skip blocks until we reach start height
+					if dataItem.Value.Height < startHeight {
+						continue
+					}
+
+					// send bundle to sync reactor
+					blockCh <- dataItem.Value
+
+					// exit if target height is reached
+					if targetHeight > 0 && dataItem.Value.Height == targetHeight+1 {
+						break BundleCollector
+					}
 				}
 			}
 		}

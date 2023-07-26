@@ -18,6 +18,7 @@ type Block = tmTypes.Block
 
 type PoolResponse = struct {
 	Pool struct {
+		Id   int64 `json:"id"`
 		Data struct {
 			Runtime    string `json:"runtime"`
 			StartKey   int64  `json:"start_key"`
@@ -26,12 +27,23 @@ type PoolResponse = struct {
 	} `json:"pool"`
 }
 
-type DataItem struct {
+type TendermintDataItem struct {
+	Key   string `json:"key"`
+	Value struct {
+		Block struct {
+			Block *Block `json:"block"`
+		} `json:"block"`
+	} `json:"value"`
+}
+
+type TendermintBundle = []TendermintDataItem
+
+type TendermintBsyncDataItem struct {
 	Key   string `json:"key"`
 	Value *Block `json:"value"`
 }
 
-type Bundle = []DataItem
+type TendermintBsyncBundle = []TendermintBsyncDataItem
 
 type Pagination struct {
 	NextKey []byte `json:"next_key"`

@@ -32,21 +32,21 @@ type BlockchainReactor struct {
 	sent       map[int64]bool
 	peerHeight int64
 
-	poolId       int64
+	pool         types.PoolResponse
 	restEndpoint string
 
 	startHeight int64
 	endHeight   int64
 }
 
-func NewBlockchainReactor(quitCh chan<- int, poolId int64, restEndpoint string, startHeight, endHeight int64) *BlockchainReactor {
+func NewBlockchainReactor(quitCh chan<- int, pool types.PoolResponse, restEndpoint string, startHeight, endHeight int64) *BlockchainReactor {
 	bcR := &BlockchainReactor{
 		quitCh:           quitCh,
 		collectorRunning: false,
 		blocks:           make(map[int64]*types.Block),
 		sent:             make(map[int64]bool),
 		peerHeight:       startHeight,
-		poolId:           poolId,
+		pool:             pool,
 		restEndpoint:     restEndpoint,
 		startHeight:      startHeight,
 		endHeight:        endHeight,
@@ -221,7 +221,7 @@ func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 			bcR.sendStatusToPeer(src)
 
 			// start block collector
-			go collector.StartBlockCollector(blockCh, bcR.restEndpoint, bcR.poolId, bcR.startHeight, bcR.endHeight)
+			go collector.StartBlockCollector(blockCh, bcR.restEndpoint, bcR.pool, bcR.startHeight, bcR.endHeight)
 			bcR.collectorRunning = true
 
 			// retrieve status responses to check for exit condition
