@@ -142,7 +142,11 @@ func getBundlesPage(restEndpoint string, poolId int64, paginationKey string) ([]
 }
 
 func decompressBundleFromStorageProvider(bundle types.FinalizedBundle, data []byte) (deflated []byte, err error) {
-	switch bundle.CompressionId {
+	c, err := strconv.ParseUint(bundle.CompressionId, 10, 64)
+	if err != nil {
+		panic(fmt.Errorf("could not parse uint from compression id: %w", err))
+	}
+	switch c {
 	case 1:
 		return utils.DecompressGzip(data)
 	default:
@@ -154,7 +158,11 @@ func decompressBundleFromStorageProvider(bundle types.FinalizedBundle, data []by
 }
 
 func retrieveBundleFromStorageProvider(bundle types.FinalizedBundle) (data []byte, err error) {
-	switch bundle.StorageProviderId {
+	s, err := strconv.ParseUint(bundle.StorageProviderId, 10, 64)
+	if err != nil {
+		panic(fmt.Errorf("could not parse uint from storage provider id: %w", err))
+	}
+	switch s {
 	case 1:
 		return utils.DownloadFromUrl(fmt.Sprintf("https://arweave.net/%s", bundle.StorageId))
 	case 2:
