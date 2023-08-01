@@ -119,7 +119,7 @@ BundleCollector:
 
 func getBundlesPage(restEndpoint string, poolId int64, paginationKey string) ([]types.FinalizedBundle, string, error) {
 	raw, err := utils.DownloadFromUrl(fmt.Sprintf(
-		"%s/kyve/query/v1beta1/finalized_bundles/%d?pagination.limit=%d&pagination.key=%s",
+		"%s/kyve/v1/bundles/%d?pagination.limit=%d&pagination.key=%s",
 		restEndpoint,
 		poolId,
 		utils.BundlesPageLimit,
