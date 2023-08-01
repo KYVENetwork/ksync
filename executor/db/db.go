@@ -21,13 +21,17 @@ var (
 )
 
 func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string, targetHeight int64) {
+	logger.Info("starting db sync")
 	config, err := cfg.LoadConfig(homeDir)
 	if err != nil {
 		panic(fmt.Errorf("failed to load config: %w", err))
 	}
 
 	// load start and latest height
-	startHeight, endHeight, poolResponse := pool.GetPoolInfo(restEndpoint, poolId)
+	startHeight, endHeight, poolResponse, err := pool.GetPoolInfo(restEndpoint, poolId)
+	if err != nil {
+		panic(fmt.Errorf("failed to get pool info: %w", err))
+	}
 
 	// if target height was set and is smaller than latest height this will be our new target height
 	// we add +1 to make target height including
@@ -64,7 +68,7 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 	}
 
 	// start block collector
-	go collector.StartBlockCollector(blockCh, restEndpoint, poolResponse, startHeight, endHeight)
+	go collector.StartBlockCollector(blockCh, restEndpoint, *poolResponse, startHeight, endHeight)
 
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
 	state, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(stateDB, defaultDocProvider)

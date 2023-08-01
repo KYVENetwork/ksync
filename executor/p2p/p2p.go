@@ -20,6 +20,7 @@ var (
 )
 
 func StartP2PExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string, targetHeight int64) {
+	logger.Info("starting p2p sync")
 	// load config
 	config, err := cfg.LoadConfig(homeDir)
 	if err != nil {
@@ -27,7 +28,10 @@ func StartP2PExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpo
 	}
 
 	// load start and latest height
-	startHeight, endHeight, poolResponse := pool.GetPoolInfo(restEndpoint, poolId)
+	startHeight, endHeight, poolResponse, err := pool.GetPoolInfo(restEndpoint, poolId)
+	if err != nil {
+		panic(fmt.Errorf("failed to get pool info: %w", err))
+	}
 
 	// if target height was set and is smaller than latest height this will be our new target height
 	// we add +1 to make target height including
@@ -83,7 +87,7 @@ func StartP2PExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpo
 	logger.Info("created multiplex transport")
 
 	p2pLogger := logger.With("module", "p2p")
-	bcR := reactor.NewBlockchainReactor(quitCh, poolResponse, restEndpoint, startHeight, endHeight)
+	bcR := reactor.NewBlockchainReactor(quitCh, *poolResponse, restEndpoint, startHeight, endHeight)
 	sw := p2pHelpers.CreateSwitch(config, transport, bcR, nodeInfo, ksyncNodeKey, p2pLogger)
 
 	// start the transport

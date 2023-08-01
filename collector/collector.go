@@ -25,7 +25,6 @@ BundleCollector:
 		if err != nil {
 			panic(fmt.Errorf("failed to retrieve finalized bundles: %w", err))
 		}
-
 		for _, bundle := range bundles {
 			toHeight, err := strconv.ParseInt(bundle.ToKey, 10, 64)
 			if err != nil {
@@ -119,7 +118,7 @@ BundleCollector:
 
 func getBundlesPage(restEndpoint string, poolId int64, paginationKey string) ([]types.FinalizedBundle, string, error) {
 	raw, err := utils.DownloadFromUrl(fmt.Sprintf(
-		"%s/kyve/query/v1beta1/finalized_bundles/%d?pagination.limit=%d&pagination.key=%s",
+		"%s/kyve/v1/bundles/%d?pagination.limit=%d&pagination.key=%s",
 		restEndpoint,
 		poolId,
 		utils.BundlesPageLimit,
@@ -134,6 +133,8 @@ func getBundlesPage(restEndpoint string, poolId int64, paginationKey string) ([]
 	if err := json.Unmarshal(raw, &bundlesResponse); err != nil {
 		return nil, "", err
 	}
+
+	logger.Info("collector", "next-key", bundlesResponse.Pagination.NextKey)
 
 	nextKey := base64.URLEncoding.EncodeToString(bundlesResponse.Pagination.NextKey)
 
