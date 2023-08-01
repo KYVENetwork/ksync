@@ -238,58 +238,12 @@ process by killing KSYNC with CMD+C.
 All examples below use test data from a KYVE test chain running on `http://35.158.99.65:26657`. This should not be
 used in production and is only intended for demonstration purposes.
 
-### 1. Sync Osmosis with DB-SYNC
-
-To sync osmosis you have to download and set up the correct osmosis binary. To sync from genesis the version `v3.1.0` has
-to be used. You can download them [here](https://github.com/osmosis-labs/osmosis/releases/tag/v3.1.0) or build them from source: [https://github.com/osmosis-labs/osmosis](https://github.com/osmosis-labs/osmosis)
-
-Verify installation with
-
-```bash
-./osmosisd version
-3.1.0
-```
-
-After the installation init the config
-
-```bash
-./osmosisd init <your-moniker> --chain-id osmosis-1
-```
-
-download the genesis
-
-```bash
-wget -O ~/.osmosisd/config/genesis.json https://github.com/osmosis-labs/networks/raw/main/osmosis-1/genesis.json
-```
-
-Important: Don't include an addrbook.json and make sure persistent_peers and etc. are empty for now or else the node will connect to other peers. It should only connect
-to our peer.
-
-when the config is done the node can be started
-
-```bash
-./osmosisd start --with-tendermint=false
-```
-
-After you see that the node is waiting for incoming connections you can open a **new** terminal and start
-the sync.
-
-```bash
-ksync start --mode=db --home="/Users/<user>/.osmosisd" --pool-id=3 --rest=http://35.158.99.65:1317
-```
-
-You should see KSYNC connecting to Osmosis and applying the blocks against the app. After the ~600 blocks were 
-applied KSYNC automatically exits.
-
-When you want to continue to sync normally you can now add an addrbook or add peers in `persistent_peers`. When you start
-the node again with the normal start command `./osmosisd start` the node should continue normally and tries to sync the remaining blocks.
-
-### 2. Sync Cosmos Hub over P2P-SYNC
+### 1. Sync Cosmos Hub over P2P-SYNC
 
 Since we want to sync Cosmos Hub from genesis and the genesis file is bigger than 100MB we have to use P2P sync.
 
 To sync cosmos you have to download and set up the correct gaia binary. To sync from genesis the version `v4.2.1` has
-to be used. You can download them [here](https://github.com/cosmos/gaia/releases/tag/v4.2.1) or build them from source: 
+to be used. You can download them [here](https://github.com/cosmos/gaia/releases/tag/v4.2.1) or build them from source:
 [https://github.com/cosmos/gaia](https://github.com/cosmos/gaia)
 
 Verify installation with
@@ -320,10 +274,10 @@ pex = false
 allow_duplicate_ip = true
 ```
 
-Important: Don't include an addrbook.json and make sure persistent_peers and etc. are empty for now or else the node 
+Important: Don't include an addrbook.json and make sure persistent_peers and etc. are empty for now or else the node
 will connect to other peers. It should only connect to our peer.
 
-When the config is done the node can be started. NOTE: this can take a while (~5mins) since the genesis file is 
+When the config is done the node can be started. NOTE: this can take a while (~5mins) since the genesis file is
 quite big. You can skip invariants checks to boot even fast, but it still takes a long time until the gaia node starts.
 
 ```bash
@@ -334,11 +288,16 @@ After you see that the node is searching for peers you can start the tool. For t
 5000 blocks of Cosmos Hub, so after that height is reached the sync will be done.
 
 ```bash
-ksync start --mode=p2p --home="/Users/<user>/.gaia" --pool-id=0 --rest=http://35.158.99.65:1317
+ksync start --mode=p2p --home="/Users/<user>/.gaia" --pool-id=0 --rest=https://api-eu-1.kyve.network/
 ```
 
 You should see the peer connecting and sending over blocks to the gaia node. After all the blocks have been applied
 the tool shows _Done_ and you can safely exit the process with CMD+C.
 
-When you want to continue to sync normally you can now add an addrbook or add peers in `persistent_peers`. 
+When you want to continue to sync normally you can now add an addrbook or add peers in `persistent_peers`.
 When you start  the node again the node should continue normally and tries to sync the remaining blocks.
+
+
+### 2. Sync Osmosis with DB-SYNC
+
+Coming soon.
