@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/executor"
 	"github.com/KYVENetwork/ksync/node"
+	"github.com/KYVENetwork/ksync/node/abci"
 	"github.com/KYVENetwork/ksync/pool"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
@@ -81,11 +82,21 @@ var superviseCmd = &cobra.Command{
 		}
 
 		for {
-			nodeHeight, err := n.GetNodeHeight(0)
-			if err != nil {
-				logger.Error(err.Error())
-				n.ShutdownNode()
-				os.Exit(1)
+			var nodeHeight int64
+			if syncProcesses[0].Running {
+				nodeHeight, err = n.GetNodeHeight(0)
+				if err != nil {
+					logger.Error(err.Error())
+					n.ShutdownNode()
+					os.Exit(1)
+				}
+			} else if syncProcesses[1].Running {
+				nodeHeight, err = abci.GetLastBlockHeight()
+				if err != nil {
+					logger.Error(err.Error())
+					n.ShutdownNode()
+					os.Exit(1)
+				}
 			}
 
 			startKey, currentKey, _, err := pool.GetPoolInfo(endpoint, poolID)
@@ -97,7 +108,7 @@ var superviseCmd = &cobra.Command{
 
 			logger.Info("heights fetched successfully", "node-height", nodeHeight, "pool-height", currentKey)
 
-			logger.Info("current sync processes", "p2p running", syncProcesses[0].Running, "db running", syncProcesses[1].Running)
+			logger.Info("current sync processes", "p2p", syncProcesses[0].Running, "db", syncProcesses[1].Running)
 
 			if syncProcesses[0].Running {
 				if nodeHeight > startKey+1 {
@@ -117,6 +128,8 @@ var superviseCmd = &cobra.Command{
 						n.ShutdownNode()
 						os.Exit(1)
 					}
+
+					executor.StartSyncProcess(syncProcesses[1], homeDir, poolID, endpoint, targetHeight)
 				}
 			} else if currentKey == nodeHeight && syncProcesses[1].Running {
 				logger.Info("stopping db-sync: reached pool height")

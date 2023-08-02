@@ -124,6 +124,8 @@ func (n *Node) ShutdownNode() error {
 			return fmt.Errorf("could not terminate process: %s", err)
 		}
 
+		time.Sleep(time.Second * 10)
+
 		n.PId = -1
 	}
 
