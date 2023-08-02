@@ -22,8 +22,8 @@
     - [Requirements](#db-requirements)
     - [Sync node](#sync-node-with-db)
 - [Examples](#examples)
-  - [1. Sync Osmosis with DB-SYNC](#1-sync-osmosis-with-db-sync)
-  - [2. Sync Cosmos Hub with P2P-SYNC](#2-sync-cosmos-hub-over-p2p-sync)
+  - [1. Sync Osmosis on Kaon with DB-SYNC](#1-sync-osmosis-on-kaon-with-db-sync)
+  - [2. Sync Cosmos Hub on Mainnet with P2P-SYNC](#2-sync-cosmos-hub-on-mainnet-over-p2p-sync)
 
 ## What is KSYNC?
 
@@ -238,7 +238,7 @@ process by killing KSYNC with CMD+C.
 All examples below use test data from a KYVE test chain running on `http://35.158.99.65:26657`. This should not be
 used in production and is only intended for demonstration purposes.
 
-### 1. Sync Osmosis with DB-SYNC
+### 1. Sync Osmosis on Kaon with DB-SYNC
 
 To sync osmosis you have to download and set up the correct osmosis binary. To sync from genesis the version `v3.1.0` has
 to be used. You can download them [here](https://github.com/osmosis-labs/osmosis/releases/tag/v3.1.0) or build them from source: [https://github.com/osmosis-labs/osmosis](https://github.com/osmosis-labs/osmosis)
@@ -275,7 +275,7 @@ After you see that the node is waiting for incoming connections you can open a *
 the sync.
 
 ```bash
-ksync start --mode=db --home="/Users/<user>/.osmosisd" --pool-id=3 --rest=https://api-eu-1.kaon.kyve.network
+ksync start --mode=db --home="/Users/<user>/.osmosisd" --pool-id=1 --rest=https://api-eu-1.kaon.kyve.network
 ```
 
 You should see KSYNC connecting to Osmosis and applying the blocks against the app. After the ~600 blocks were
@@ -284,7 +284,7 @@ applied KSYNC automatically exits.
 When you want to continue to sync normally you can now add an addrbook or add peers in `persistent_peers`. When you start
 the node again with the normal start command `./osmosisd start` the node should continue normally and tries to sync the remaining blocks.
 
-### 2. Sync Cosmos Hub over P2P-SYNC
+### 2. Sync Cosmos Hub on Mainnet over P2P-SYNC
 
 Since we want to sync Cosmos Hub from genesis and the genesis file is bigger than 100MB we have to use P2P sync.
 
