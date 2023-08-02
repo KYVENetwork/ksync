@@ -1,15 +1,18 @@
 package executor
 
 import (
+	"cosmossdk.io/log"
 	"github.com/KYVENetwork/ksync/executor/db"
 	"github.com/KYVENetwork/ksync/executor/p2p"
 	"github.com/KYVENetwork/ksync/types"
-
-	log "github.com/KYVENetwork/ksync/logger"
+	"github.com/rs/zerolog"
+	"io"
+	"os"
 )
 
 var (
-	logger = log.Logger()
+	multiLogger = io.MultiWriter(zerolog.ConsoleWriter{Out: os.Stdout})
+	logger      = log.NewCustomLogger(zerolog.New(multiLogger).With().Str("module", "executor").Timestamp().Logger())
 )
 
 func InitExecutor() []*types.SyncProcess {

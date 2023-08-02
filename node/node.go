@@ -3,6 +3,7 @@ package node
 import (
 	"encoding/json"
 	"fmt"
+	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/node/helpers"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
@@ -15,12 +16,10 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	log "github.com/KYVENetwork/ksync/logger"
 )
 
 var (
-	logger = log.Logger()
+	logger = log.Logger("node")
 )
 
 type Node struct {
@@ -32,6 +31,13 @@ type Node struct {
 }
 
 func NewNode(daemonPath string, homePath string, seeds string, mode string) *Node {
+	if mode == "p2p" {
+		err := helpers.SetConfig(homePath, true)
+		if err != nil {
+			return nil
+		}
+		logger.Info().Msg("successfully set up config")
+	}
 	return &Node{DaemonPath: daemonPath, HomePath: homePath, Mode: mode, PId: -1, Seeds: seeds}
 }
 
@@ -65,7 +71,11 @@ func (n *Node) Start(flags string) error {
 	args = append(args, "--home", n.HomePath, "--x-crisis-skip-assert-invariants", flags)
 
 	if n.Mode == "normal" {
-		args = append(args, "--p2p-seeds", n.Seeds)
+		if n.Seeds != "" {
+			args = append(args, "--p2p-seeds", n.Seeds)
+		} else {
+			logger.Info().Msg("could not find seeds to connect")
+		}
 	}
 
 	cmdPath, err := exec.LookPath(n.DaemonPath)
@@ -82,7 +92,7 @@ func (n *Node) Start(flags string) error {
 	go func() {
 		err = cmd.Start()
 		if err != nil {
-			logger.Error("could not start node process", "err", err)
+			logger.Error().Msgf("could not start node process", "err", err)
 			processIDChan <- -1
 			return
 		}
@@ -113,7 +123,18 @@ func (n *Node) Start(flags string) error {
 	return nil
 }
 
-func (n *Node) ShutdownNode() error {
+func (n *Node) ShutdownNode(p2p bool) error {
+	if p2p {
+		err := helpers.SetConfig(n.HomePath, p2p)
+		if err != nil {
+			return err
+		}
+	} else {
+		err := helpers.SetConfig(n.HomePath, p2p)
+		if err != nil {
+			return err
+		}
+	}
 	if n.PId != -1 {
 		process, err := os.FindProcess(n.PId)
 		if err != nil {
@@ -124,7 +145,7 @@ func (n *Node) ShutdownNode() error {
 			return fmt.Errorf("could not terminate process: %s", err)
 		}
 
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * 30)
 
 		n.PId = -1
 	}
@@ -139,26 +160,26 @@ func (n *Node) GetNodeHeight(recursionDepth int) (int64, error) {
 	response, err := http.Get(utils.ABCIEndpoint)
 	if recursionDepth < 50 {
 		if err != nil {
-			logger.Error(fmt.Sprintf("failed to query height. Try again in 20s ... (%d/50)", recursionDepth+1))
+			logger.Error().Msgf(fmt.Sprintf("failed to query height. Try again in 20s ... (%d/50)", recursionDepth+1))
 
 			time.Sleep(time.Second * 20)
 			return n.GetNodeHeight(recursionDepth + 1)
 		} else {
 			responseData, err := io.ReadAll(response.Body)
 			if err != nil {
-				logger.Error("could not read response data", "err", err.Error())
+				logger.Error().Msgf("could not read response data", "err", err.Error())
 			}
 
 			var resp types.HeightResponse
 			err = json.Unmarshal(responseData, &resp)
 			if err != nil {
-				logger.Error("could not unmarshal JSON", "err", err.Error())
+				logger.Error().Msgf("could not unmarshal JSON", "err", err.Error())
 			}
 
 			lastBlockHeight := resp.Result.Response.LastBlockHeight
 			nodeHeight, err := strconv.Atoi(lastBlockHeight)
 			if err != nil {
-				logger.Error("could not convert lastBlockHeight to int; set it to 0", "err", err.Error())
+				logger.Error().Msgf("could not convert lastBlockHeight to int; set it to 0", "err", err.Error())
 				nodeHeight = 0
 			}
 

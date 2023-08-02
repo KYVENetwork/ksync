@@ -16,12 +16,13 @@ import (
 )
 
 var (
-	logger  = log.Logger()
 	blockCh = make(chan *types.Block, 1000)
+	kLogger = log.KLogger()
+	logger  = log.Logger("db")
 )
 
 func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string, targetHeight int64) {
-	logger.Info("starting db sync")
+	logger.Info().Msg("starting db sync")
 	config, err := cfg.LoadConfig(homeDir)
 	if err != nil {
 		panic(fmt.Errorf("failed to load config: %w", err))
@@ -41,7 +42,7 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 
 	// if target height is smaller than the base height of the pool we exit
 	if endHeight <= startHeight {
-		logger.Error(fmt.Sprintf("target height %d has to be bigger than starting height %d", endHeight, startHeight))
+		logger.Error().Msg(fmt.Sprintf("target height %d has to be bigger than starting height %d", endHeight, startHeight))
 		os.Exit(1)
 	}
 
@@ -63,7 +64,7 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 	startHeight = blockStore.Height() + 1
 
 	if endHeight <= startHeight {
-		logger.Error(fmt.Sprintf("Target height %d has to be bigger than current height %d", endHeight, startHeight))
+		logger.Error().Msg(fmt.Sprintf("Target height %d has to be bigger than current height %d", endHeight, startHeight))
 		os.Exit(1)
 	}
 
@@ -76,7 +77,7 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 		panic(fmt.Errorf("failed to load state and genDoc: %w", err))
 	}
 
-	logger.Info(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
+	logger.Info().Msg(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
 
 	proxyApp, err := helpers.CreateAndStartProxyAppConns(config)
 	if err != nil {
@@ -106,7 +107,7 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 
 	blockExec := sm.NewBlockExecutor(
 		stateStore,
-		logger.With("module", "state"),
+		kLogger.With("module", "state"),
 		proxyApp.Consensus(),
 		mempool,
 		evidencePool,
@@ -129,12 +130,12 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 
 		// verify block
 		if err := blockExec.ValidateBlock(state, prevBlock); err != nil {
-			logger.Error(fmt.Sprintf("block validation failed at height %d", prevBlock.Height))
+			logger.Error().Msg(fmt.Sprintf("block validation failed at height %d", prevBlock.Height))
 		}
 
 		// verify commits
 		if err := state.Validators.VerifyCommitLight(state.ChainID, blockId, prevBlock.Height, block.LastCommit); err != nil {
-			logger.Error(fmt.Sprintf("light commit verification failed at height %d", prevBlock.Height))
+			logger.Error().Msg(fmt.Sprintf("light commit verification failed at height %d", prevBlock.Height))
 		}
 
 		// store block
@@ -153,8 +154,8 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 		}
 	}
 
-	logger.Info(fmt.Sprintf("Synced from height %d to target height %d", startHeight, endHeight-1))
-	logger.Info("Done.")
+	logger.Info().Msg(fmt.Sprintf("Synced from height %d to target height %d", startHeight, endHeight-1))
+	logger.Info().Msg("Done.")
 
 	quitCh <- 0
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -19,15 +20,9 @@ var (
 	homeDir    string
 	poolID     int64
 	seeds      string
-	syncMode   string
 )
 
 func init() {
-	superviseCmd.Flags().StringVar(&syncMode, "mode", "", "sync mode (\"p2p\",\"db\")")
-	if err := superviseCmd.MarkFlagRequired("mode"); err != nil {
-		panic(fmt.Errorf("flag 'mode' should be required: %w", err))
-	}
-
 	superviseCmd.Flags().StringVar(&homeDir, "home", "", "home directory")
 	if err := superviseCmd.MarkFlagRequired("home"); err != nil {
 		panic(fmt.Errorf("flag 'home' should be required: %w", err))
@@ -58,20 +53,36 @@ var superviseCmd = &cobra.Command{
 	Use:   "supervise",
 	Short: "Start supervised syncing",
 	Run: func(cmd *cobra.Command, args []string) {
+		p2p, err := utils.IsFileGreaterThanOrEqualTo100MB(filepath.Join(homeDir, "config", "genesis.json"))
 
+		if err != nil {
+			logger.Error().Msg("could not get genesis file size")
+			os.Exit(1)
+		}
+
+		syncMode := "db"
+		if p2p {
+			syncMode = "p2p"
+		}
 		n := node.NewNode(daemonPath, homeDir, seeds, syncMode)
+		if n == nil {
+			logger.Error().Msg("could not create node process")
+			os.Exit(1)
+		}
 
 		syncProcesses := executor.InitExecutor()
 
-		err := n.Start(flags)
+		err = n.Start(flags)
 		if err != nil {
 			panic("could not start node")
 		}
 
 		_, err = n.GetNodeHeight(0)
 		if err != nil {
-			logger.Error(err.Error())
-			n.ShutdownNode()
+			logger.Error().Msg(err.Error())
+			if err = n.ShutdownNode(n.Mode == "p2p"); err != nil {
+				os.Exit(1)
+			}
 			os.Exit(1)
 		}
 
@@ -86,64 +97,74 @@ var superviseCmd = &cobra.Command{
 			if syncProcesses[0].Running {
 				nodeHeight, err = n.GetNodeHeight(0)
 				if err != nil {
-					logger.Error(err.Error())
-					n.ShutdownNode()
+					logger.Error().Msg(err.Error())
+					if err = n.ShutdownNode(n.Mode == "p2p"); err != nil {
+						os.Exit(1)
+					}
 					os.Exit(1)
 				}
 			} else if syncProcesses[1].Running {
 				nodeHeight, err = abci.GetLastBlockHeight()
 				if err != nil {
-					logger.Error(err.Error())
-					n.ShutdownNode()
+					logger.Error().Msg(err.Error())
+					if err = n.ShutdownNode(n.Mode == "p2p"); err != nil {
+						os.Exit(1)
+					}
 					os.Exit(1)
 				}
 			}
 
 			startKey, currentKey, _, err := pool.GetPoolInfo(endpoint, poolID)
 			if err != nil {
-				logger.Error(err.Error())
-				n.ShutdownNode()
+				logger.Error().Msg(err.Error())
+				if err = n.ShutdownNode(n.Mode == "p2p"); err != nil {
+					os.Exit(1)
+				}
 				os.Exit(1)
 			}
 
-			logger.Info("heights fetched successfully", "node-height", nodeHeight, "pool-height", currentKey)
+			logger.Info().Msgf("heights fetched successfully", "node-height", nodeHeight, "pool-height", currentKey)
 
-			logger.Info("current sync processes", "p2p", syncProcesses[0].Running, "db", syncProcesses[1].Running)
+			logger.Info().Msgf("current sync processes", "p2p", syncProcesses[0].Running, "db", syncProcesses[1].Running)
 
 			if syncProcesses[0].Running {
 				if nodeHeight > startKey+1 {
-					logger.Info("stopping p2p-sync: node height > 1")
+					logger.Info().Msgf("node height > start_key; stopping p2p-sync...")
 					executor.StopProcess(syncProcesses[0])
 
-					if err = n.ShutdownNode(); err != nil {
-						logger.Error(err.Error())
+					if err = n.ShutdownNode(n.Mode == "p2p"); err != nil {
+						logger.Error().Msg(err.Error())
 						os.Exit(1)
 					}
 
-					logger.Info("starting db-sync")
+					logger.Info().Msg("starting db-sync")
 					n.Mode = "db"
 					err = n.Start(flags)
 					if err != nil {
-						logger.Error(err.Error())
-						n.ShutdownNode()
+						logger.Error().Msg(err.Error())
+						if err = n.ShutdownNode(n.Mode == "p2p"); err != nil {
+							os.Exit(1)
+						}
 						os.Exit(1)
 					}
 
 					executor.StartSyncProcess(syncProcesses[1], homeDir, poolID, endpoint, targetHeight)
 				}
 			} else if currentKey == nodeHeight && syncProcesses[1].Running {
-				logger.Info("stopping db-sync: reached pool height")
+				logger.Info().Msg("stopping db-sync: reached pool height")
 				executor.StopProcess(syncProcesses[1])
 
-				if err = n.ShutdownNode(); err != nil {
-					logger.Error(err.Error())
+				if err = n.ShutdownNode(n.Mode == "p2p"); err != nil {
+					logger.Error().Msg(err.Error())
 					os.Exit(1)
 				}
 				n.Mode = "normal"
 				err = n.Start(flags)
 				if err != nil {
-					logger.Error(err.Error())
-					n.ShutdownNode()
+					logger.Error().Msg(err.Error())
+					if err = n.ShutdownNode(n.Mode == "p2p"); err != nil {
+						os.Exit(1)
+					}
 					os.Exit(1)
 				}
 			}

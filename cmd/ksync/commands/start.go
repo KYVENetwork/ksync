@@ -4,13 +4,8 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/executor/db"
 	"github.com/KYVENetwork/ksync/executor/p2p"
-	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
-)
-
-var (
-	logger = log.Logger()
 )
 
 var (
@@ -51,7 +46,7 @@ var startCmd = &cobra.Command{
 	Short: "Start fast syncing blocks",
 	Run: func(cmd *cobra.Command, args []string) {
 		if mode != "p2p" && mode != "db" {
-			logger.Error("flag sync-mode has to be either \"p2p\" or \"db\"")
+			logger.Error().Msg("flag sync-mode has to be either \"p2p\" or \"db\"")
 		}
 
 		if mode == "p2p" {

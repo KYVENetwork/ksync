@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	logger = log.Logger()
+	logger = log.KLogger()
 )
 
 func CreateAndStartProxyAppConns(config *tmCfg.Config) (proxy.AppConns, error) {

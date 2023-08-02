@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	logger = log.Logger()
+	logger = log.Logger("pool")
 )
 
 func GetPoolInfo(restEndpoint string, poolId int64) (int64, int64, *types.PoolResponse, error) {
@@ -21,7 +21,7 @@ func GetPoolInfo(restEndpoint string, poolId int64) (int64, int64, *types.PoolRe
 	}
 
 	if poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermint && poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermintBsync {
-		logger.Error(fmt.Sprintf("Found invalid runtime on pool %d: Expected = %s,%s Found = %s", poolId, utils.KSyncRuntimeTendermint, utils.KSyncRuntimeTendermintBsync, poolResponse.Pool.Data.Runtime))
+		logger.Error().Msg(fmt.Sprintf("Found invalid runtime on pool %d: Expected = %s,%s Found = %s", poolId, utils.KSyncRuntimeTendermint, utils.KSyncRuntimeTendermintBsync, poolResponse.Pool.Data.Runtime))
 		os.Exit(1)
 	}
 
@@ -31,7 +31,7 @@ func GetPoolInfo(restEndpoint string, poolId int64) (int64, int64, *types.PoolRe
 func requestPool(restEndpoint string, poolId int64) (*types.PoolResponse, error) {
 	data, err := utils.DownloadFromUrl(fmt.Sprintf("%s/kyve/query/v1beta1/pool/%d", restEndpoint, poolId))
 	if err != nil {
-		logger.Error(err.Error())
+		logger.Error().Msg(err.Error())
 		os.Exit(1)
 	}
 
