@@ -249,7 +249,7 @@ This resolves in the ability to sync a node completely with KYVE data requiring 
 The requirements are similar to the [DB-SYNC requirements](#db-requirements). Everything else will be set up automatically.
 
 #### Sync node supervised
-To start the syncing process, simply run.
+To start the syncing process, simply run
 ````bash
 ksync supervise --home="/Users/<user>/.<chain>" --daemon-path="/Users/<user>/<daemon>" --pool-id=<pool> --rest=<network-api-endpoint> --seeds <p2p.seeds>
 ````
@@ -363,3 +363,42 @@ the tool shows _Done_ and you can safely exit the process with CMD+C.
 
 When you want to continue to sync normally you can now add an addrbook or add peers in `persistent_peers`. 
 When you start  the node again the node should continue normally and tries to sync the remaining blocks.
+
+### 3. Sync Cosmos Hub supervised
+
+Cosmos Hub requires a start with P2P sync due to the >100MB genesis file.
+To simplify the syncing process, we can use the ````supervise```` to let KSYNC manage both processes - starting the node to be synced and P2P- or DB-Sync.
+
+To start successfully, you need to download and set up the correct binary with the version ````v.4.2.1````. You can download them [here](https://github.com/cosmos/gaia/releases/tag/v4.2.1) or build them from source:
+[https://github.com/cosmos/gaia](https://github.com/cosmos/gaia)
+
+Verify installation with
+
+```bash
+./gaiad version
+4.2.1
+```
+
+After the installation init the project
+
+```bash
+./gaiad init <your-moniker> --chain-id cosmoshub-4
+```
+
+download the genesis
+
+```bash
+wget https://raw.githubusercontent.com/cosmos/mainnet/master/genesis/genesis.cosmoshub-4.json.gz
+gzip -d genesis.cosmoshub-4.json.gz
+mv genesis.cosmoshub-4.json ~/.gaia/config/genesis.json
+```
+
+Don't include an addrbook.json and KSYNC will manage your config file itself.
+It should only connect to our peer. The supervised KSYNC process can be started with
+
+`````bash
+ ksync supervise --daemon-path /<daemon-path>/gaiad --home /Users/<user>/.gaia --pool-id 0 --rest=https://api-eu-1.kyve.network/
+`````
+
+> **_Note:_** This can take a while (~5mins) since the genesis file is
+quite big. You can skip invariants checks to boot even fast, but it still takes a long time until the gaia node starts.
