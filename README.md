@@ -22,8 +22,9 @@
     - [Requirements](#db-requirements)
     - [Sync node](#sync-node-with-db)
 - [Examples](#examples)
-  - [1. Sync Osmosis on Kaon with DB-SYNC](#1-sync-osmosis-on-kaon-with-db-sync)
-  - [2. Sync Cosmos Hub on Mainnet with P2P-SYNC](#2-sync-cosmos-hub-on-mainnet-over-p2p-sync)
+  - [1. Sync Osmosis (Kaon) with DB-SYNC](#1-sync-osmosis-on-kaon-with-db-sync)
+  - [2. Sync Cosmos Hub (Mainnet) with P2P-SYNC](#2-sync-cosmos-hub-on-mainnet-over-p2p-sync)
+  - [2. Sync Cosmos Hub supervised](#3-sync-cosmos-hub-supervised)
 
 ## What is KSYNC?
 
@@ -274,7 +275,7 @@ ksync supervise --home="/Users/<user>/.<chain>" --daemon-path="/Users/<user>/<da
 All examples below use test data from a KYVE test chain running on `http://35.158.99.65:26657`. This should not be
 used in production and is only intended for demonstration purposes.
 
-### 1. Sync Osmosis on Kaon with DB-SYNC
+### 1. Sync Osmosis (Kaon) with DB-SYNC
 
 To sync osmosis you have to download and set up the correct osmosis binary. To sync from genesis the version `v3.1.0` has
 to be used. You can download them [here](https://github.com/osmosis-labs/osmosis/releases/tag/v3.1.0) or build them from source: [https://github.com/osmosis-labs/osmosis](https://github.com/osmosis-labs/osmosis)
@@ -320,7 +321,7 @@ applied KSYNC automatically exits.
 When you want to continue to sync normally you can now add an addrbook or add peers in `persistent_peers`. When you start
 the node again with the normal start command `./osmosisd start` the node should continue normally and tries to sync the remaining blocks.
 
-### 2. Sync Cosmos Hub on Mainnet over P2P-SYNC
+### 2. Sync Cosmos Hub (Mainnet) over P2P-SYNC
 
 Since we want to sync Cosmos Hub from genesis and the genesis file is bigger than 100MB we have to use P2P sync.
 
