@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	logger = log.Logger()
+	logger = log.Logger("collector")
 )
 
 func StartBlockCollector(blockCh chan<- *types.Block, restEndpoint string, pool types.PoolResponse, startHeight, targetHeight int64) {
@@ -32,16 +32,16 @@ BundleCollector:
 			}
 
 			if toHeight < startHeight {
-				logger.Info(fmt.Sprintf("skipping bundle with storage id %s", bundle.StorageId))
+				logger.Info().Msg(fmt.Sprintf("skipping bundle with storage id %s", bundle.StorageId))
 				continue
 			} else {
-				logger.Info(fmt.Sprintf("downloading bundle with storage id %s", bundle.StorageId))
+				logger.Info().Msg(fmt.Sprintf("downloading bundle with storage id %s", bundle.StorageId))
 			}
 
 			// retrieve bundle from storage provider
 			data, err := retrieveBundleFromStorageProvider(bundle)
 			for err != nil {
-				logger.Error(fmt.Sprintf("failed to retrieve bundle with storage id %s from Storage Provider: %s. Retrying in 10s ...", bundle.StorageId, err))
+				logger.Error().Msg(fmt.Sprintf("failed to retrieve bundle with storage id %s from Storage Provider: %s. Retrying in 10s ...", bundle.StorageId, err))
 
 				// sleep 10 seconds after an unsuccessful request
 				time.Sleep(10 * time.Second)
@@ -134,7 +134,7 @@ func getBundlesPage(restEndpoint string, poolId int64, paginationKey string) ([]
 		return nil, "", err
 	}
 
-	logger.Info("collector", "next-key", bundlesResponse.Pagination.NextKey)
+	logger.Info().Msgf("collector", "next-key", bundlesResponse.Pagination.NextKey)
 
 	nextKey := base64.URLEncoding.EncodeToString(bundlesResponse.Pagination.NextKey)
 
@@ -150,7 +150,7 @@ func decompressBundleFromStorageProvider(bundle types.FinalizedBundle, data []by
 	case 1:
 		return utils.DecompressGzip(data)
 	default:
-		logger.Error(fmt.Sprintf("bundle has an invalid storage provider id %d. canceling sync", bundle.StorageProviderId))
+		logger.Error().Msg(fmt.Sprintf("bundle has an invalid storage provider id %d. canceling sync", bundle.StorageProviderId))
 		os.Exit(1)
 	}
 
@@ -168,7 +168,7 @@ func retrieveBundleFromStorageProvider(bundle types.FinalizedBundle) (data []byt
 	case 2:
 		return utils.DownloadFromUrl(fmt.Sprintf("https://arweave.net/%s", bundle.StorageId))
 	default:
-		logger.Error(fmt.Sprintf("bundle has an invalid storage provider id %d. canceling sync", bundle.StorageProviderId))
+		logger.Error().Msg(fmt.Sprintf("bundle has an invalid storage provider id %d. canceling sync", bundle.StorageProviderId))
 		os.Exit(1)
 	}
 

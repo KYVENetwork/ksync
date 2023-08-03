@@ -3,9 +3,9 @@ package reactor
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/collector"
+	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
 	bc "github.com/tendermint/tendermint/blockchain"
-	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
 	bcproto "github.com/tendermint/tendermint/proto/tendermint/blockchain"
 	"os"
@@ -20,6 +20,7 @@ const (
 
 var (
 	blockCh = make(chan *types.Block, 1000)
+	logger  = log.Logger("reactor")
 )
 
 type BlockchainReactor struct {
@@ -55,12 +56,8 @@ func NewBlockchainReactor(quitCh chan<- int, pool types.PoolResponse, restEndpoi
 	return bcR
 }
 
-func (bcR *BlockchainReactor) SetLogger(l log.Logger) {
-	bcR.BaseService.Logger = l
-}
-
 func (bcR *BlockchainReactor) OnStart() error {
-	bcR.Logger.Info("starting")
+	logger.Info().Msg("starting")
 	go bcR.retrieveBlocks()
 
 	return nil
@@ -77,11 +74,11 @@ func (bcR *BlockchainReactor) retrieveStatusResponses(src p2p.Peer) {
 	for {
 		msgBytes, err := bc.EncodeMsg(&bcproto.StatusRequest{})
 		if err != nil {
-			bcR.Logger.Error("could not convert msg to protobuf", "err", err)
+			logger.Error().Msgf("could not convert msg to protobuf", "err", err)
 			return
 		}
 
-		bcR.Logger.Info("Sent status request to peer")
+		logger.Info().Msg("Sent status request to peer")
 
 		src.Send(BlockchainChannel, msgBytes)
 		time.Sleep(1 * time.Second)
@@ -89,7 +86,7 @@ func (bcR *BlockchainReactor) retrieveStatusResponses(src p2p.Peer) {
 }
 
 func (bcR *BlockchainReactor) OnStop() {
-	bcR.Logger.Info("stopping")
+	logger.Info().Msg("stopping")
 }
 
 func (bcR *BlockchainReactor) GetChannels() []*p2p.ChannelDescriptor {
@@ -120,11 +117,11 @@ func (bcR *BlockchainReactor) sendStatusToPeer(src p2p.Peer) (queued bool) {
 		Base:   bcR.startHeight,
 		Height: height})
 	if err != nil {
-		bcR.Logger.Error("could not convert msg to protobuf", "err", err)
+		logger.Error().Msgf("could not convert msg to protobuf", "err", err)
 		return
 	}
 
-	bcR.Logger.Info("Sent status to peer", "base", bcR.startHeight, "height", height)
+	logger.Info().Msgf("Sent status to peer", "base", bcR.startHeight, "height", height)
 
 	return src.Send(BlockchainChannel, msgBytes)
 }
@@ -144,13 +141,13 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 
 	bl, err := block.ToProto()
 	if err != nil {
-		bcR.Logger.Error("could not convert msg to protobuf", "err", err)
+		logger.Error().Msgf("could not convert msg to protobuf", "err", err)
 		return false
 	}
 
 	msgBytes, err := bc.EncodeMsg(&bcproto.BlockResponse{Block: bl})
 	if err != nil {
-		bcR.Logger.Error("could not marshal msg", "err", err)
+		logger.Error().Msgf("could not marshal msg", "err", err)
 		return false
 	}
 
@@ -173,7 +170,7 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 		bcR.sendStatusToPeer(src)
 	}
 
-	bcR.Logger.Info("Sent block to peer", "height", block.Height)
+	logger.Info().Msgf("Sent block to peer", "height", block.Height)
 	delete(bcR.blocks, block.Height)
 
 	return src.TrySend(BlockchainChannel, msgBytes)
@@ -182,26 +179,26 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 	msg, err := bc.DecodeMsg(msgBytes)
 	if err != nil {
-		bcR.Logger.Error("Error decoding message", "src", src, "chId", chID, "err", err)
+		logger.Error().Msgf("Error decoding message", "src", src, "chId", chID, "err", err)
 		bcR.Switch.StopPeerForError(src, err)
 		return
 	}
 
 	switch msg := msg.(type) {
 	case *bcproto.StatusRequest:
-		bcR.Logger.Info("Incoming status request")
+		logger.Info().Msg("Incoming status request")
 		bcR.sendStatusToPeer(src)
 	case *bcproto.BlockRequest:
-		bcR.Logger.Info("Incoming block request", "height", msg.Height)
+		logger.Info().Msgf("Incoming block request", "height", msg.Height)
 		bcR.sendBlockToPeer(msg, src)
 	case *bcproto.StatusResponse:
-		bcR.Logger.Info("Incoming status response", "base", msg.Base, "height", msg.Height)
+		logger.Info().Msgf("Incoming status response", "base", msg.Base, "height", msg.Height)
 
 		if bcR.collectorRunning {
 			// check exit condition
 			if msg.Height == bcR.endHeight-1 {
-				bcR.Logger.Info(fmt.Sprintf("Synced from height %d to target height %d", bcR.startHeight, bcR.endHeight-1))
-				bcR.Logger.Info("Done.")
+				logger.Info().Msg(fmt.Sprintf("Synced from height %d to target height %d", bcR.startHeight, bcR.endHeight-1))
+				logger.Info().Msg("Done.")
 
 				bcR.quitCh <- 0
 			}
@@ -213,7 +210,7 @@ func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 			}
 
 			if bcR.endHeight <= bcR.startHeight {
-				bcR.Logger.Error(fmt.Sprintf("Target height %d has to be bigger than current height %d", bcR.endHeight, bcR.startHeight))
+				logger.Error().Msg(fmt.Sprintf("Target height %d has to be bigger than current height %d", bcR.endHeight, bcR.startHeight))
 				os.Exit(1)
 			}
 
@@ -228,6 +225,6 @@ func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 			go bcR.retrieveStatusResponses(src)
 		}
 	default:
-		bcR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
+		logger.Error().Msg(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
 	}
 }

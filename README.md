@@ -97,6 +97,8 @@ message size limitation in the Tendermint Socket Protocol (TSP).
 Currently, p2p sync is only supported for nodes using `github.com/tendermint/tendermint`. If nodes use CometBFT db sync
 has to be used. CometBFT support will be added in the future.
 
+> **_NOTE:_** The [Supervised sync](#) wil manage the P2P or DB decision on its own.
+
 ### P2P-SYNC
 
 In this sync mode this tool mocks a peer which has all the blocks the actual peer node needs. The
@@ -248,6 +250,25 @@ If you run this command without a `--target-height` it will sync all blocks whic
 available in the pool. KSYNC will automatically exit once a target height is reached, or you can simply exit the sync 
 process by killing KSYNC with CMD+C.
 
+### Supervised Sync
+
+Due to the [100MB limitation](#limitations), P2P-Sync was implemented to support KSYNC for any type of Tendermint blockchain.
+However, in comparison to DB-Sync it has some disadvantages, which is why it's recommended to use P2P-Sync only as long as the first block was synced successfully before switching back to DB-SYNC.
+On top of that, you need to run the node to be synced and KSYNC in two different terminals, which isn't that comfortable for developers.
+Supervised Sync consists of a process manager, running P2P-Sync or DB-Sync on the one hand and the node to be synced on the other hand.
+Based on the requirements, the supervisor will manage which syncing process is required, thereby enabling the best way of syncing the node with the validated blocks.
+If the node is completely synced with the corresponding KYVE pool, it will start normally to find peers through the provided seeds.
+This resolves in the ability to sync a node completely with KYVE data requiring just one command.
+
+#### Sync node requirements
+The requirements are similar to the [DB-SYNC requirements](#db-requirements). Everything else will be set up automatically.
+
+#### Sync node supervised
+To start the syncing process, simply run
+````bash
+ksync supervise --home="/Users/<user>/.<chain>" --daemon-path="/Users/<user>/<daemon>" --pool-id=<pool> --rest=<network-api-endpoint> --seeds <p2p.seeds>
+````
+
 ## Examples
 
 All examples below use test data from a KYVE test chain running on `http://35.158.99.65:26657`. This should not be
@@ -357,3 +378,42 @@ the tool shows _Done_ and you can safely exit the process with CMD+C.
 
 When you want to continue to sync normally you can now add an addrbook or add peers in `persistent_peers`.
 When you start  the node again the node should continue normally and tries to sync the remaining blocks.
+
+### 3. Sync Cosmos Hub supervised
+
+Cosmos Hub requires a start with P2P sync due to the >100MB genesis file.
+To simplify the syncing process, we can use the ````supervise```` to let KSYNC manage both processes - starting the node to be synced and P2P- or DB-Sync.
+
+To start successfully, you need to download and set up the correct binary with the version ````v.4.2.1````. You can download them [here](https://github.com/cosmos/gaia/releases/tag/v4.2.1) or build them from source:
+[https://github.com/cosmos/gaia](https://github.com/cosmos/gaia)
+
+Verify installation with
+
+```bash
+./gaiad version
+4.2.1
+```
+
+After the installation init the project
+
+```bash
+./gaiad init <your-moniker> --chain-id cosmoshub-4
+```
+
+download the genesis
+
+```bash
+wget https://raw.githubusercontent.com/cosmos/mainnet/master/genesis/genesis.cosmoshub-4.json.gz
+gzip -d genesis.cosmoshub-4.json.gz
+mv genesis.cosmoshub-4.json ~/.gaia/config/genesis.json
+```
+
+Don't include an addrbook.json and KSYNC will manage your config file itself.
+It should only connect to our peer. The supervised KSYNC process can be started with
+
+`````bash
+ ksync supervise --daemon-path /<daemon-path>/gaiad --home /Users/<user>/.gaia --pool-id 0 --rest=https://api-eu-1.kyve.network/
+`````
+
+> **_Note:_** This can take a while (~5mins) since the genesis file is
+quite big. You can skip invariants checks to boot even fast, but it still takes a long time until the gaia node starts.
