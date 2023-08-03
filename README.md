@@ -188,6 +188,21 @@ to the DB directly.
 It does not matter if you want to sync a node from genesis or from an existing height, the following settings have
 to be changed in order to run DB sync.
 
+Make sure that `persistent_peers` are empty in the `config.toml` config file:
+
+`~/.<chain>/config/config.toml`
+```toml
+[p2p]
+
+persistent_peers = ""
+```
+
+Make sure that your `addrbook.json` is empty or delete it entirely:
+
+```bash
+rm ~/.<chain>/config/addrbook.json
+```
+
 Make sure that `proxy_app` and `abci` have the following default values in the `config.toml` config file:
 
 `~/.<chain>/config/config.toml`
@@ -262,8 +277,8 @@ download the genesis
 wget -O ~/.osmosisd/config/genesis.json https://github.com/osmosis-labs/networks/raw/main/osmosis-1/genesis.json
 ```
 
-Important: Don't include an addrbook.json and make sure persistent_peers and etc. are empty for now or else the node will connect to other peers. It should only connect
-to our peer.
+Important: Don't include an addrbook.json and make sure persistent_peers and etc. (e.g. unconditional_peer_ids, private_peer_ids
+and seeds) are empty for now or else the node will connect to other peers. It should only connect to our peer.
 
 when the config is done the node can be started
 
@@ -320,8 +335,8 @@ pex = false
 allow_duplicate_ip = true
 ```
 
-Important: Don't include an addrbook.json and make sure persistent_peers and etc. are empty for now or else the node
-will connect to other peers. It should only connect to our peer.
+Important: Don't include an addrbook.json and make sure persistent_peers and etc. (e.g. unconditional_peer_ids, private_peer_ids
+and seeds) are empty for now or else the node will connect to other peers. It should only connect to our peer.
 
 When the config is done the node can be started. NOTE: this can take a while (~5mins) since the genesis file is
 quite big. You can skip invariants checks to boot even fast, but it still takes a long time until the gaia node starts.
