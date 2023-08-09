@@ -167,6 +167,8 @@ func retrieveBundleFromStorageProvider(bundle types.FinalizedBundle) (data []byt
 		return utils.DownloadFromUrl(fmt.Sprintf("https://arweave.net/%s", bundle.StorageId))
 	case 2:
 		return utils.DownloadFromUrl(fmt.Sprintf("https://arweave.net/%s", bundle.StorageId))
+	case 3:
+		return utils.DownloadFromUrl(fmt.Sprintf("https://storage.kyve.network/%s", bundle.StorageId))
 	default:
 		logger.Error(fmt.Sprintf("bundle has an invalid storage provider id %d. canceling sync", bundle.StorageProviderId))
 		os.Exit(1)
