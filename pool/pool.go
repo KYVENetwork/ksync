@@ -7,25 +7,32 @@ import (
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/tendermint/tendermint/libs/json"
 	"os"
+	"time"
 )
 
 var (
 	logger = log.Logger("pool")
 )
 
-func GetPoolInfo(restEndpoint string, poolId int64) (int64, int64, *types.PoolResponse, error) {
-	var poolResponse, err = requestPool(restEndpoint, poolId)
+func GetPoolInfo(recursionDepth int, restEndpoint string, poolId int64) (int64, int64, *types.PoolResponse, error) {
+	if recursionDepth < 10 {
+		var poolResponse, err = requestPool(restEndpoint, poolId)
 
-	if err != nil {
-		return 0, 0, nil, err
+		if err != nil {
+			logger.Info().Msgf(fmt.Sprintf("could not query pool info. Try again in 5s ... (%d/10)", recursionDepth+1))
+			time.Sleep(time.Second * 5)
+			return GetPoolInfo(recursionDepth+1, restEndpoint, poolId)
+		}
+
+		if poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermint && poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermintBsync {
+			logger.Error().Msg(fmt.Sprintf("Found invalid runtime on pool %d: Expected = %s,%s Found = %s", poolId, utils.KSyncRuntimeTendermint, utils.KSyncRuntimeTendermintBsync, poolResponse.Pool.Data.Runtime))
+			os.Exit(1)
+		}
+
+		return poolResponse.Pool.Data.StartKey, poolResponse.Pool.Data.CurrentKey, poolResponse, nil
+	} else {
+		return 0, 0, nil, fmt.Errorf("could not get pool height")
 	}
-
-	if poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermint && poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermintBsync {
-		logger.Error().Msg(fmt.Sprintf("Found invalid runtime on pool %d: Expected = %s,%s Found = %s", poolId, utils.KSyncRuntimeTendermint, utils.KSyncRuntimeTendermintBsync, poolResponse.Pool.Data.Runtime))
-		os.Exit(1)
-	}
-
-	return poolResponse.Pool.Data.StartKey, poolResponse.Pool.Data.CurrentKey, poolResponse, nil
 }
 
 func requestPool(restEndpoint string, poolId int64) (*types.PoolResponse, error) {

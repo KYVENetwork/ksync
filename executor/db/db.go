@@ -29,7 +29,7 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 	}
 
 	// load start and latest height
-	startHeight, endHeight, poolResponse, err := pool.GetPoolInfo(restEndpoint, poolId)
+	startHeight, endHeight, poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
 	if err != nil {
 		panic(fmt.Errorf("failed to get pool info: %w", err))
 	}

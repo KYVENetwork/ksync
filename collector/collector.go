@@ -134,7 +134,7 @@ func getBundlesPage(restEndpoint string, poolId int64, paginationKey string) ([]
 		return nil, "", err
 	}
 
-	logger.Info().Msgf("collector", "next-key", bundlesResponse.Pagination.NextKey)
+	logger.Info().Bytes("next-key", bundlesResponse.Pagination.NextKey).Msgf("collector")
 
 	nextKey := base64.URLEncoding.EncodeToString(bundlesResponse.Pagination.NextKey)
 

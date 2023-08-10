@@ -92,7 +92,7 @@ func (n *Node) Start(flags string) error {
 	go func() {
 		err = cmd.Start()
 		if err != nil {
-			logger.Error().Msgf("could not start node process", "err", err)
+			logger.Error().Str("could not start node process", err.Error())
 			processIDChan <- -1
 			return
 		}
@@ -158,32 +158,39 @@ func (n *Node) ShutdownNode(p2p bool) error {
 // It returns the nodeHeight if successful or an error message if the recursion depth reaches the limit (200s).
 func (n *Node) GetNodeHeight(recursionDepth int) (int64, error) {
 	response, err := http.Get(utils.ABCIEndpoint)
-	if recursionDepth < 50 {
+	if recursionDepth < 30 {
 		if err != nil {
-			logger.Error().Msgf(fmt.Sprintf("failed to query height. Try again in 20s ... (%d/50)", recursionDepth+1))
+			logger.Info().Msg(fmt.Sprintf("could not query node height. Try again in 20s ... (%d/30)", recursionDepth+1))
 
 			time.Sleep(time.Second * 20)
 			return n.GetNodeHeight(recursionDepth + 1)
 		} else {
 			responseData, err := io.ReadAll(response.Body)
 			if err != nil {
-				logger.Error().Msgf("could not read response data", "err", err.Error())
+				logger.Error().Str("could not read response data", err.Error())
 			}
 
 			var resp types.HeightResponse
 			err = json.Unmarshal(responseData, &resp)
 			if err != nil {
-				logger.Error().Msgf("could not unmarshal JSON", "err", err.Error())
+				logger.Error().Str("could not unmarshal JSON", err.Error())
 			}
 
 			lastBlockHeight := resp.Result.Response.LastBlockHeight
-			nodeHeight, err := strconv.Atoi(lastBlockHeight)
-			if err != nil {
-				logger.Error().Msgf("could not convert lastBlockHeight to int; set it to 0", "err", err.Error())
+			var nodeHeight int64
+
+			if lastBlockHeight != "" {
+				nodeHeight, err = strconv.ParseInt(lastBlockHeight, 10, 64)
+				if err != nil {
+					logger.Error().Str("could not convert lastBlockHeight to int; set it to 0", err.Error())
+					nodeHeight = 0
+				}
+			} else {
+				logger.Error().Msg("lastBlockHeight is empty; set it to 0")
 				nodeHeight = 0
 			}
 
-			return int64(nodeHeight), nil
+			return nodeHeight, nil
 		}
 	} else {
 		return 0, fmt.Errorf("could not get node height, exiting")

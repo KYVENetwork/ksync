@@ -74,7 +74,7 @@ func (bcR *BlockchainReactor) retrieveStatusResponses(src p2p.Peer) {
 	for {
 		msgBytes, err := bc.EncodeMsg(&bcproto.StatusRequest{})
 		if err != nil {
-			logger.Error().Msgf("could not convert msg to protobuf", "err", err)
+			logger.Error().Str("could not convert msg to protobuf", err.Error())
 			return
 		}
 
@@ -117,11 +117,11 @@ func (bcR *BlockchainReactor) sendStatusToPeer(src p2p.Peer) (queued bool) {
 		Base:   bcR.startHeight,
 		Height: height})
 	if err != nil {
-		logger.Error().Msgf("could not convert msg to protobuf", "err", err)
+		logger.Error().Str("could not convert msg to protobuf", err.Error())
 		return
 	}
 
-	logger.Info().Msgf("Sent status to peer", "base", bcR.startHeight, "height", height)
+	logger.Info().Int64("base", bcR.startHeight).Int64("height", height).Msg("Sent status to peer")
 
 	return src.Send(BlockchainChannel, msgBytes)
 }
@@ -141,13 +141,13 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 
 	bl, err := block.ToProto()
 	if err != nil {
-		logger.Error().Msgf("could not convert msg to protobuf", "err", err)
+		logger.Error().Str("could not convert msg to protobuf", err.Error())
 		return false
 	}
 
 	msgBytes, err := bc.EncodeMsg(&bcproto.BlockResponse{Block: bl})
 	if err != nil {
-		logger.Error().Msgf("could not marshal msg", "err", err)
+		logger.Error().Str("could not marshal msg", err.Error())
 		return false
 	}
 
@@ -170,7 +170,7 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 		bcR.sendStatusToPeer(src)
 	}
 
-	logger.Info().Msgf("Sent block to peer", "height", block.Height)
+	logger.Info().Int64("height", block.Height).Msg("Sent block to peer")
 	delete(bcR.blocks, block.Height)
 
 	return src.TrySend(BlockchainChannel, msgBytes)
@@ -179,7 +179,7 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 	msg, err := bc.DecodeMsg(msgBytes)
 	if err != nil {
-		logger.Error().Msgf("Error decoding message", "src", src, "chId", chID, "err", err)
+		logger.Error().Msgf("Error decoding message", fmt.Sprintf("src: %s", src), fmt.Sprintf("chId: %b", chID), err)
 		bcR.Switch.StopPeerForError(src, err)
 		return
 	}
@@ -189,10 +189,10 @@ func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 		logger.Info().Msg("Incoming status request")
 		bcR.sendStatusToPeer(src)
 	case *bcproto.BlockRequest:
-		logger.Info().Msgf("Incoming block request", "height", msg.Height)
+		logger.Info().Int64("height", msg.Height).Msg("Incoming block request")
 		bcR.sendBlockToPeer(msg, src)
 	case *bcproto.StatusResponse:
-		logger.Info().Msgf("Incoming status response", "base", msg.Base, "height", msg.Height)
+		logger.Info().Int64("base", msg.Base).Int64("height", msg.Height).Msgf("Incoming status response")
 
 		if bcR.collectorRunning {
 			// check exit condition

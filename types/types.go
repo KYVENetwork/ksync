@@ -39,7 +39,7 @@ type PoolResponse = struct {
 type SyncProcess struct {
 	Name      string
 	Goroutine chan struct{}
-	QuitCh    chan int
+	QuitCh    chan<- int
 	Running   bool
 	wg        sync.WaitGroup
 }
