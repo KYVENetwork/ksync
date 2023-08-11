@@ -3,6 +3,7 @@ package types
 import (
 	tmCfg "github.com/tendermint/tendermint/config"
 	tmTypes "github.com/tendermint/tendermint/types"
+	"sync"
 )
 
 type Config = tmCfg.Config
@@ -16,6 +17,14 @@ type BlockPair struct {
 
 type Block = tmTypes.Block
 
+type HeightResponse struct {
+	Result struct {
+		Response struct {
+			LastBlockHeight string `json:"last_block_height"`
+		} `json:"response"`
+	} `json:"result"`
+}
+
 type PoolResponse = struct {
 	Pool struct {
 		Id   int64 `json:"id"`
@@ -25,6 +34,14 @@ type PoolResponse = struct {
 			CurrentKey int64  `json:"current_key"`
 		} `json:"data"`
 	} `json:"pool"`
+}
+
+type SyncProcess struct {
+	Name      string
+	Goroutine chan struct{}
+	QuitCh    chan<- int
+	Running   bool
+	wg        sync.WaitGroup
 }
 
 type TendermintDataItem struct {

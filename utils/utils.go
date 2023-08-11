@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 )
 
 func DownloadFromUrl(url string) ([]byte, error) {
@@ -47,4 +48,24 @@ func DecompressGzip(input []byte) ([]byte, error) {
 	}
 
 	return out.Bytes(), nil
+}
+
+func IsFileGreaterThanOrEqualTo100MB(filePath string) (bool, error) {
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return false, err
+	}
+
+	// Get file size in bytes
+	fileSize := fileInfo.Size()
+
+	// Convert to MB
+	fileSizeMB := float64(fileSize) / (1024 * 1024)
+
+	// Check if the file size is >= 100MB
+	if fileSizeMB >= 100.0 {
+		return true, nil
+	}
+
+	return false, nil
 }

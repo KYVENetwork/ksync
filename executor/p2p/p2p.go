@@ -16,10 +16,12 @@ import (
 )
 
 var (
-	logger = log.Logger()
+	kLogger = log.KLogger().With("module", "p2p")
+	logger  = log.Logger("p2p")
 )
 
 func StartP2PExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string, targetHeight int64) {
+	logger.Info().Msg("starting p2p sync")
 	// load config
 	config, err := cfg.LoadConfig(homeDir)
 	if err != nil {
@@ -27,7 +29,10 @@ func StartP2PExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpo
 	}
 
 	// load start and latest height
-	startHeight, endHeight, poolResponse := pool.GetPoolInfo(restEndpoint, poolId)
+	startHeight, endHeight, poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
+	if err != nil {
+		panic(fmt.Errorf("failed to get pool info: %w", err))
+	}
 
 	// if target height was set and is smaller than latest height this will be our new target height
 	// we add +1 to make target height including
@@ -37,7 +42,7 @@ func StartP2PExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpo
 
 	// if target height is smaller than the base height of the pool we exit
 	if endHeight <= startHeight {
-		logger.Error(fmt.Sprintf("target height %d has to be bigger than starting height %d", endHeight, startHeight))
+		logger.Error().Msg(fmt.Sprintf("target height %d has to be bigger than starting height %d", endHeight, startHeight))
 		os.Exit(1)
 	}
 
@@ -55,7 +60,7 @@ func StartP2PExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpo
 	// this peer should listen to different port to avoid port collision
 	config.P2P.ListenAddress = fmt.Sprintf("tcp://%s:%d", peerHost.Hostname(), port-1)
 
-	logger.Info(fmt.Sprintf("Config loaded. Moniker = %s", config.Moniker))
+	logger.Info().Msg(fmt.Sprintf("Config loaded. Moniker = %s", config.Moniker))
 
 	nodeKey, err := p2p.LoadNodeKey(config.NodeKeyFile())
 	if err != nil {
@@ -67,7 +72,7 @@ func StartP2PExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpo
 		PrivKey: ed25519.GenPrivKey(),
 	}
 
-	logger.Info(fmt.Sprintf("generated new node key with id = %s", ksyncNodeKey.ID()))
+	logger.Info().Msg(fmt.Sprintf("generated new node key with id = %s", ksyncNodeKey.ID()))
 
 	genDoc, err := nm.DefaultGenesisDocProviderFunc(config)()
 	if err != nil {
@@ -76,15 +81,14 @@ func StartP2PExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpo
 
 	nodeInfo, err := p2pHelpers.MakeNodeInfo(config, ksyncNodeKey, genDoc)
 
-	logger.Info("created node info")
+	logger.Info().Msg("created node info")
 
 	transport := p2p.NewMultiplexTransport(nodeInfo, *ksyncNodeKey, p2p.MConnConfig(config.P2P))
 
-	logger.Info("created multiplex transport")
+	logger.Info().Msg("created multiplex transport")
 
-	p2pLogger := logger.With("module", "p2p")
-	bcR := reactor.NewBlockchainReactor(quitCh, poolResponse, restEndpoint, startHeight, endHeight)
-	sw := p2pHelpers.CreateSwitch(config, transport, bcR, nodeInfo, ksyncNodeKey, p2pLogger)
+	bcR := reactor.NewBlockchainReactor(quitCh, *poolResponse, restEndpoint, startHeight, endHeight)
+	sw := p2pHelpers.CreateSwitch(config, transport, bcR, nodeInfo, ksyncNodeKey, kLogger)
 
 	// start the transport
 	addr, err := p2p.NewNetAddressString(p2p.IDAddressString(ksyncNodeKey.ID(), config.P2P.ListenAddress))
@@ -116,6 +120,6 @@ func StartP2PExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpo
 	}
 
 	if err := sw.DialPeerWithAddress(peer); err != nil {
-		logger.Error(fmt.Sprintf("Failed to dial peer %v", err.Error()))
+		logger.Error().Msg(fmt.Sprintf("Failed to dial peer %v", err.Error()))
 	}
 }
