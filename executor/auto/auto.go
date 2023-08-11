@@ -60,18 +60,25 @@ func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds 
 		panic("could not start node")
 	}
 
-	_, err = n.GetNodeHeightURL(0)
-	if err != nil {
-		logger.Error().Msg(err.Error())
-		if err = n.ShutdownNode(n.Mode == "p2p"); err != nil {
+	if n.Mode == "p2p" {
+		_, err = n.GetNodeHeightURL(0)
+		if err != nil {
+			logger.Error().Msg(err.Error())
+			if err = n.ShutdownNode(n.Mode == "p2p"); err != nil {
+				os.Exit(1)
+			}
 			os.Exit(1)
 		}
-		os.Exit(1)
-	}
-
-	if n.Mode == "p2p" {
 		StartSyncProcess(syncProcesses[0], home, poolId, restEndpoint, targetHeight)
 	} else if n.Mode == "db" {
+		_, err = node.GetNodeHeightDB(home)
+		if err != nil {
+			logger.Error().Msg(err.Error())
+			if err = n.ShutdownNode(n.Mode == "db"); err != nil {
+				os.Exit(1)
+			}
+			os.Exit(1)
+		}
 		StartSyncProcess(syncProcesses[1], home, poolId, restEndpoint, targetHeight)
 	}
 
