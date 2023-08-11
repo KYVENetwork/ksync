@@ -42,7 +42,7 @@ func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds 
 		defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
 		genDoc, err := defaultDocProvider()
 
-		if !(nodeHeight > genDoc.InitialHeight) {
+		if nodeHeight <= genDoc.InitialHeight {
 			syncMode = "p2p"
 		}
 	}
