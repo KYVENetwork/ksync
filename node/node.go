@@ -3,6 +3,8 @@ package node
 import (
 	"encoding/json"
 	"fmt"
+	cfg "github.com/KYVENetwork/ksync/config"
+	"github.com/KYVENetwork/ksync/executor/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/node/helpers"
 	"github.com/KYVENetwork/ksync/types"
@@ -153,17 +155,34 @@ func (n *Node) ShutdownNode(p2p bool) error {
 	return nil
 }
 
-// The GetNodeHeight function retrieves the height of the node by querying the ABCI endpoint.
+// The GetNodeHeightDB function retrieves the height of the node by querying the BlockstoreDB.
+func GetNodeHeightDB(home string) (int64, error) {
+	config, err := cfg.LoadConfig(home)
+	if err != nil {
+		return 0, err
+	}
+
+	blockStoreDB, blockStore, err := store.GetBlockstoreDBs(config)
+	defer blockStoreDB.Close()
+
+	if err != nil {
+		return 0, err
+	}
+
+	return blockStore.Height(), nil
+}
+
+// The GetNodeHeightURL function retrieves the height of the node by querying the ABCI endpoint.
 // It uses recursion with a maximum depth of 10 to handle delays or failures.
 // It returns the nodeHeight if successful or an error message if the recursion depth reaches the limit (200s).
-func (n *Node) GetNodeHeight(recursionDepth int) (int64, error) {
+func (n *Node) GetNodeHeightURL(recursionDepth int) (int64, error) {
 	response, err := http.Get(utils.ABCIEndpoint)
 	if recursionDepth < 30 {
 		if err != nil {
 			logger.Info().Msg(fmt.Sprintf("could not query node height. Try again in 20s ... (%d/30)", recursionDepth+1))
 
 			time.Sleep(time.Second * 20)
-			return n.GetNodeHeight(recursionDepth + 1)
+			return n.GetNodeHeightURL(recursionDepth + 1)
 		} else {
 			responseData, err := io.ReadAll(response.Body)
 			if err != nil {

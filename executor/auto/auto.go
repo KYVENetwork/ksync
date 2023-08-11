@@ -1,11 +1,13 @@
 package auto
 
 import (
+	cfg "github.com/KYVENetwork/ksync/config"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/node"
 	"github.com/KYVENetwork/ksync/node/abci"
 	"github.com/KYVENetwork/ksync/pool"
 	"github.com/KYVENetwork/ksync/utils"
+	nm "github.com/tendermint/tendermint/node"
 	"os"
 	"path/filepath"
 	"time"
@@ -16,17 +18,35 @@ var (
 )
 
 func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds string, flags string, poolId int64, restEndpoint string, targetHeight int64) {
-	p2p, err := utils.IsFileGreaterThanOrEqualTo100MB(filepath.Join(home, "config", "genesis.json"))
+	syncMode := "db"
+
+	gt100, err := utils.IsFileGreaterThanOrEqualTo100MB(filepath.Join(home, "config", "genesis.json"))
 
 	if err != nil {
 		logger.Error().Msg("could not get genesis file size")
 		os.Exit(1)
 	}
 
-	syncMode := "db"
-	if p2p {
-		syncMode = "p2p"
+	if gt100 {
+		nodeHeight, err := node.GetNodeHeightDB(home)
+		if err != nil {
+			logger.Error().Str("could not get node height from BlockstoreDB", err.Error())
+			os.Exit(1)
+		}
+
+		config, err := cfg.LoadConfig(home)
+		if err != nil {
+			logger.Error().Str("could not load config", err.Error())
+			os.Exit(1)
+		}
+		defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
+		genDoc, err := defaultDocProvider()
+
+		if !(nodeHeight > genDoc.InitialHeight) {
+			syncMode = "p2p"
+		}
 	}
+
 	n := node.NewNode(daemonPath, home, seeds, syncMode)
 	if n == nil {
 		logger.Error().Msg("could not create node process")
@@ -40,7 +60,7 @@ func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds 
 		panic("could not start node")
 	}
 
-	_, err = n.GetNodeHeight(0)
+	_, err = n.GetNodeHeightURL(0)
 	if err != nil {
 		logger.Error().Msg(err.Error())
 		if err = n.ShutdownNode(n.Mode == "p2p"); err != nil {
@@ -58,7 +78,7 @@ func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds 
 	for {
 		var nodeHeight int64
 		if syncProcesses[0].Running {
-			nodeHeight, err = n.GetNodeHeight(0)
+			nodeHeight, err = n.GetNodeHeightURL(0)
 			if err != nil {
 				logger.Error().Msg(err.Error())
 				if err = n.ShutdownNode(n.Mode == "p2p"); err != nil {
