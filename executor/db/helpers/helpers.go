@@ -3,6 +3,8 @@ package helpers
 import (
 	"fmt"
 	log "github.com/KYVENetwork/ksync/logger"
+	abciClient "github.com/tendermint/tendermint/abci/client"
+	"github.com/tendermint/tendermint/abci/types"
 	tmCfg "github.com/tendermint/tendermint/config"
 	cs "github.com/tendermint/tendermint/consensus"
 	"github.com/tendermint/tendermint/evidence"
@@ -96,4 +98,30 @@ func CreateEvidenceReactor(config *tmCfg.Config, stateStore sm.Store, blockStore
 	evidenceReactor := evidence.NewReactor(evidencePool)
 	evidenceReactor.SetLogger(evidenceLogger)
 	return evidenceReactor, evidencePool, nil
+}
+
+func IsSnapshotAvailableAtHeight(config *tmCfg.Config, height int64) (found bool, err error) {
+	socketClient := abciClient.NewSocketClient(config.ProxyApp, false)
+	found = false
+
+	if err := socketClient.Start(); err != nil {
+		return found, err
+	}
+
+	res, err := socketClient.ListSnapshotsSync(types.RequestListSnapshots{})
+	if err != nil {
+		return found, err
+	}
+
+	if err := socketClient.Stop(); err != nil {
+		return found, err
+	}
+
+	for _, snapshot := range res.Snapshots {
+		if snapshot.Height == uint64(height) {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

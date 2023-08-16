@@ -21,6 +21,7 @@ func StartApiServer() {
 }
 
 func ListSnapshotsHandler(c *gin.Context) {
+	// TODO: use config.ProxyApp for socket connection
 	socketClient := abciClient.NewSocketClient("tcp://0.0.0.0:26658", false)
 
 	if err := socketClient.Start(); err != nil {
