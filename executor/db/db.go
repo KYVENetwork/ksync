@@ -13,6 +13,7 @@ import (
 	sm "github.com/tendermint/tendermint/state"
 	tmTypes "github.com/tendermint/tendermint/types"
 	"os"
+	"time"
 )
 
 var (
@@ -29,10 +30,10 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 		panic(fmt.Errorf("failed to load config.toml: %w", err))
 	}
 
-	//app, err := cfg.LoadApp(homeDir)
-	//if err != nil {
-	//	panic(fmt.Errorf("failed to load app.toml: %w", err))
-	//}
+	app, err := cfg.LoadApp(homeDir)
+	if err != nil {
+		panic(fmt.Errorf("failed to load app.toml: %w", err))
+	}
 
 	// load start and latest height
 	startHeight, endHeight, poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
@@ -159,30 +160,30 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 			prevBlock = block
 		}
 
-		// if we have reached a height where a snapshot should be created by the app
-		// we wait until it is created, else if KSYNC moves to fast the snapshot can
-		// not be properly created.
-		//if prevBlock.Height-1%app.StateSync.SnapshotInterval == 0 {
-		//	for {
-		//		logger.Info().Msg(fmt.Sprintf("Waiting until snapshot at height %d is created by app", prevBlock.Height-1))
-		//
-		//		found, err := helpers.IsSnapshotAvailableAtHeight(config, prevBlock.Height-1)
-		//		if err != nil {
-		//			logger.Error().Msg(fmt.Sprintf("Check snapshot availability failed at height %d", prevBlock.Height-1))
-		//			time.Sleep(10 * time.Second)
-		//			continue
-		//		}
-		//
-		//		if !found {
-		//			logger.Info().Msg(fmt.Sprintf("Snapshot at height %d was not created yet. Waiting ...", prevBlock.Height-1))
-		//			time.Sleep(10 * time.Second)
-		//			continue
-		//		}
-		//
-		//		logger.Info().Msg(fmt.Sprintf("Snapshot at height %d was created. Continuing ...", prevBlock.Height-1))
-		//		break
-		//	}
-		//}
+		//if we have reached a height where a snapshot should be created by the app
+		//we wait until it is created, else if KSYNC moves to fast the snapshot can
+		//not be properly created.
+		if (block.Height-1)%app.StateSync.SnapshotInterval == 0 {
+			for {
+				logger.Info().Msg(fmt.Sprintf("Waiting until snapshot at height %d is created by app", block.Height-1))
+
+				found, err := helpers.IsSnapshotAvailableAtHeight(config, block.Height-1)
+				if err != nil {
+					logger.Error().Msg(fmt.Sprintf("Check snapshot availability failed at height %d", block.Height-1))
+					time.Sleep(10 * time.Second)
+					continue
+				}
+
+				if !found {
+					logger.Info().Msg(fmt.Sprintf("Snapshot at height %d was not created yet. Waiting ...", block.Height-1))
+					time.Sleep(10 * time.Second)
+					continue
+				}
+
+				logger.Info().Msg(fmt.Sprintf("Snapshot at height %d was created. Continuing ...", block.Height-1))
+				break
+			}
+		}
 	}
 
 	logger.Info().Msg(fmt.Sprintf("Synced from height %d to target height %d", startHeight, endHeight-1))
