@@ -5,6 +5,7 @@ import (
 	"github.com/KYVENetwork/ksync/executor/auto"
 	"github.com/KYVENetwork/ksync/executor/db"
 	"github.com/KYVENetwork/ksync/executor/p2p"
+	"github.com/KYVENetwork/ksync/server"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"strings"
@@ -20,6 +21,7 @@ var (
 	targetHeight int64
 	chainId      string
 	restEndpoint string
+	apiServer    bool
 
 	quitCh = make(chan int)
 )
@@ -45,6 +47,8 @@ func init() {
 	startCmd.Flags().StringVar(&restEndpoint, "rest-endpoint", "", "Overwrite default rest endpoint from chain")
 
 	startCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target height (including)")
+
+	startCmd.Flags().BoolVar(&apiServer, "api-server", false, "start an api server on http://localhost:7878 for a TSP connection to the tendermint app")
 
 	startCmd.Flags().StringVar(&seeds, "seeds", "", "P2P seeds to continue syncing process after KSYNC")
 
@@ -80,10 +84,21 @@ var startCmd = &cobra.Command{
 			if daemonPath == "" {
 				panic("flag --daemon-path is required for mode \"auto\"")
 			}
-			auto.StartAutoExecutor(quitCh, home, daemonPath, seeds, flags, poolId, restEndpoint, targetHeight)
+
+			go auto.StartAutoExecutor(quitCh, home, daemonPath, seeds, flags, poolId, restEndpoint, targetHeight)
+
+			if apiServer {
+				server.StartApiServer()
+			}
 		case "db":
+			if apiServer {
+				panic("flag --api-server not supported for mode \"db\"")
+			}
 			go db.StartDBExecutor(quitCh, home, poolId, restEndpoint, targetHeight)
 		case "p2p":
+			if apiServer {
+				panic("flag --api-server not supported for mode \"p2p\"")
+			}
 			go p2p.StartP2PExecutor(quitCh, home, poolId, restEndpoint, targetHeight)
 		default:
 			panic("flag --mode has to be either \"auto\", \"db\" or \"p2p\"")
