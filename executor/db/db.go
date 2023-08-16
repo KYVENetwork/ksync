@@ -163,7 +163,7 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 		//if we have reached a height where a snapshot should be created by the app
 		//we wait until it is created, else if KSYNC moves to fast the snapshot can
 		//not be properly created.
-		if (block.Height-1)%app.StateSync.SnapshotInterval == 0 {
+		if app.StateSync.SnapshotInterval > 0 && (block.Height-1)%app.StateSync.SnapshotInterval == 0 {
 			for {
 				logger.Info().Msg(fmt.Sprintf("Waiting until snapshot at height %d is created by app", block.Height-1))
 
