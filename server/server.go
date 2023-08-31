@@ -5,24 +5,38 @@ import (
 	"github.com/gin-gonic/gin"
 	abciClient "github.com/tendermint/tendermint/abci/client"
 	"github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/store"
 	"net/http"
 	"strconv"
 )
 
-func StartApiServer() {
+type ApiServer struct {
+	config     *config.Config
+	blockStore *store.BlockStore
+}
+
+func StartApiServer(config *config.Config, blockStore *store.BlockStore) *ApiServer {
+	apiServer := &ApiServer{
+		config:     config,
+		blockStore: blockStore,
+	}
+
 	r := gin.New()
 
-	r.GET("/list_snapshots", ListSnapshotsHandler)
-	r.GET("/load_snapshot_chunk/:height/:format/:chunk", LoadSnapshotChunkHandler)
+	r.GET("/list_snapshots", apiServer.ListSnapshotsHandler)
+	r.GET("/load_snapshot_chunk/:height/:format/:chunk", apiServer.LoadSnapshotChunkHandler)
+	r.GET("/get_app_hash/:height", apiServer.GetAppHashHandler)
 
 	if err := r.Run(":7878"); err != nil {
 		panic(err)
 	}
+
+	return apiServer
 }
 
-func ListSnapshotsHandler(c *gin.Context) {
-	// TODO: use config.ProxyApp for socket connection
-	socketClient := abciClient.NewSocketClient("tcp://0.0.0.0:26658", false)
+func (apiServer *ApiServer) ListSnapshotsHandler(c *gin.Context) {
+	socketClient := abciClient.NewSocketClient(apiServer.config.ProxyApp, false)
 
 	if err := socketClient.Start(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -49,7 +63,7 @@ func ListSnapshotsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, res.Snapshots)
 }
 
-func LoadSnapshotChunkHandler(c *gin.Context) {
+func (apiServer *ApiServer) LoadSnapshotChunkHandler(c *gin.Context) {
 	height, err := strconv.ParseUint(c.Param("height"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -74,7 +88,7 @@ func LoadSnapshotChunkHandler(c *gin.Context) {
 		return
 	}
 
-	socketClient := abciClient.NewSocketClient("tcp://0.0.0.0:26658", false)
+	socketClient := abciClient.NewSocketClient(apiServer.config.ProxyApp, false)
 
 	if err := socketClient.Start(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -103,4 +117,24 @@ func LoadSnapshotChunkHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, res.Chunk)
+}
+
+func (apiServer *ApiServer) GetAppHashHandler(c *gin.Context) {
+	height, err := strconv.ParseInt(c.Param("height"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Error parsing param \"height\" to uint64: %s", err.Error()),
+		})
+		return
+	}
+
+	type AppHash struct {
+		AppHash string
+	}
+
+	block := apiServer.blockStore.LoadBlock(height)
+
+	c.JSON(http.StatusOK, AppHash{
+		AppHash: block.Header.AppHash.String(),
+	})
 }

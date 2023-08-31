@@ -8,6 +8,7 @@ import (
 	"github.com/KYVENetwork/ksync/executor/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/pool"
+	"github.com/KYVENetwork/ksync/server"
 	"github.com/KYVENetwork/ksync/types"
 	nm "github.com/tendermint/tendermint/node"
 	sm "github.com/tendermint/tendermint/state"
@@ -22,7 +23,7 @@ var (
 	logger  = log.Logger("db")
 )
 
-func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string, targetHeight int64) {
+func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string, targetHeight int64, apiServer bool) {
 	logger.Info().Msg("starting db sync")
 
 	config, err := cfg.LoadConfig(homeDir)
@@ -65,6 +66,10 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 
 	if err != nil {
 		panic(fmt.Errorf("failed to load blockstore db: %w", err))
+	}
+
+	if apiServer {
+		go server.StartApiServer(config, blockStore)
 	}
 
 	// get continuation height

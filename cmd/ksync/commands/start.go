@@ -5,7 +5,6 @@ import (
 	"github.com/KYVENetwork/ksync/executor/auto"
 	"github.com/KYVENetwork/ksync/executor/db"
 	"github.com/KYVENetwork/ksync/executor/p2p"
-	"github.com/KYVENetwork/ksync/server"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"strings"
@@ -85,16 +84,12 @@ var startCmd = &cobra.Command{
 				panic("flag --daemon-path is required for mode \"auto\"")
 			}
 
-			go auto.StartAutoExecutor(quitCh, home, daemonPath, seeds, flags, poolId, restEndpoint, targetHeight)
-
-			if apiServer {
-				server.StartApiServer()
-			}
+			go auto.StartAutoExecutor(quitCh, home, daemonPath, seeds, flags, poolId, restEndpoint, targetHeight, apiServer)
 		case "db":
 			if apiServer {
 				panic("flag --api-server not supported for mode \"db\"")
 			}
-			go db.StartDBExecutor(quitCh, home, poolId, restEndpoint, targetHeight)
+			go db.StartDBExecutor(quitCh, home, poolId, restEndpoint, targetHeight, false)
 		case "p2p":
 			if apiServer {
 				panic("flag --api-server not supported for mode \"p2p\"")
