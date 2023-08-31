@@ -21,6 +21,7 @@ var (
 	chainId      string
 	restEndpoint string
 	apiServer    bool
+	port         int64
 
 	quitCh = make(chan int)
 )
@@ -48,6 +49,8 @@ func init() {
 	startCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target height (including)")
 
 	startCmd.Flags().BoolVar(&apiServer, "api-server", false, "start an api server on http://localhost:7878 for a TSP connection to the tendermint app")
+
+	startCmd.Flags().Int64Var(&port, "port", 7878, "change the port of the api server, [default = 7878]")
 
 	startCmd.Flags().StringVar(&seeds, "seeds", "", "P2P seeds to continue syncing process after KSYNC")
 
@@ -84,12 +87,12 @@ var startCmd = &cobra.Command{
 				panic("flag --daemon-path is required for mode \"auto\"")
 			}
 
-			go auto.StartAutoExecutor(quitCh, home, daemonPath, seeds, flags, poolId, restEndpoint, targetHeight, apiServer)
+			go auto.StartAutoExecutor(quitCh, home, daemonPath, seeds, flags, poolId, restEndpoint, targetHeight, apiServer, port)
 		case "db":
 			if apiServer {
 				panic("flag --api-server not supported for mode \"db\"")
 			}
-			go db.StartDBExecutor(quitCh, home, poolId, restEndpoint, targetHeight, false)
+			go db.StartDBExecutor(quitCh, home, poolId, restEndpoint, targetHeight, false, port)
 		case "p2p":
 			if apiServer {
 				panic("flag --api-server not supported for mode \"p2p\"")

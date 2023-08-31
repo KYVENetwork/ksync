@@ -23,7 +23,7 @@ var (
 	logger  = log.Logger("db")
 )
 
-func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string, targetHeight int64, apiServer bool) {
+func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string, targetHeight int64, apiServer bool, port int64) {
 	logger.Info().Msg("starting db sync")
 
 	config, err := cfg.LoadConfig(homeDir)
@@ -69,7 +69,7 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 	}
 
 	if apiServer {
-		go server.StartApiServer(config, blockStore)
+		go server.StartApiServer(config, blockStore, port)
 	}
 
 	// get continuation height

@@ -14,9 +14,10 @@ import (
 type ApiServer struct {
 	config     *config.Config
 	blockStore *store.BlockStore
+	port       int64
 }
 
-func StartApiServer(config *config.Config, blockStore *store.BlockStore) *ApiServer {
+func StartApiServer(config *config.Config, blockStore *store.BlockStore, port int64) *ApiServer {
 	apiServer := &ApiServer{
 		config:     config,
 		blockStore: blockStore,
@@ -28,7 +29,7 @@ func StartApiServer(config *config.Config, blockStore *store.BlockStore) *ApiSer
 	r.GET("/load_snapshot_chunk/:height/:format/:chunk", apiServer.LoadSnapshotChunkHandler)
 	r.GET("/get_app_hash/:height", apiServer.GetAppHashHandler)
 
-	if err := r.Run(":7878"); err != nil {
+	if err := r.Run(fmt.Sprintf(":%d", port)); err != nil {
 		panic(err)
 	}
 
