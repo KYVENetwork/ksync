@@ -65,7 +65,7 @@ var (
 func StartStateSync(config *tmCfg.Config) error {
 	logger.Info().Msg("starting state-sync")
 
-	// Find the snapshot with the specified height
+	// TODO: Fetch closest snapshot containing all chunks with the specified height
 	targetSnapshot := Snapshot{
 		Height:         100,
 		Format:         1,
@@ -82,7 +82,7 @@ func StartStateSync(config *tmCfg.Config) error {
 	}
 	var i uint32
 	for i = 0; i < targetSnapshot.Chunks; i++ {
-		res, err := http.Get(fmt.Sprintf("https://storage.kyve.network/%w", chunkIds[i]))
+		res, err := http.Get(fmt.Sprintf("https://storage.kyve.network/%v", chunkIds[i]))
 		if err != nil {
 			return err
 		}
@@ -112,8 +112,6 @@ func StartStateSync(config *tmCfg.Config) error {
 		}
 		chunks = append(chunks, chunk)
 	}
-
-	// TODO: Load a specific snapshot from Arweave (per height).
 
 	accept, err := offerSnapshot(targetSnapshot)
 	if err != nil {
