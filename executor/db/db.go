@@ -69,7 +69,7 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 	}
 
 	if apiServer {
-		go server.StartApiServer(config, blockStore, port)
+		go server.StartApiServer(config, blockStore, stateStore, port)
 	}
 
 	// get continuation height
