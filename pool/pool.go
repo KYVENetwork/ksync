@@ -38,8 +38,7 @@ func GetPoolInfo(recursionDepth int, restEndpoint string, poolId int64) (int64, 
 func requestPool(restEndpoint string, poolId int64) (*types.PoolResponse, error) {
 	data, err := utils.DownloadFromUrl(fmt.Sprintf("%s/kyve/query/v1beta1/pool/%d", restEndpoint, poolId))
 	if err != nil {
-		logger.Error().Msg(err.Error())
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to query pool from %s/kyve/query/v1beta1/pool/%d", restEndpoint, poolId)
 	}
 
 	var poolResponse types.PoolResponse
