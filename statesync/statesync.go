@@ -24,11 +24,11 @@ var (
 func StartStateSync(config *tmCfg.Config) error {
 	logger.Info().Msg("starting state-sync")
 
-	chunk0Raw, chunk0Err := utils.DownloadFromUrl("https://storage.kyve.network/ae830983-6f8a-4325-b7f4-7b34663a39d1")
+	chunk0Raw, chunk0Err := utils.DownloadFromUrl("https://storage.kyve.network/393416aa-198a-434f-90f2-9cbdb0a97283")
 	if chunk0Err != nil {
 		panic(fmt.Errorf("error downloading chunk 0 %w", chunk0Err))
 	}
-	chunk1Raw, chunk1Err := utils.DownloadFromUrl("https://storage.kyve.network/1d914e7b-c6f8-4e97-87e1-fa57554275bb")
+	chunk1Raw, chunk1Err := utils.DownloadFromUrl("https://storage.kyve.network/4a3f39f0-e580-43fe-8bae-4bde8f8b249f")
 	if chunk1Err != nil {
 		panic(fmt.Errorf("error downloading chunk 1 %w", chunk1Err))
 	}
@@ -65,7 +65,7 @@ func StartStateSync(config *tmCfg.Config) error {
 		panic(fmt.Errorf("error starting abci server %w", err))
 	}
 
-	trustedAppHash, err := hex.DecodeString("E312C88409FD62DAB5BBACA4573483BF8DD676416C19FF63629CA069FD2D00AC")
+	trustedAppHash, err := hex.DecodeString(bundle0[0].Value.AppHash)
 	if err != nil {
 		panic(fmt.Errorf("error decoding app hash %w", err))
 	}
