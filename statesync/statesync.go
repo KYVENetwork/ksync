@@ -2,7 +2,11 @@ package statesync
 
 import (
 	"encoding/hex"
+<<<<<<< Updated upstream
 	"encoding/json"
+=======
+	"errors"
+>>>>>>> Stashed changes
 	"fmt"
 	"github.com/KYVENetwork/ksync/executor/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
@@ -11,6 +15,7 @@ import (
 	abciClient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmCfg "github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/p2p"
 	tmState "github.com/tendermint/tendermint/proto/tendermint/state"
 	sm "github.com/tendermint/tendermint/state"
@@ -24,11 +29,11 @@ var (
 func StartStateSync(config *tmCfg.Config) error {
 	logger.Info().Msg("starting state-sync")
 
-	chunk0Raw, chunk0Err := utils.DownloadFromUrl("https://storage.kyve.network/f95d2fe1-0c6a-4a68-9ea0-624127df4be7")
+	chunk0Raw, chunk0Err := utils.DownloadFromUrl("https://storage.kyve.network/ae830983-6f8a-4325-b7f4-7b34663a39d1")
 	if chunk0Err != nil {
 		panic(fmt.Errorf("error downloading chunk 0 %w", chunk0Err))
 	}
-	chunk1Raw, chunk1Err := utils.DownloadFromUrl("https://storage.kyve.network/82b63fc9-896c-44f7-a192-c3fa5e32a48a")
+	chunk1Raw, chunk1Err := utils.DownloadFromUrl("https://storage.kyve.network/1d914e7b-c6f8-4e97-87e1-fa57554275bb")
 	if chunk1Err != nil {
 		panic(fmt.Errorf("error downloading chunk 1 %w", chunk1Err))
 	}
@@ -47,11 +52,11 @@ func StartStateSync(config *tmCfg.Config) error {
 	var bundle1 types.TendermintSsyncBundle
 
 	if err := json.Unmarshal(chunk0, &bundle0); err != nil {
-		panic(fmt.Errorf("failed to unmarshal tendermint bundle: %w", err))
+		panic(fmt.Errorf("failed to unmarshal tendermint bundle 0: %w", err))
 	}
 
 	if err := json.Unmarshal(chunk1, &bundle1); err != nil {
-		panic(fmt.Errorf("failed to unmarshal tendermint bundle: %w", err))
+		panic(fmt.Errorf("failed to unmarshal tendermint bundle 1: %w", err))
 	}
 
 	fmt.Println(bundle0[0].Key)
