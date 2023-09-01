@@ -1,11 +1,10 @@
 package statesync
 
 import (
-	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"github.com/KYVENetwork/ksync/executor/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
@@ -13,55 +12,13 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmCfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/p2p"
-	"github.com/tendermint/tendermint/proxy"
+	tmState "github.com/tendermint/tendermint/proto/tendermint/state"
+	sm "github.com/tendermint/tendermint/state"
+	"github.com/tendermint/tendermint/version"
 )
-
-type Item struct {
-	Key   string `json:"key"`
-	Value Value  `json:"value"`
-	Index int    `json:"index"`
-	Chunk string `json:"chunk"`
-}
-
-type Value struct {
-	Snapshot SnapshotRes `json:"snapshot"`
-	Index    int         `json:"index"`
-	Chunk    string      `json:"chunk"`
-}
-
-type SnapshotRes struct {
-	Height   int    `json:"height"`
-	Format   int    `json:"format"`
-	Chunks   int    `json:"chunks"`
-	Hash     string `json:"hash"`
-	Metadata string `json:"metadata"`
-}
-
-// Snapshot contains data about a snapshot.
-type Snapshot struct {
-	Height   uint64
-	Format   uint32
-	Chunks   uint32
-	Hash     []byte
-	Metadata []byte
-
-	TrustedAppHash []byte // populated by light client
-}
 
 var (
 	logger = log.Logger("state-sync")
-	// errAbort is returned by Sync() when snapshot restoration is aborted.
-	errAbort = errors.New("state sync aborted")
-	// errRejectSnapshot is returned by Sync() when the snapshot is rejected.
-	errRejectSnapshot = errors.New("snapshot was rejected")
-	// errRejectFormat is returned by Sync() when the snapshot format is rejected.
-	errRejectFormat = errors.New("snapshot format was rejected")
-	// errRejectSender is returned by Sync() when the snapshot sender is rejected.
-	errRejectSender = errors.New("snapshot sender was rejected")
-	// errRetrySnapshot is returned by Sync() when the snapshot should be retried.
-	errRetrySnapshot = errors.New("retry snapshot")
-	// errVerifyFailed is returned by Sync() when app hash or last height verification fails.
-	errVerifyFailed = errors.New("verification failed")
 )
 
 func StartStateSync(config *tmCfg.Config) error {
@@ -144,46 +101,45 @@ func StartStateSync(config *tmCfg.Config) error {
 
 	fmt.Println(resp1)
 
-	testSnapshot := Snapshot{
-		Height:         bundle0[0].Value.Snapshot.Height,
-		Format:         bundle0[0].Value.Snapshot.Format,
-		Chunks:         bundle0[0].Value.Snapshot.Chunks,
-		Hash:           bundle0[0].Value.Snapshot.Hash,
-		Metadata:       bundle0[0].Value.Snapshot.Metadata,
-		TrustedAppHash: trustedAppHash,
+	state := sm.State{
+		Version: tmState.Version{
+			Consensus: bundle0[0].Value.CurrentLightBlock.Version,
+			Software:  version.TMCoreSemVer,
+		},
+		ChainID:                          bundle0[0].Value.CurrentLightBlock.Header.ChainID,
+		InitialHeight:                    int64(bundle0[0].Value.Snapshot.Height),
+		LastBlockHeight:                  bundle0[0].Value.LastLightBlock.Height,
+		LastBlockID:                      bundle0[0].Value.LastLightBlock.Commit.BlockID,
+		LastBlockTime:                    bundle0[0].Value.LastLightBlock.Time,
+		NextValidators:                   bundle0[0].Value.NextLightBlock.ValidatorSet,
+		Validators:                       bundle0[0].Value.CurrentLightBlock.ValidatorSet,
+		LastValidators:                   bundle0[0].Value.LastLightBlock.ValidatorSet,
+		LastHeightValidatorsChanged:      bundle0[0].Value.NextLightBlock.Height,
+		ConsensusParams:                  *bundle0[0].Value.ConsensusParams,
+		LastHeightConsensusParamsChanged: bundle0[0].Value.CurrentLightBlock.Height,
+		LastResultsHash:                  bundle0[0].Value.CurrentLightBlock.LastResultsHash,
+		AppHash:                          bundle0[0].Value.CurrentLightBlock.AppHash,
 	}
 
-	if err != verifyApp(config, &testSnapshot) {
-		panic(fmt.Errorf("error verifying app %w", err))
+	if state.InitialHeight == 0 {
+		state.InitialHeight = 1
 	}
 
-	return nil
-}
+	stateDB, stateStore, err := store.GetStateDBs(config)
+	defer stateDB.Close()
 
-// verifyApp verifies the sync, checking the app hash, last block height and app version
-func verifyApp(config *tmCfg.Config, snapshot *Snapshot) error {
-	socketClient := abciClient.NewSocketClient(config.ProxyApp, false)
-
-	logger.Info().Msg("created socket client successfully")
-	if err := socketClient.Start(); err != nil {
-		logger.Error().Str("could not start socketClient", err.Error())
-		return err
-	}
-
-	resp, err := socketClient.InfoSync(proxy.RequestInfo)
+	err = stateStore.Bootstrap(state)
 	if err != nil {
-		return fmt.Errorf("failed to query ABCI app for appHash: %w", err)
+		panic(fmt.Errorf("failed to bootstrap node with new state: %w", err))
 	}
 
-	if !bytes.Equal(snapshot.TrustedAppHash, resp.LastBlockAppHash) {
-		logger.Error().Bytes("expected", snapshot.TrustedAppHash).Bytes("actual", resp.LastBlockAppHash).Msg("appHash verification failed")
-		return errVerifyFailed
-	}
-	if uint64(resp.LastBlockHeight) != snapshot.Height {
-		logger.Error().Uint64("expected", snapshot.Height).Int64("actual", resp.LastBlockHeight).Msg("ABCI app reported unexpected last block height")
-		return errVerifyFailed
+	blockDB, blockStore, err := store.GetBlockstoreDBs(config)
+	defer blockDB.Close()
+
+	err = blockStore.SaveSeenCommit(state.LastBlockHeight, &bundle0[0].Value.Commit)
+	if err != nil {
+		panic(fmt.Errorf("failed to store last seen commit: %w", err))
 	}
 
-	logger.Info().Bytes("appHash", snapshot.TrustedAppHash).Uint64("height", snapshot.Height).Msg("Verified ABCI app")
 	return nil
 }
