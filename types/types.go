@@ -89,7 +89,7 @@ type TendermintSsyncDataItem struct {
 	Value struct {
 		Snapshot   *Snapshot `json:"snapshot"`
 		AppHash    string    `json:"appHash"`
-		ChunkIndex int64     `json:"chunkIndex"`
-		Chunk      string    `json:"chunk"`
+		ChunkIndex uint32    `json:"chunkIndex"`
+		Chunk      []byte    `json:"chunk"`
 	} `json:"value"`
 }
