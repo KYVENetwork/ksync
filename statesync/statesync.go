@@ -2,16 +2,20 @@ package statesync
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
+	"github.com/KYVENetwork/ksync/types"
+	"github.com/KYVENetwork/ksync/utils"
 	abciClient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmCfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/proxy"
 	"net/http"
+	"os"
 )
 
 type Item struct {
@@ -65,6 +69,72 @@ var (
 func StartStateSync(config *tmCfg.Config) error {
 	logger.Info().Msg("starting state-sync")
 
+	var chunkIds = []string{
+		"8995b2e7-dabd-4564-9cc5-f54f4400c5ee",
+		"5b57784e-3425-444a-9e6b-396d56d3b38b",
+	}
+
+	chunk0Raw, chunk0Err := utils.DownloadFromUrl("https://storage.kyve.network/f95d2fe1-0c6a-4a68-9ea0-624127df4be7")
+	if chunk0Err != nil {
+		panic(fmt.Errorf("error downloading chunk 0 %w", chunk0Err))
+	}
+	chunk1Raw, chunk1Err := utils.DownloadFromUrl("https://storage.kyve.network/82b63fc9-896c-44f7-a192-c3fa5e32a48a")
+	if chunk1Err != nil {
+		panic(fmt.Errorf("error downloading chunk 1 %w", chunk1Err))
+	}
+
+	chunk0, chunk0Err := utils.DecompressGzip(chunk0Raw)
+	if chunk0Err != nil {
+		panic(fmt.Errorf("error decompressing chunk 0 %w", chunk0Err))
+	}
+
+	chunk1, chunk1Err := utils.DecompressGzip(chunk1Raw)
+	if chunk1Err != nil {
+		panic(fmt.Errorf("error decompressing chunk 1 %w", chunk1Err))
+	}
+
+	var bundle0 types.TendermintSsyncBundle
+	var bundle1 types.TendermintSsyncBundle
+
+	if err := json.Unmarshal(chunk0, &bundle0); err != nil {
+		panic(fmt.Errorf("failed to unmarshal tendermint bundle: %w", err))
+	}
+
+	if err := json.Unmarshal(chunk1, &bundle1); err != nil {
+		panic(fmt.Errorf("failed to unmarshal tendermint bundle: %w", err))
+	}
+
+	fmt.Println(bundle0[0].Key)
+	fmt.Println(bundle0[0].Value.AppHash)
+	fmt.Println([]byte(bundle0[0].Value.AppHash))
+	fmt.Println(hex.DecodeString(bundle0[0].Value.AppHash))
+
+	socketClient := abciClient.NewSocketClient("tcp://0.0.0.0:26658", false)
+
+	if err := socketClient.Start(); err != nil {
+		panic(fmt.Errorf("error starting abci server %w", err))
+	}
+
+	trustedAppHash, err := hex.DecodeString(bundle0[0].Value.AppHash)
+	if err != nil {
+		panic(fmt.Errorf("error decoding app hash %w", err))
+	}
+
+	res, err := socketClient.OfferSnapshotSync(abci.RequestOfferSnapshot{
+		Snapshot: &abci.Snapshot{
+			Height:   bundle0[0].Value.Snapshot.Height,
+			Format:   bundle0[0].Value.Snapshot.Format,
+			Chunks:   bundle0[0].Value.Snapshot.Chunks,
+			Hash:     bundle0[0].Value.Snapshot.Hash,
+			Metadata: bundle0[0].Value.Snapshot.Metadata,
+		},
+		AppHash: trustedAppHash,
+	})
+
+	fmt.Println(res)
+
+	os.Exit(0)
+
 	// TODO: Fetch closest snapshot containing all chunks with the specified height
 	targetSnapshot := Snapshot{
 		Height:         100,
@@ -76,10 +146,7 @@ func StartStateSync(config *tmCfg.Config) error {
 	}
 
 	var chunks []Chunk
-	var chunkIds = []string{
-		"8995b2e7-dabd-4564-9cc5-f54f4400c5ee",
-		"5b57784e-3425-444a-9e6b-396d56d3b38b",
-	}
+
 	var i uint32
 	for i = 0; i < targetSnapshot.Chunks; i++ {
 		res, err := http.Get(fmt.Sprintf("https://storage.kyve.network/%v", chunkIds[i]))

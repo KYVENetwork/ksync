@@ -1,6 +1,7 @@
 package types
 
 import (
+	abciTypes "github.com/tendermint/tendermint/abci/types"
 	tmCfg "github.com/tendermint/tendermint/config"
 	tmTypes "github.com/tendermint/tendermint/types"
 	"sync"
@@ -16,6 +17,7 @@ type BlockPair struct {
 }
 
 type Block = tmTypes.Block
+type Snapshot = abciTypes.Snapshot
 
 type HeightResponse struct {
 	Result struct {
@@ -78,4 +80,16 @@ type FinalizedBundle struct {
 type FinalizedBundleResponse = struct {
 	FinalizedBundles []FinalizedBundle `json:"finalized_bundles"`
 	Pagination       Pagination        `json:"pagination"`
+}
+
+type TendermintSsyncBundle = []TendermintSsyncDataItem
+
+type TendermintSsyncDataItem struct {
+	Key   string `json:"key"`
+	Value struct {
+		Snapshot   *Snapshot `json:"snapshot"`
+		AppHash    string    `json:"appHash"`
+		ChunkIndex int64     `json:"chunkIndex"`
+		Chunk      string    `json:"chunk"`
+	} `json:"value"`
 }
