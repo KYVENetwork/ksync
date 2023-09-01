@@ -95,7 +95,6 @@ type TendermintSsyncDataItem struct {
 		NextLightBlock    *tmTypes.LightBlock      `json:"nextLightBlock"`
 		ConsensusParams   *tmProto.ConsensusParams `json:"consensusParams"`
 		AppHash           string                   `json:"appHash"`
-		Commit            tmTypes.Commit           `json:"commit"`
 		ChunkIndex        uint32                   `json:"chunkIndex"`
 		Chunk             []byte                   `json:"chunk"`
 	} `json:"value"`

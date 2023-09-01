@@ -136,7 +136,7 @@ func StartStateSync(config *tmCfg.Config) error {
 	blockDB, blockStore, err := store.GetBlockstoreDBs(config)
 	defer blockDB.Close()
 
-	err = blockStore.SaveSeenCommit(state.LastBlockHeight, &bundle0[0].Value.Commit)
+	err = blockStore.SaveSeenCommit(state.LastBlockHeight, bundle0[0].Value.LastLightBlock.Commit)
 	if err != nil {
 		panic(fmt.Errorf("failed to store last seen commit: %w", err))
 	}
