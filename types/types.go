@@ -89,7 +89,6 @@ type TendermintSsyncBundle = []TendermintSsyncDataItem
 type TendermintSsyncDataItem struct {
 	Key   string `json:"key"`
 	Value struct {
-<<<<<<< Updated upstream
 		Snapshot          *Snapshot                `json:"snapshot"`
 		LastLightBlock    *tmTypes.LightBlock      `json:"lastLightBlock"`
 		CurrentLightBlock *tmTypes.LightBlock      `json:"currentLightBlock"`
@@ -99,14 +98,5 @@ type TendermintSsyncDataItem struct {
 		Commit            tmTypes.Commit           `json:"commit"`
 		ChunkIndex        uint32                   `json:"chunkIndex"`
 		Chunk             []byte                   `json:"chunk"`
-=======
-		Snapshot          *Snapshot   `json:"snapshot"`
-		LastLightBlock    *LightBlock `json:"lastLightBlock"`
-		CurrentLightBlock *LightBlock `json:"currentLightBlock"`
-		NextLightBlock    *LightBlock `json:"nextLightBlock"`
-		AppHash           string      `json:"appHash"`
-		ChunkIndex        uint32      `json:"chunkIndex"`
-		Chunk             []byte      `json:"chunk"`
->>>>>>> Stashed changes
 	} `json:"value"`
 }

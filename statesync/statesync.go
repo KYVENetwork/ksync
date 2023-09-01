@@ -2,11 +2,6 @@ package statesync
 
 import (
 	"encoding/hex"
-<<<<<<< Updated upstream
-	"encoding/json"
-=======
-	"errors"
->>>>>>> Stashed changes
 	"fmt"
 	"github.com/KYVENetwork/ksync/executor/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
