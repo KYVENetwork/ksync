@@ -89,10 +89,11 @@ type TendermintSsyncBundle = []TendermintSsyncDataItem
 type TendermintSsyncDataItem struct {
 	Key   string `json:"key"`
 	Value struct {
-		Snapshot   *Snapshot    `json:"snapshot"`
-		State      *state.State `json:"state"`
-		Block      *Block       `json:"block"`
-		ChunkIndex uint32       `json:"chunkIndex"`
-		Chunk      []byte       `json:"chunk"`
+		Snapshot   *Snapshot       `json:"snapshot"`
+		Block      *Block          `json:"block"`
+		SeenCommit *tmTypes.Commit `json:"seenCommit"`
+		State      *state.State    `json:"state"`
+		ChunkIndex uint32          `json:"chunkIndex"`
+		Chunk      []byte          `json:"chunk"`
 	} `json:"value"`
 }

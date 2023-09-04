@@ -21,11 +21,11 @@ var (
 func StartStateSync(config *tmCfg.Config) error {
 	logger.Info().Msg("starting state-sync")
 
-	chunk0Raw, chunk0Err := utils.DownloadFromUrl("https://storage.kyve.network/2d764d25-fecf-49b2-880d-d028096eca0b")
+	chunk0Raw, chunk0Err := utils.DownloadFromUrl("https://storage.kyve.network/e7650990-8b86-4d38-8891-445795904d7f")
 	if chunk0Err != nil {
 		panic(fmt.Errorf("error downloading chunk 0 %w", chunk0Err))
 	}
-	chunk1Raw, chunk1Err := utils.DownloadFromUrl("https://storage.kyve.network/51917112-111a-4d54-a205-a5e346b0d5ff")
+	chunk1Raw, chunk1Err := utils.DownloadFromUrl("https://storage.kyve.network/1d168613-9f19-48ee-a539-87d141e9518f")
 	if chunk1Err != nil {
 		panic(fmt.Errorf("error downloading chunk 1 %w", chunk1Err))
 	}
@@ -103,34 +103,15 @@ func StartStateSync(config *tmCfg.Config) error {
 	blockDB, blockStore, err := store.GetBlockstoreDBs(config)
 	defer blockDB.Close()
 
-	err = blockStore.SaveSeenCommit(bundle0[0].Value.State.LastBlockHeight, bundle0[0].Value.Block.LastCommit)
+	err = blockStore.SaveSeenCommit(bundle0[0].Value.State.LastBlockHeight, bundle0[0].Value.SeenCommit)
 	if err != nil {
 		panic(fmt.Errorf("failed to store last seen commit: %w", err))
 	}
 
-	bundleRaw, bundleErr := utils.DownloadFromUrl("https://arweave.net/c-24-Ik7KGaB2WJyrW_2fsAjoJkaAD6xfk30qlqEpCI")
-	if bundleErr != nil {
-		panic(fmt.Errorf("error downloading bundle with blocks 0-150 %w", chunk0Err))
-	}
+	fmt.Println("Found block", bundle0[0].Value.Block.Height)
 
-	bundle, bundleErr := utils.DecompressGzip(bundleRaw)
-	if bundleErr != nil {
-		panic(fmt.Errorf("error decompressing bundlw with blocks 0-150 %w", chunk0Err))
-	}
-
-	var blocks types.TendermintBundle
-
-	if err := json.Unmarshal(bundle, &blocks); err != nil {
-		panic(fmt.Errorf("failed to unmarshal tendermint bundle with blocks 0-150: %w", err))
-	}
-
-	block100 := blocks[99].Value.Block.Block
-	block101 := blocks[100].Value.Block.Block
-
-	fmt.Println("Found block", block100.Height)
-
-	blockParts := block100.MakePartSet(tmTypes.BlockPartSizeBytes)
-	blockStore.SaveBlock(block100, blockParts, block101.LastCommit)
+	blockParts := bundle0[0].Value.Block.MakePartSet(tmTypes.BlockPartSizeBytes)
+	blockStore.SaveBlock(bundle0[0].Value.Block, blockParts, bundle0[0].Value.SeenCommit)
 
 	return nil
 }
