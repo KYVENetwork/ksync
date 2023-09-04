@@ -3,7 +3,7 @@ package types
 import (
 	abciTypes "github.com/tendermint/tendermint/abci/types"
 	tmCfg "github.com/tendermint/tendermint/config"
-	tmProto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/tendermint/tendermint/state"
 	tmTypes "github.com/tendermint/tendermint/types"
 	"sync"
 )
@@ -89,13 +89,10 @@ type TendermintSsyncBundle = []TendermintSsyncDataItem
 type TendermintSsyncDataItem struct {
 	Key   string `json:"key"`
 	Value struct {
-		Snapshot          *Snapshot                `json:"snapshot"`
-		LastLightBlock    *tmTypes.LightBlock      `json:"lastLightBlock"`
-		CurrentLightBlock *tmTypes.LightBlock      `json:"currentLightBlock"`
-		NextLightBlock    *tmTypes.LightBlock      `json:"nextLightBlock"`
-		ConsensusParams   *tmProto.ConsensusParams `json:"consensusParams"`
-		AppHash           string                   `json:"appHash"`
-		ChunkIndex        uint32                   `json:"chunkIndex"`
-		Chunk             []byte                   `json:"chunk"`
+		Snapshot   *Snapshot    `json:"snapshot"`
+		State      *state.State `json:"state"`
+		Block      *Block       `json:"block"`
+		ChunkIndex uint32       `json:"chunkIndex"`
+		Chunk      []byte       `json:"chunk"`
 	} `json:"value"`
 }
