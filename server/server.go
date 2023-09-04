@@ -35,6 +35,7 @@ func StartApiServer(config *config.Config, blockStore *store.BlockStore, stateSt
 	r.GET("/load_snapshot_chunk/:height/:format/:chunk", apiServer.LoadSnapshotChunkHandler)
 	r.GET("/get_block/:height", apiServer.GetBlockHandler)
 	r.GET("/get_state/:height", apiServer.GetStateHandler)
+	r.GET("/get_seen_commit/:height", apiServer.GetSeenCommitHandler)
 
 	if err := r.Run(fmt.Sprintf(":%d", port)); err != nil {
 		panic(err)
@@ -234,6 +235,28 @@ func (apiServer *ApiServer) GetStateHandler(c *gin.Context) {
 	}
 
 	resp, err := json.Marshal(snapshotState)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Error marshalling response"),
+		})
+		return
+	}
+
+	c.Data(http.StatusOK, "application/json", resp)
+}
+
+func (apiServer *ApiServer) GetSeenCommitHandler(c *gin.Context) {
+	height, err := strconv.ParseInt(c.Param("height"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Error parsing param \"height\" to uint64: %s", err.Error()),
+		})
+		return
+	}
+
+	block := apiServer.blockStore.LoadBlock(height + 1)
+
+	resp, err := json.Marshal(block.LastCommit)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Error marshalling response"),
