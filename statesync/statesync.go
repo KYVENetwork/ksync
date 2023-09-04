@@ -59,7 +59,7 @@ func StartStateSync(config *tmCfg.Config) error {
 	fmt.Println([]byte(bundle0[0].Value.AppHash))
 	fmt.Println(hex.DecodeString(bundle0[0].Value.AppHash))
 
-	socketClient := abciClient.NewSocketClient("tcp://0.0.0.0:26658", false)
+	socketClient := abciClient.NewSocketClient(config.ProxyApp, false)
 
 	if err := socketClient.Start(); err != nil {
 		panic(fmt.Errorf("error starting abci server %w", err))
@@ -102,23 +102,23 @@ func StartStateSync(config *tmCfg.Config) error {
 	fmt.Println(resp1)
 
 	state := sm.State{
+		ChainID:         bundle0[0].Value.CurrentLightBlock.Header.ChainID,
+		InitialHeight:   int64(bundle0[0].Value.Snapshot.Height),
+		LastBlockHeight: bundle0[0].Value.LastLightBlock.Height,
 		Version: tmState.Version{
 			Consensus: bundle0[0].Value.CurrentLightBlock.Version,
 			Software:  version.TMCoreSemVer,
 		},
-		ChainID:                          bundle0[0].Value.CurrentLightBlock.Header.ChainID,
-		InitialHeight:                    int64(bundle0[0].Value.Snapshot.Height),
-		LastBlockHeight:                  bundle0[0].Value.LastLightBlock.Height,
-		LastBlockID:                      bundle0[0].Value.LastLightBlock.Commit.BlockID,
 		LastBlockTime:                    bundle0[0].Value.LastLightBlock.Time,
-		NextValidators:                   bundle0[0].Value.NextLightBlock.ValidatorSet,
-		Validators:                       bundle0[0].Value.CurrentLightBlock.ValidatorSet,
+		LastBlockID:                      bundle0[0].Value.LastLightBlock.Commit.BlockID,
+		AppHash:                          bundle0[0].Value.CurrentLightBlock.AppHash,
+		LastResultsHash:                  bundle0[0].Value.CurrentLightBlock.LastResultsHash,
 		LastValidators:                   bundle0[0].Value.LastLightBlock.ValidatorSet,
+		Validators:                       bundle0[0].Value.CurrentLightBlock.ValidatorSet,
+		NextValidators:                   bundle0[0].Value.NextLightBlock.ValidatorSet,
 		LastHeightValidatorsChanged:      bundle0[0].Value.NextLightBlock.Height,
 		ConsensusParams:                  *bundle0[0].Value.ConsensusParams,
 		LastHeightConsensusParamsChanged: bundle0[0].Value.CurrentLightBlock.Height,
-		LastResultsHash:                  bundle0[0].Value.CurrentLightBlock.LastResultsHash,
-		AppHash:                          bundle0[0].Value.CurrentLightBlock.AppHash,
 	}
 
 	if state.InitialHeight == 0 {
