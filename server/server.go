@@ -7,9 +7,10 @@ import (
 	"github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/json"
+	tmState "github.com/tendermint/tendermint/proto/tendermint/state"
 	"github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/store"
-	tmTypes "github.com/tendermint/tendermint/types"
+	"github.com/tendermint/tendermint/version"
 	"net/http"
 	"strconv"
 )
@@ -32,9 +33,8 @@ func StartApiServer(config *config.Config, blockStore *store.BlockStore, stateSt
 
 	r.GET("/list_snapshots", apiServer.ListSnapshotsHandler)
 	r.GET("/load_snapshot_chunk/:height/:format/:chunk", apiServer.LoadSnapshotChunkHandler)
-	r.GET("/get_app_hash/:height", apiServer.GetAppHashHandler)
-	r.GET("/get_light_block/:height", apiServer.GetLightBlockHandler)
-	r.GET("/get_consensus_params/:height", apiServer.GetConsensusParamsHandler)
+	r.GET("/get_block/:height", apiServer.GetBlockHandler)
+	r.GET("/get_state/:height", apiServer.GetStateHandler)
 
 	if err := r.Run(fmt.Sprintf(":%d", port)); err != nil {
 		panic(err)
@@ -143,35 +143,7 @@ func (apiServer *ApiServer) LoadSnapshotChunkHandler(c *gin.Context) {
 	c.Data(http.StatusOK, "application/json", resp)
 }
 
-func (apiServer *ApiServer) GetAppHashHandler(c *gin.Context) {
-	height, err := strconv.ParseInt(c.Param("height"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Error parsing param \"height\" to uint64: %s", err.Error()),
-		})
-		return
-	}
-
-	type AppHash struct {
-		AppHash string
-	}
-
-	block := apiServer.blockStore.LoadBlock(height)
-
-	resp, err := json.Marshal(AppHash{
-		AppHash: block.Header.AppHash.String(),
-	})
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Error marshalling response"),
-		})
-		return
-	}
-
-	c.Data(http.StatusOK, "application/json", resp)
-}
-
-func (apiServer *ApiServer) GetLightBlockHandler(c *gin.Context) {
+func (apiServer *ApiServer) GetBlockHandler(c *gin.Context) {
 	height, err := strconv.ParseInt(c.Param("height"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -182,17 +154,7 @@ func (apiServer *ApiServer) GetLightBlockHandler(c *gin.Context) {
 
 	block := apiServer.blockStore.LoadBlock(height)
 
-	validatorSet, err := apiServer.stateStore.LoadValidators(block.Height)
-
-	lightBlock := tmTypes.LightBlock{
-		SignedHeader: &tmTypes.SignedHeader{
-			Header: &block.Header,
-			Commit: block.LastCommit,
-		},
-		ValidatorSet: validatorSet,
-	}
-
-	resp, err := json.Marshal(lightBlock)
+	resp, err := json.Marshal(block)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Error marshalling response"),
@@ -203,11 +165,42 @@ func (apiServer *ApiServer) GetLightBlockHandler(c *gin.Context) {
 	c.Data(http.StatusOK, "application/json", resp)
 }
 
-func (apiServer *ApiServer) GetConsensusParamsHandler(c *gin.Context) {
+func (apiServer *ApiServer) GetStateHandler(c *gin.Context) {
 	height, err := strconv.ParseInt(c.Param("height"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Error parsing param \"height\" to uint64: %s", err.Error()),
+		})
+		return
+	}
+
+	initialHeight := height
+	if initialHeight == 0 {
+		initialHeight = 1
+	}
+
+	lastBlock := apiServer.blockStore.LoadBlock(height)
+	currentBlock := apiServer.blockStore.LoadBlock(height + 1)
+	nextBlock := apiServer.blockStore.LoadBlock(height + 2)
+
+	lastValidators, err := apiServer.stateStore.LoadValidators(height)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Error loading validator set at height %d: %s", height, err.Error()),
+		})
+		return
+	}
+	currentValidators, err := apiServer.stateStore.LoadValidators(height + 1)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Error loading validator set at height %d: %s", height+1, err.Error()),
+		})
+		return
+	}
+	nextValidators, err := apiServer.stateStore.LoadValidators(height + 2)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Error loading validator set at height %d: %s", height+2, err.Error()),
 		})
 		return
 	}
@@ -215,12 +208,32 @@ func (apiServer *ApiServer) GetConsensusParamsHandler(c *gin.Context) {
 	consensusParams, err := apiServer.stateStore.LoadConsensusParams(height)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Failed to load consensus params: %s", err.Error()),
+			"error": fmt.Sprintf("Failed to load consensus params at height %d: %s", height, err.Error()),
 		})
 		return
 	}
 
-	resp, err := json.Marshal(consensusParams)
+	snapshotState := state.State{
+		Version: tmState.Version{
+			Consensus: lastBlock.Version,
+			Software:  version.TMCoreSemVer,
+		},
+		ChainID:                          lastBlock.ChainID,
+		InitialHeight:                    initialHeight,
+		LastBlockHeight:                  lastBlock.Height,
+		LastBlockID:                      currentBlock.LastBlockID,
+		LastBlockTime:                    lastBlock.Time,
+		NextValidators:                   nextValidators,
+		Validators:                       currentValidators,
+		LastValidators:                   lastValidators,
+		LastHeightValidatorsChanged:      nextBlock.Height,
+		ConsensusParams:                  consensusParams,
+		LastHeightConsensusParamsChanged: currentBlock.Height,
+		LastResultsHash:                  currentBlock.LastResultsHash,
+		AppHash:                          currentBlock.AppHash,
+	}
+
+	resp, err := json.Marshal(snapshotState)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Error marshalling response"),
