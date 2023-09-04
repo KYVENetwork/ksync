@@ -67,7 +67,8 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 	}
 
 	// get continuation height
-	startHeight = blockStore.Height() + 1
+	// startHeight = blockStore.Height() + 1
+	startHeight = 100
 
 	if endHeight <= startHeight {
 		logger.Error().Msg(fmt.Sprintf("Target height %d has to be bigger than current height %d", endHeight, startHeight))
@@ -134,15 +135,15 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 		blockParts := prevBlock.MakePartSet(tmTypes.BlockPartSizeBytes)
 		blockId := tmTypes.BlockID{Hash: prevBlock.Hash(), PartSetHeader: blockParts.Header()}
 
-		// verify block
-		if err := blockExec.ValidateBlock(state, prevBlock); err != nil {
-			logger.Error().Msg(fmt.Sprintf("block validation failed at height %d", prevBlock.Height))
-		}
-
-		// verify commits
-		if err := state.Validators.VerifyCommitLight(state.ChainID, blockId, prevBlock.Height, block.LastCommit); err != nil {
-			logger.Error().Msg(fmt.Sprintf("light commit verification failed at height %d", prevBlock.Height))
-		}
+		//// verify block
+		//if err := blockExec.ValidateBlock(state, prevBlock); err != nil {
+		//	logger.Error().Msg(fmt.Sprintf("block validation failed at height %d", prevBlock.Height))
+		//}
+		//
+		//// verify commits
+		//if err := state.Validators.VerifyCommitLight(state.ChainID, blockId, prevBlock.Height, block.LastCommit); err != nil {
+		//	logger.Error().Msg(fmt.Sprintf("light commit verification failed at height %d", prevBlock.Height))
+		//}
 
 		// store block
 		blockStore.SaveBlock(prevBlock, blockParts, block.LastCommit)

@@ -14,6 +14,7 @@ import (
 	"github.com/tendermint/tendermint/p2p"
 	tmState "github.com/tendermint/tendermint/proto/tendermint/state"
 	sm "github.com/tendermint/tendermint/state"
+	tmTypes "github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tendermint/version"
 )
 
@@ -110,7 +111,7 @@ func StartStateSync(config *tmCfg.Config) error {
 			Software:  version.TMCoreSemVer,
 		},
 		LastBlockTime:                    bundle0[0].Value.LastLightBlock.Time,
-		LastBlockID:                      bundle0[0].Value.LastLightBlock.Commit.BlockID,
+		LastBlockID:                      bundle0[0].Value.CurrentLightBlock.Commit.BlockID,
 		AppHash:                          bundle0[0].Value.CurrentLightBlock.AppHash,
 		LastResultsHash:                  bundle0[0].Value.CurrentLightBlock.LastResultsHash,
 		LastValidators:                   bundle0[0].Value.LastLightBlock.ValidatorSet,
@@ -140,6 +141,30 @@ func StartStateSync(config *tmCfg.Config) error {
 	if err != nil {
 		panic(fmt.Errorf("failed to store last seen commit: %w", err))
 	}
+
+	bundleRaw, bundleErr := utils.DownloadFromUrl("https://arweave.net/c-24-Ik7KGaB2WJyrW_2fsAjoJkaAD6xfk30qlqEpCI")
+	if bundleErr != nil {
+		panic(fmt.Errorf("error downloading bundle with blocks 0-150 %w", chunk0Err))
+	}
+
+	bundle, bundleErr := utils.DecompressGzip(bundleRaw)
+	if bundleErr != nil {
+		panic(fmt.Errorf("error decompressing bundlw with blocks 0-150 %w", chunk0Err))
+	}
+
+	var blocks types.TendermintBundle
+
+	if err := json.Unmarshal(bundle, &blocks); err != nil {
+		panic(fmt.Errorf("failed to unmarshal tendermint bundle with blocks 0-150: %w", err))
+	}
+
+	block100 := blocks[99].Value.Block.Block
+	block101 := blocks[100].Value.Block.Block
+
+	fmt.Println("Found block", block100.Height)
+
+	blockParts := block100.MakePartSet(tmTypes.BlockPartSizeBytes)
+	blockStore.SaveBlock(block100, blockParts, block101.LastCommit)
 
 	return nil
 }
