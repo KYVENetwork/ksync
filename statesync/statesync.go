@@ -11,6 +11,7 @@ import (
 	tmCfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/p2p"
+	sm "github.com/tendermint/tendermint/state"
 	tmTypes "github.com/tendermint/tendermint/types"
 )
 
@@ -18,14 +19,91 @@ var (
 	logger = log.Logger("state-sync")
 )
 
+func ApplyStateSync(config *tmCfg.Config, snapshot *types.Snapshot, block *types.Block, seenCommit *tmTypes.Commit, state *sm.State, chunks [][]byte) (err error) {
+	socketClient := abciClient.NewSocketClient(config.ProxyApp, false)
+
+	if err := socketClient.Start(); err != nil {
+		panic(fmt.Errorf("error starting abci server %w", err))
+	}
+
+	res, err := socketClient.OfferSnapshotSync(abci.RequestOfferSnapshot{
+		Snapshot: &abci.Snapshot{
+			Height:   snapshot.Height,
+			Format:   snapshot.Format,
+			Chunks:   snapshot.Chunks,
+			Hash:     snapshot.Hash,
+			Metadata: snapshot.Metadata,
+		},
+		AppHash: state.AppHash,
+	})
+
+	if err != nil {
+		logger.Info().Err(fmt.Errorf("offering snapshot for height %d failed: %w", snapshot.Height, err))
+		return err
+	}
+
+	logger.Info().Msg(fmt.Sprintf("offering snapshot for height %d: %s", snapshot.Height, res.Result))
+
+	nodeKey, err := p2p.LoadNodeKey(config.NodeKeyFile())
+	if err != nil {
+		logger.Info().Err(fmt.Errorf("loading key file failed: %w", err))
+	}
+
+	for chunkIndex, chunk := range chunks {
+		res, err := socketClient.ApplySnapshotChunkSync(abci.RequestApplySnapshotChunk{
+			Index:  uint32(chunkIndex),
+			Chunk:  chunk,
+			Sender: string(nodeKey.ID()),
+		})
+
+		if err != nil {
+			logger.Info().Err(fmt.Errorf("applying snapshot chunk %d/%d failed: %s\"", chunkIndex+1, len(chunks), res.Result))
+			return err
+		}
+
+		logger.Info().Msg(fmt.Sprintf("applying snapshot chunk %d/%d: %s", chunkIndex+1, len(chunks), res.Result))
+	}
+
+	stateDB, stateStore, err := store.GetStateDBs(config)
+	defer stateDB.Close()
+
+	err = stateStore.Bootstrap(*state)
+	if err != nil {
+		logger.Info().Err(fmt.Errorf("failed to bootstrap state: %s\"", err))
+		return err
+	}
+
+	blockDB, blockStore, err := store.GetBlockstoreDBs(config)
+	defer blockDB.Close()
+
+	if err != nil {
+		logger.Info().Err(fmt.Errorf("failed to open blockstore: %s\"", err))
+		return err
+	}
+
+	err = blockStore.SaveSeenCommit(state.LastBlockHeight, seenCommit)
+	if err != nil {
+		logger.Info().Err(fmt.Errorf("failed to save seen commit: %s\"", err))
+		return err
+	}
+
+	blockParts := block.MakePartSet(tmTypes.BlockPartSizeBytes)
+	blockStore.SaveBlock(block, blockParts, seenCommit)
+
+	logger.Info().Msg(fmt.Sprintf("saved block for height %d", block.Height))
+	logger.Info().Msg(fmt.Sprintf("snapshot was successfully applied"))
+
+	return nil
+}
+
 func StartStateSync(config *tmCfg.Config) error {
 	logger.Info().Msg("starting state-sync")
 
-	chunk0Raw, chunk0Err := utils.DownloadFromUrl("https://storage.kyve.network/e7650990-8b86-4d38-8891-445795904d7f")
+	chunk0Raw, chunk0Err := utils.DownloadFromUrl("https://storage.kyve.network/45dfb53d-4674-4de4-822b-ef7e8d4f6c56")
 	if chunk0Err != nil {
 		panic(fmt.Errorf("error downloading chunk 0 %w", chunk0Err))
 	}
-	chunk1Raw, chunk1Err := utils.DownloadFromUrl("https://storage.kyve.network/1d168613-9f19-48ee-a539-87d141e9518f")
+	chunk1Raw, chunk1Err := utils.DownloadFromUrl("https://storage.kyve.network/e759d4d2-f2e4-49fb-9c5f-4ee0b4c6c1bb")
 	if chunk1Err != nil {
 		panic(fmt.Errorf("error downloading chunk 1 %w", chunk1Err))
 	}
@@ -51,67 +129,7 @@ func StartStateSync(config *tmCfg.Config) error {
 		panic(fmt.Errorf("failed to unmarshal tendermint bundle 1: %w", err))
 	}
 
-	fmt.Println(bundle0[0].Key)
-	fmt.Println(bundle0[0].Value.Block.Height)
-	fmt.Println(bundle0[0].Value.State.AppHash)
+	chunks := [][]byte{bundle0[0].Value.Chunk, bundle1[0].Value.Chunk}
 
-	socketClient := abciClient.NewSocketClient(config.ProxyApp, false)
-
-	if err := socketClient.Start(); err != nil {
-		panic(fmt.Errorf("error starting abci server %w", err))
-	}
-
-	res, err := socketClient.OfferSnapshotSync(abci.RequestOfferSnapshot{
-		Snapshot: &abci.Snapshot{
-			Height:   bundle0[0].Value.Snapshot.Height,
-			Format:   bundle0[0].Value.Snapshot.Format,
-			Chunks:   bundle0[0].Value.Snapshot.Chunks,
-			Hash:     bundle0[0].Value.Snapshot.Hash,
-			Metadata: bundle0[0].Value.Snapshot.Metadata,
-		},
-		AppHash: bundle0[0].Value.State.AppHash,
-	})
-
-	fmt.Println(res)
-
-	nodeKey, err := p2p.LoadNodeKey(config.NodeKeyFile())
-
-	resp0, err := socketClient.ApplySnapshotChunkSync(abci.RequestApplySnapshotChunk{
-		Index:  bundle0[0].Value.ChunkIndex,
-		Chunk:  bundle0[0].Value.Chunk,
-		Sender: string(nodeKey.ID()),
-	})
-
-	fmt.Println(resp0)
-
-	resp1, err := socketClient.ApplySnapshotChunkSync(abci.RequestApplySnapshotChunk{
-		Index:  bundle1[0].Value.ChunkIndex,
-		Chunk:  bundle1[0].Value.Chunk,
-		Sender: string(nodeKey.ID()),
-	})
-
-	fmt.Println(resp1)
-
-	stateDB, stateStore, err := store.GetStateDBs(config)
-	defer stateDB.Close()
-
-	err = stateStore.Bootstrap(*bundle0[0].Value.State)
-	if err != nil {
-		panic(fmt.Errorf("failed to bootstrap node with new state: %w", err))
-	}
-
-	blockDB, blockStore, err := store.GetBlockstoreDBs(config)
-	defer blockDB.Close()
-
-	err = blockStore.SaveSeenCommit(bundle0[0].Value.State.LastBlockHeight, bundle0[0].Value.SeenCommit)
-	if err != nil {
-		panic(fmt.Errorf("failed to store last seen commit: %w", err))
-	}
-
-	fmt.Println("Found block", bundle0[0].Value.Block.Height)
-
-	blockParts := bundle0[0].Value.Block.MakePartSet(tmTypes.BlockPartSizeBytes)
-	blockStore.SaveBlock(bundle0[0].Value.Block, blockParts, bundle0[0].Value.SeenCommit)
-
-	return nil
+	return ApplyStateSync(config, bundle0[0].Value.Snapshot, bundle0[0].Value.Block, bundle0[0].Value.SeenCommit, bundle0[0].Value.State, chunks)
 }
