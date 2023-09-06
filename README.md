@@ -22,9 +22,9 @@
     - [Requirements](#db-requirements)
     - [Sync node](#sync-node-with-db)
 - [Examples](#examples)
-  - [1. Sync Osmosis (Mainnet) with AUTO-SYNC](#1-sync-cosmos-hub-(mainnet)-with-auto-sync)
-  - [2. Sync Osmosis (Mainnet) with DB-SYNC](#2-sync-osmosis-(kaon)-with-db-sync)
-  - [3. Sync Cosmos Hub (Mainnet) with P2P-SYNC](#3-sync-cosmos-hub-(mainnet)-with-p2p-sync)
+  - [1. Sync Osmosis (Mainnet) with AUTO-SYNC](#1-sync-osmosis-mainnet-with-auto-sync)
+  - [2. Sync Osmosis (Mainnet) with DB-SYNC](#2-sync-osmosis-mainnet-with-db-sync)
+  - [3. Sync Cosmos Hub (Mainnet) with P2P-SYNC](#3-sync-cosmos-hub-mainnet-with-p2p-sync)
 
 ## What is KSYNC?
 
