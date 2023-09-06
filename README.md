@@ -22,9 +22,9 @@
     - [Requirements](#db-requirements)
     - [Sync node](#sync-node-with-db)
 - [Examples](#examples)
-  - [1. Sync Osmosis (Kaon) with DB-SYNC](#1-sync-osmosis-(kaon)-with-db-sync)
-  - [2. Sync Cosmos Hub (Mainnet) with P2P-SYNC](#2-sync-cosmos-hub-(mainnet)-with-p2p-sync)
-  - [3. Sync Cosmos Hub (Mainnet) with AUTO-SYNC](#3-sync-cosmos-hub-(mainnet)-with-auto-sync)
+  - [1. Sync Osmosis (Mainnet) with AUTO-SYNC](#1-sync-cosmos-hub-(mainnet)-with-auto-sync)
+  - [2. Sync Osmosis (Mainnet) with DB-SYNC](#2-sync-osmosis-(kaon)-with-db-sync)
+  - [3. Sync Cosmos Hub (Mainnet) with P2P-SYNC](#3-sync-cosmos-hub-(mainnet)-with-p2p-sync)
 
 ## What is KSYNC?
 
@@ -263,7 +263,7 @@ ksync start --home="/Users/<user>/.<chain>" --daemon-path="/Users/<user>/<daemon
 
 Below are two example of how to use the different recommended sync modes for specific chains.
 
-### 1. Sync Osmosis (Kaon) with DB-SYNC
+### 1. Sync Osmosis (Mainnet) with AUTO-SYNC
 
 To sync osmosis you have to download and set up the correct osmosis binary. To sync from genesis the version `v3.1.0` has
 to be used. You can download them [here](https://github.com/osmosis-labs/osmosis/releases/tag/v3.1.0) or build them from source: [https://github.com/osmosis-labs/osmosis](https://github.com/osmosis-labs/osmosis)
@@ -287,20 +287,35 @@ download the genesis
 wget -O ~/.osmosisd/config/genesis.json https://github.com/osmosis-labs/networks/raw/main/osmosis-1/genesis.json
 ```
 
-Important: Don't include an addrbook.json and make sure persistent_peers and etc. (e.g. unconditional_peer_ids, private_peer_ids
-and seeds) are empty for now or else the node will connect to other peers. It should only connect to our peer.
+Now that the binary is properly installed ksync can already be started:
 
-when the config is done the node can be started
+`````bash
+ ksync start --daemon-path="/Users/<user>/Desktop/osmosisd" --home="/Users/<user>/.osmosisd" --pool-id=1 --chain-id=kyve-1
+`````
+
+After KSYNC has started you should see blocks coming in after a few seconds. When you want to continue to sync normally you can now add an addrbook or add peers in `persistent_peers`. When you start
+the node again with the normal start command `./osmosisd start` the node should continue normally and tries to sync the remaining blocks.
+
+### 2. Sync Osmosis (Mainnet) with DB-SYNC
+
+You can also sync Osmosis directly over the DB sync mode. With that you can start the osmosisd binary process separately.
+This has the huge advantage, that the osmosisd process can be managed by cosmosvisor so that you don't have to switch out
+binaries manually every time an upgrade occurs.
+
+For that you can follow the same instructions for setting up the osmosisd binary like in the AUTO-SYNC example. Once that
+is setup you can continue with starting the binary with tendermint disabled:
 
 ```bash
 ./osmosisd start --with-tendermint=false
 ```
 
+In this step you can also use cosmosvisor to start the osmosis process (with tendermint disabled).
+
 After you see that the node is waiting for incoming connections you can open a **new** terminal and start
 the sync.
 
 ```bash
-ksync start --mode=db --home="/Users/<user>/.osmosisd" --pool-id=1 --chain-id=kaon-1
+ksync start --mode=db --home="/Users/<user>/.osmosisd" --pool-id=1 --chain-id=kyve-1
 ```
 
 You should see KSYNC connecting to Osmosis and applying the blocks against the app. You can exit anytime with CMD+C
@@ -309,9 +324,10 @@ if you wish to abort the syncing process.
 When you want to continue to sync normally you can now add an addrbook or add peers in `persistent_peers`. When you start
 the node again with the normal start command `./osmosisd start` the node should continue normally and tries to sync the remaining blocks.
 
-### 2. Sync Cosmos Hub (Mainnet) with P2P-SYNC
+### 3. Sync Cosmos Hub (Mainnet) with P2P-SYNC
 
-Since we want to sync Cosmos Hub from genesis and the genesis file is bigger than 100MB we have to use P2P sync.
+Cosmos Hub can not be synced with DB-SYNC since the genesis file is bigger than 100MB. In this case P2P-SYNC can be used
+as follows.
 
 To sync cosmos you have to download and set up the correct gaia binary. To sync from genesis the version `v4.2.1` has
 to be used. You can download them [here](https://github.com/cosmos/gaia/releases/tag/v4.2.1) or build them from source:
@@ -367,39 +383,3 @@ the tool shows _Done_ and you can safely exit the process with CMD+C.
 
 When you want to continue to sync normally you can now add an addrbook or add peers in `persistent_peers`.
 When you start  the node again the node should continue normally and tries to sync the remaining blocks.
-
-### 3. Sync Cosmos Hub (Mainnet) with AUTO-SYNC
-
-Cosmos Hub requires a start with P2P sync due to the >100MB genesis file.
-To simplify the syncing process, we can use AUTO-SYNC to let KSYNC manage both processes independently.
-
-To start successfully, you need to download and set up the correct binary with the version `v.4.2.1`. You can download them [here](https://github.com/cosmos/gaia/releases/tag/v4.2.1) or build them from source:
-[https://github.com/cosmos/gaia](https://github.com/cosmos/gaia)
-
-Verify installation with
-
-```bash
-./gaiad version
-4.2.1
-```
-
-After the installation init the project
-
-```bash
-./gaiad init <your-moniker> --chain-id cosmoshub-4
-```
-
-download the genesis
-
-```bash
-wget https://raw.githubusercontent.com/cosmos/mainnet/master/genesis/genesis.cosmoshub-4.json.gz
-gzip -d genesis.cosmoshub-4.json.gz
-mv genesis.cosmoshub-4.json ~/.gaia/config/genesis.json
-```
-
-Don't include an addrbook.json and KSYNC will manage your config file itself.
-It should only connect to our peer. The supervised KSYNC process can be started with
-
-`````bash
- ksync start --daemon-path /<daemon-path>/gaiad --home /Users/<user>/.gaia --pool-id 0 --chain-id=kyve-1
-`````
