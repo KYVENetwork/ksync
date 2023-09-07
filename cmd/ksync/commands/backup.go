@@ -5,10 +5,6 @@ import (
 	"github.com/KYVENetwork/ksync/backup"
 	"github.com/KYVENetwork/ksync/config"
 	"github.com/spf13/cobra"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
 )
 
 var (
@@ -43,31 +39,39 @@ var backupCmd = &cobra.Command{
 		}
 
 		if destPath == "" {
-			t := time.Now().Format("20060102_150405")
-
-			if err = os.Mkdir(filepath.Join(backupDir, t), 0o755); err != nil {
-				logger.Error().Str("err", err.Error()).Msg("error creating backup directory")
-			}
-			destPath = filepath.Join(backupDir, t, "data")
+			destPath = backupDir
 		}
 
-		if !(strings.HasSuffix(destPath, ".tar.gz")) {
-			destPath = destPath + ".tar.gz"
+		if err = backup.CopyDir(srcPath, backupDir); err != nil {
+			logger.Error().Str("err", err.Error()).Msg("error copying directory to backup destination")
 		}
 
-		if maxBackups != 0 {
-			if err = backup.ClearBackups(backupDir, maxBackups); err != nil {
-				logger.Error().Str("err", err.Error()).Msg("failed to clear backup directory")
-				return
-			}
-			logger.Info().Msg("cleared backup directory successfully")
-		}
-
-		err = backup.CompressDirectory(srcPath, destPath)
-		if err != nil {
-			logger.Error().Str("err", err.Error()).Msg("failed to write backup")
-			return
-		}
+		//if destPath == "" {
+		//	t := time.Now().Format("20060102_150405")
+		//
+		//	if err = os.Mkdir(filepath.Join(backupDir, t), 0o755); err != nil {
+		//		logger.Error().Str("err", err.Error()).Msg("error creating backup directory")
+		//	}
+		//	destPath = filepath.Join(backupDir, t, "data")
+		//}
+		//
+		//if !(strings.HasSuffix(destPath, ".tar.gz")) {
+		//	destPath = destPath + ".tar.gz"
+		//}
+		//
+		//if maxBackups != 0 {
+		//	if err = backup.ClearBackups(backupDir, maxBackups); err != nil {
+		//		logger.Error().Str("err", err.Error()).Msg("failed to clear backup directory")
+		//		return
+		//	}
+		//	logger.Info().Msg("cleared backup directory successfully")
+		//}
+		//
+		//err = backup.CompressDirectory(srcPath, destPath)
+		//if err != nil {
+		//	logger.Error().Str("err", err.Error()).Msg("failed to write backup")
+		//	return
+		//}
 		logger.Info().Msg("created backup successfully")
 	},
 }

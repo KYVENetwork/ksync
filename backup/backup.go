@@ -115,3 +115,45 @@ func ClearBackups(srcPath string, threshold int) error {
 	}
 	return nil
 }
+
+func CopyDir(srcDir, destDir string) error {
+	// Create the destination directory if it doesn't exist
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return err
+	}
+
+	// Walk through the source directory and copy its contents to the destination
+	return filepath.Walk(srcDir, func(srcPath string, fileInfo os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Construct the corresponding destination path
+		destPath := filepath.Join(destDir, srcPath[len(srcDir):])
+
+		if fileInfo.IsDir() {
+			// Create the destination directory if it doesn't exist
+			return os.MkdirAll(destPath, 0755)
+		} else {
+			// Open the source file for reading
+			srcFile, err := os.Open(srcPath)
+			if err != nil {
+				return err
+			}
+			defer srcFile.Close()
+
+			// Create the destination file
+			destFile, err := os.Create(destPath)
+			if err != nil {
+				return err
+			}
+			defer destFile.Close()
+
+			// Copy the contents from source to destination
+			if _, err := io.Copy(destFile, srcFile); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
