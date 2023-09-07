@@ -34,8 +34,8 @@ type PoolResponse = struct {
 		Id   int64 `json:"id"`
 		Data struct {
 			Runtime    string `json:"runtime"`
-			StartKey   int64  `json:"start_key"`
-			CurrentKey int64  `json:"current_key"`
+			StartKey   string `json:"start_key"`
+			CurrentKey string `json:"current_key"`
 		} `json:"data"`
 	} `json:"pool"`
 }
@@ -71,6 +71,7 @@ type Pagination struct {
 }
 
 type FinalizedBundle struct {
+	Id                int64  `json:"id,omitempty"`
 	StorageId         string `json:"storage_id,omitempty"`
 	StorageProviderId string `json:"storage_provider_id,omitempty"`
 	CompressionId     string `json:"compression_id,omitempty"`

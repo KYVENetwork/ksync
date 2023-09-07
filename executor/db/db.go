@@ -10,10 +10,12 @@ import (
 	"github.com/KYVENetwork/ksync/pool"
 	"github.com/KYVENetwork/ksync/server"
 	"github.com/KYVENetwork/ksync/types"
+	"github.com/KYVENetwork/ksync/utils"
 	nm "github.com/tendermint/tendermint/node"
 	sm "github.com/tendermint/tendermint/state"
 	tmTypes "github.com/tendermint/tendermint/types"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -37,9 +39,26 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 	}
 
 	// load start and latest height
-	startHeight, endHeight, poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
+	poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
 	if err != nil {
 		panic(fmt.Errorf("failed to get pool info: %w", err))
+	}
+
+	if poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermint && poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermintBsync {
+		logger.Error().Msg(fmt.Sprintf("Found invalid runtime on pool %d: Expected = %s,%s Found = %s", poolId, utils.KSyncRuntimeTendermint, utils.KSyncRuntimeTendermintBsync, poolResponse.Pool.Data.Runtime))
+		os.Exit(1)
+	}
+
+	startHeight, err := strconv.ParseInt(poolResponse.Pool.Data.StartKey, 10, 64)
+	if err != nil {
+		logger.Error().Msg(fmt.Sprintf("could not parse int from %s", poolResponse.Pool.Data.StartKey))
+		os.Exit(1)
+	}
+
+	endHeight, err := strconv.ParseInt(poolResponse.Pool.Data.CurrentKey, 10, 64)
+	if err != nil {
+		logger.Error().Msg(fmt.Sprintf("could not parse int from %s", poolResponse.Pool.Data.CurrentKey))
+		os.Exit(1)
 	}
 
 	// if target height was set and is smaller than latest height this will be our new target height

@@ -2,8 +2,10 @@ package statesync
 
 import (
 	"fmt"
+	cfg "github.com/KYVENetwork/ksync/config"
 	"github.com/KYVENetwork/ksync/executor/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
+	"github.com/KYVENetwork/ksync/pool"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	abciClient "github.com/tendermint/tendermint/abci/client"
@@ -13,6 +15,7 @@ import (
 	"github.com/tendermint/tendermint/p2p"
 	sm "github.com/tendermint/tendermint/state"
 	tmTypes "github.com/tendermint/tendermint/types"
+	"os"
 )
 
 var (
@@ -96,8 +99,99 @@ func ApplyStateSync(config *tmCfg.Config, snapshot *types.Snapshot, block *types
 	return nil
 }
 
-func StartStateSync(config *tmCfg.Config) error {
+func findSnapshotBundleId(restEndpoint string, poolId int64, snapshotHeight int64) (bundleId int64, err error) {
+	paginationKey := ""
+
+	for {
+		bundles, nextKey, err := utils.GetFinalizedBundlesPage(restEndpoint, poolId, utils.BundlesPageLimit, paginationKey)
+		if err != nil {
+			return bundleId, fmt.Errorf("failed to retrieve finalized bundles: %w", err)
+		}
+
+		for _, bundle := range bundles {
+			height, chunkIndex, err := utils.ParseSnapshotFromKey(bundle.ToKey)
+			if err != nil {
+				panic(fmt.Errorf("failed to parse snapshot from key: %w", err))
+			}
+
+			if height < snapshotHeight {
+				logger.Info().Msg(fmt.Sprintf("skipping bundle with storage id %s", bundle.StorageId))
+				continue
+			} else if height == snapshotHeight && chunkIndex == 0 {
+				logger.Info().Msg(fmt.Sprintf("downloading bundle with storage id %s", bundle.StorageId))
+				return bundle.Id, nil
+			} else {
+				return bundleId, fmt.Errorf("failed to find bundle with snapshot height %d", snapshotHeight)
+			}
+
+		}
+
+		// if there is no new page we do not continue
+		if nextKey == "" {
+			break
+		}
+
+		paginationKey = nextKey
+	}
+
+	return bundleId, fmt.Errorf("failed to find bundle with snapshot height %d", snapshotHeight)
+}
+
+func StartStateSync(homeDir string, restEndpoint string, poolId int64, snapshotHeight int64) {
+	// load config
+	_, err := cfg.LoadConfig(homeDir)
+	if err != nil {
+		panic(fmt.Errorf("failed to load config: %w", err))
+	}
+
+	// load start and latest height
+	poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
+	if err != nil {
+		panic(fmt.Errorf("failed to get pool info: %w", err))
+	}
+
+	if poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermintSsync {
+		logger.Error().Msg(fmt.Sprintf("Found invalid runtime on pool %d: Expected = %s Found = %s", poolId, utils.KSyncRuntimeTendermintSsync, poolResponse.Pool.Data.Runtime))
+		os.Exit(1)
+	}
+
+	startHeight, _, err := utils.ParseSnapshotFromKey(poolResponse.Pool.Data.StartKey)
+	if err != nil {
+		panic(fmt.Errorf("failed to parse snapshot key: %w", err))
+	}
+
+	endHeight, _, err := utils.ParseSnapshotFromKey(poolResponse.Pool.Data.CurrentKey)
+	if err != nil {
+		panic(fmt.Errorf("failed to parse snapshot key: %w", err))
+	}
+
+	if snapshotHeight < startHeight {
+		logger.Error().Msg(fmt.Sprintf("Requested snapshot height %d is smaller than pool start height %d", snapshotHeight, startHeight))
+		os.Exit(1)
+	}
+
+	// TODO: double check if we have to do endHeight - 1 because the endHeight has probably not finished every chunk yet
+	if snapshotHeight > endHeight {
+		logger.Error().Msg(fmt.Sprintf("Requested snapshot height %d is greater than current pool height %d", snapshotHeight, endHeight))
+		os.Exit(1)
+	}
+
+	bundleId, err := findSnapshotBundleId(restEndpoint, poolId, snapshotHeight)
+	if err != nil {
+		logger.Error().Msg(fmt.Sprintf("Failed to find bundle with requested snapshot height %d", snapshotHeight))
+		os.Exit(1)
+	}
+
+	fmt.Println(fmt.Sprintf("found snapshot with height %d in bundle with id %d", snapshotHeight, bundleId))
+}
+
+func Demo(homeDir string) {
 	logger.Info().Msg("starting state-sync")
+
+	config, err := cfg.LoadConfig(homeDir)
+	if err != nil {
+		logger.Error().Str("could not load config", err.Error())
+	}
 
 	chunk0Raw, chunk0Err := utils.DownloadFromUrl("https://storage.kyve.network/45dfb53d-4674-4de4-822b-ef7e8d4f6c56")
 	if chunk0Err != nil {
@@ -131,5 +225,7 @@ func StartStateSync(config *tmCfg.Config) error {
 
 	chunks := [][]byte{bundle0[0].Value.Chunk, bundle1[0].Value.Chunk}
 
-	return ApplyStateSync(config, bundle0[0].Value.Snapshot, bundle0[0].Value.Block, bundle0[0].Value.SeenCommit, bundle0[0].Value.State, chunks)
+	if ApplyStateSync(config, bundle0[0].Value.Snapshot, bundle0[0].Value.Block, bundle0[0].Value.SeenCommit, bundle0[0].Value.State, chunks) != nil {
+		panic(fmt.Errorf("failed to apply state sync"))
+	}
 }

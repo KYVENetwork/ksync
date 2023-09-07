@@ -1,13 +1,11 @@
 package collector
 
 import (
-	"encoding/base64"
 	"fmt"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/tendermint/tendermint/libs/json"
-	"os"
 	"strconv"
 	"time"
 )
@@ -21,7 +19,7 @@ func StartBlockCollector(blockCh chan<- *types.Block, restEndpoint string, pool 
 
 BundleCollector:
 	for {
-		bundles, nextKey, err := getBundlesPage(restEndpoint, pool.Pool.Id, paginationKey)
+		bundles, nextKey, err := utils.GetFinalizedBundlesPage(restEndpoint, pool.Pool.Id, utils.BundlesPageLimit, paginationKey)
 		if err != nil {
 			panic(fmt.Errorf("failed to retrieve finalized bundles: %w", err))
 		}
@@ -39,13 +37,13 @@ BundleCollector:
 			}
 
 			// retrieve bundle from storage provider
-			data, err := retrieveBundleFromStorageProvider(bundle)
+			data, err := utils.RetrieveBundleFromStorageProvider(bundle)
 			for err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to retrieve bundle with storage id %s from Storage Provider: %s. Retrying in 10s ...", bundle.StorageId, err))
 
 				// sleep 10 seconds after an unsuccessful request
 				time.Sleep(10 * time.Second)
-				data, err = retrieveBundleFromStorageProvider(bundle)
+				data, err = utils.RetrieveBundleFromStorageProvider(bundle)
 			}
 
 			// validate bundle with sha256 checksum
@@ -54,7 +52,7 @@ BundleCollector:
 			}
 
 			// decompress bundle
-			deflated, err := decompressBundleFromStorageProvider(bundle, data)
+			deflated, err := utils.DecompressBundleFromStorageProvider(bundle, data)
 			if err != nil {
 				panic(fmt.Errorf("failed to decompress bundle: %w", err))
 			}
@@ -114,65 +112,4 @@ BundleCollector:
 
 		paginationKey = nextKey
 	}
-}
-
-func getBundlesPage(restEndpoint string, poolId int64, paginationKey string) ([]types.FinalizedBundle, string, error) {
-	raw, err := utils.DownloadFromUrl(fmt.Sprintf(
-		"%s/kyve/v1/bundles/%d?pagination.limit=%d&pagination.key=%s",
-		restEndpoint,
-		poolId,
-		utils.BundlesPageLimit,
-		paginationKey,
-	))
-	if err != nil {
-		return nil, "", err
-	}
-
-	var bundlesResponse types.FinalizedBundleResponse
-
-	if err := json.Unmarshal(raw, &bundlesResponse); err != nil {
-		return nil, "", err
-	}
-
-	logger.Info().Bytes("next-key", bundlesResponse.Pagination.NextKey).Msgf("collector")
-
-	nextKey := base64.URLEncoding.EncodeToString(bundlesResponse.Pagination.NextKey)
-
-	return bundlesResponse.FinalizedBundles, nextKey, nil
-}
-
-func decompressBundleFromStorageProvider(bundle types.FinalizedBundle, data []byte) (deflated []byte, err error) {
-	c, err := strconv.ParseUint(bundle.CompressionId, 10, 64)
-	if err != nil {
-		panic(fmt.Errorf("could not parse uint from compression id: %w", err))
-	}
-	switch c {
-	case 1:
-		return utils.DecompressGzip(data)
-	default:
-		logger.Error().Msg(fmt.Sprintf("bundle has an invalid storage provider id %d. canceling sync", bundle.StorageProviderId))
-		os.Exit(1)
-	}
-
-	return
-}
-
-func retrieveBundleFromStorageProvider(bundle types.FinalizedBundle) (data []byte, err error) {
-	s, err := strconv.ParseUint(bundle.StorageProviderId, 10, 64)
-	if err != nil {
-		panic(fmt.Errorf("could not parse uint from storage provider id: %w", err))
-	}
-	switch s {
-	case 1:
-		return utils.DownloadFromUrl(fmt.Sprintf("https://arweave.net/%s", bundle.StorageId))
-	case 2:
-		return utils.DownloadFromUrl(fmt.Sprintf("https://arweave.net/%s", bundle.StorageId))
-	case 3:
-		return utils.DownloadFromUrl(fmt.Sprintf("https://storage.kyve.network/%s", bundle.StorageId))
-	default:
-		logger.Error().Msg(fmt.Sprintf("bundle has an invalid storage provider id %d. canceling sync", bundle.StorageProviderId))
-		os.Exit(1)
-	}
-
-	return
 }
