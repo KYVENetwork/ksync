@@ -17,8 +17,15 @@ import (
 )
 
 func GetFinalizedBundlesPage(restEndpoint string, poolId int64, paginationLimit int64, paginationKey string) ([]types.FinalizedBundle, string, error) {
+	//raw, err := DownloadFromUrl(fmt.Sprintf(
+	//	"%s/kyve/v1/bundles/%d?pagination.limit=%d&pagination.key=%s",
+	//	restEndpoint,
+	//	poolId,
+	//	paginationLimit,
+	//	paginationKey,
+	//))
 	raw, err := DownloadFromUrl(fmt.Sprintf(
-		"%s/kyve/v1/bundles/%d?pagination.limit=%d&pagination.key=%s",
+		"%s/kyve/query/v1beta1/finalized_bundles/%d?pagination.limit=%d&pagination.key=%s",
 		restEndpoint,
 		poolId,
 		paginationLimit,
@@ -40,12 +47,12 @@ func GetFinalizedBundlesPage(restEndpoint string, poolId int64, paginationLimit 
 }
 
 func DecompressBundleFromStorageProvider(bundle types.FinalizedBundle, data []byte) ([]byte, error) {
-	id, err := strconv.ParseUint(bundle.CompressionId, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse uint from compression id: %w", err)
-	}
+	//id, err := strconv.ParseUint(bundle.CompressionId, 10, 64)
+	//if err != nil {
+	//	return nil, fmt.Errorf("could not parse uint from compression id: %w", err)
+	//}
 
-	switch id {
+	switch bundle.CompressionId {
 	case 1:
 		return DecompressGzip(data)
 	default:
@@ -54,12 +61,12 @@ func DecompressBundleFromStorageProvider(bundle types.FinalizedBundle, data []by
 }
 
 func RetrieveBundleFromStorageProvider(bundle types.FinalizedBundle) ([]byte, error) {
-	id, err := strconv.ParseUint(bundle.StorageProviderId, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse uint from storage provider id: %w", err)
-	}
+	//id, err := strconv.ParseUint(bundle.StorageProviderId, 10, 64)
+	//if err != nil {
+	//	return nil, fmt.Errorf("could not parse uint from storage provider id: %w", err)
+	//}
 
-	switch id {
+	switch bundle.StorageProviderId {
 	case 1:
 		return DownloadFromUrl(fmt.Sprintf("https://arweave.net/%s", bundle.StorageId))
 	case 2:

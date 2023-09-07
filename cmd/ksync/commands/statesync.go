@@ -25,7 +25,7 @@ func init() {
 		panic(fmt.Errorf("flag 'pool-id' should be required: %w", err))
 	}
 
-	stateSyncCmd.Flags().Int64Var(&poolId, "snapshot-height", 0, "snapshot height")
+	stateSyncCmd.Flags().Int64Var(&snapshotHeight, "snapshot-height", 0, "snapshot height")
 	if err := stateSyncCmd.MarkFlagRequired("snapshot-height"); err != nil {
 		panic(fmt.Errorf("flag 'snapshot-height' should be required: %w", err))
 	}

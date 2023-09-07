@@ -16,6 +16,7 @@ import (
 	sm "github.com/tendermint/tendermint/state"
 	tmTypes "github.com/tendermint/tendermint/types"
 	"os"
+	"strconv"
 )
 
 var (
@@ -119,11 +120,10 @@ func findSnapshotBundleId(restEndpoint string, poolId int64, snapshotHeight int6
 				continue
 			} else if height == snapshotHeight && chunkIndex == 0 {
 				logger.Info().Msg(fmt.Sprintf("downloading bundle with storage id %s", bundle.StorageId))
-				return bundle.Id, nil
+				return strconv.ParseInt(bundle.Id, 10, 64)
 			} else {
-				return bundleId, fmt.Errorf("failed to find bundle with snapshot height %d", snapshotHeight)
+				return bundleId, fmt.Errorf("snapshot height %d not found", snapshotHeight)
 			}
-
 		}
 
 		// if there is no new page we do not continue
@@ -178,7 +178,7 @@ func StartStateSync(homeDir string, restEndpoint string, poolId int64, snapshotH
 
 	bundleId, err := findSnapshotBundleId(restEndpoint, poolId, snapshotHeight)
 	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("Failed to find bundle with requested snapshot height %d", snapshotHeight))
+		logger.Error().Msg(fmt.Sprintf("Failed to find bundle with requested snapshot height %d: %s", snapshotHeight, err))
 		os.Exit(1)
 	}
 
