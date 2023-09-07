@@ -81,9 +81,13 @@ type FinalizedBundle struct {
 	DataHash          string `json:"data_hash,omitempty"`
 }
 
-type FinalizedBundleResponse = struct {
+type FinalizedBundlesResponse = struct {
 	FinalizedBundles []FinalizedBundle `json:"finalized_bundles"`
 	Pagination       Pagination        `json:"pagination"`
+}
+
+type FinalizedBundleResponse = struct {
+	FinalizedBundle FinalizedBundle `json:"finalized_bundle"`
 }
 
 type TendermintSsyncBundle = []TendermintSsyncDataItem

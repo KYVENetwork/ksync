@@ -14,6 +14,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func GetFinalizedBundlesPage(restEndpoint string, poolId int64, paginationLimit int64, paginationKey string) ([]types.FinalizedBundle, string, error) {
@@ -35,7 +36,7 @@ func GetFinalizedBundlesPage(restEndpoint string, poolId int64, paginationLimit 
 		return nil, "", err
 	}
 
-	var bundlesResponse types.FinalizedBundleResponse
+	var bundlesResponse types.FinalizedBundlesResponse
 
 	if err := json.Unmarshal(raw, &bundlesResponse); err != nil {
 		return nil, "", err
@@ -44,6 +45,56 @@ func GetFinalizedBundlesPage(restEndpoint string, poolId int64, paginationLimit 
 	nextKey := base64.URLEncoding.EncodeToString(bundlesResponse.Pagination.NextKey)
 
 	return bundlesResponse.FinalizedBundles, nextKey, nil
+}
+
+func GetFinalizedBundle(restEndpoint string, poolId int64, bundleId int64) (*types.FinalizedBundle, error) {
+	//raw, err := DownloadFromUrl(fmt.Sprintf(
+	//	"%s/kyve/v1/bundles/%d/%d",
+	//	restEndpoint,
+	//	poolId,
+	//	bundleId,
+	//))
+	raw, err := DownloadFromUrl(fmt.Sprintf(
+		"%s/kyve/query/v1beta1/finalized_bundle/%d/%d",
+		restEndpoint,
+		poolId,
+		bundleId,
+	))
+	if err != nil {
+		return nil, err
+	}
+
+	var bundleResponse types.FinalizedBundleResponse
+
+	if err := json.Unmarshal(raw, &bundleResponse); err != nil {
+		return nil, err
+	}
+
+	return &bundleResponse.FinalizedBundle, nil
+}
+
+func GetDataFromFinalizedBundle(bundle types.FinalizedBundle) ([]byte, error) {
+	// retrieve bundle from storage provider
+	data, err := RetrieveBundleFromStorageProvider(bundle)
+	for err != nil {
+		fmt.Println(fmt.Sprintf("error RetrieveBundleFromStorageProvider: %s", err))
+		// sleep 10 seconds after an unsuccessful request
+		time.Sleep(10 * time.Second)
+		data, err = RetrieveBundleFromStorageProvider(bundle)
+	}
+
+	// validate bundle with sha256 checksum
+	if CreateChecksum(data) != bundle.DataHash {
+		return nil, fmt.Errorf("found different checksum on bundle with storage id %s: expected = %s found = %s", bundle.StorageId, CreateChecksum(data), bundle.DataHash)
+	}
+
+	// decompress bundle
+	deflated, err := DecompressBundleFromStorageProvider(bundle, data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decompress bundle: %w", err)
+	}
+
+	return deflated, nil
 }
 
 func DecompressBundleFromStorageProvider(bundle types.FinalizedBundle, data []byte) ([]byte, error) {

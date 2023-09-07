@@ -7,7 +7,6 @@ import (
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/tendermint/tendermint/libs/json"
 	"strconv"
-	"time"
 )
 
 var (
@@ -36,25 +35,9 @@ BundleCollector:
 				logger.Info().Msg(fmt.Sprintf("downloading bundle with storage id %s", bundle.StorageId))
 			}
 
-			// retrieve bundle from storage provider
-			data, err := utils.RetrieveBundleFromStorageProvider(bundle)
-			for err != nil {
-				logger.Error().Msg(fmt.Sprintf("failed to retrieve bundle with storage id %s from Storage Provider: %s. Retrying in 10s ...", bundle.StorageId, err))
-
-				// sleep 10 seconds after an unsuccessful request
-				time.Sleep(10 * time.Second)
-				data, err = utils.RetrieveBundleFromStorageProvider(bundle)
-			}
-
-			// validate bundle with sha256 checksum
-			if utils.CreateChecksum(data) != bundle.DataHash {
-				panic(fmt.Errorf("found different checksum on bundle with storage id %s: expected = %s found = %s", bundle.StorageId, utils.CreateChecksum(data), bundle.DataHash))
-			}
-
-			// decompress bundle
-			deflated, err := utils.DecompressBundleFromStorageProvider(bundle, data)
+			deflated, err := utils.GetDataFromFinalizedBundle(bundle)
 			if err != nil {
-				panic(fmt.Errorf("failed to decompress bundle: %w", err))
+				panic(fmt.Errorf("failed to get data from finalized bundle: %w", err))
 			}
 
 			// depending on runtime the data items can look differently

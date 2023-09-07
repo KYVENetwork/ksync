@@ -13,7 +13,6 @@ import (
 	tmCfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/p2p"
-	sm "github.com/tendermint/tendermint/state"
 	tmTypes "github.com/tendermint/tendermint/types"
 	"os"
 	"strconv"
@@ -23,7 +22,33 @@ var (
 	logger = log.Logger("state-sync")
 )
 
-func ApplyStateSync(config *tmCfg.Config, snapshot *types.Snapshot, block *types.Block, seenCommit *tmTypes.Commit, state *sm.State, chunks [][]byte) (err error) {
+func ApplyStateSync(config *tmCfg.Config, restEndpoint string, poolId int64, bundleId int64) error {
+	logger.Info().Msg(fmt.Sprintf("applying state-sync snapshot"))
+
+	finalizedBundle, err := utils.GetFinalizedBundle(restEndpoint, poolId, bundleId)
+	if err != nil {
+		return err
+	}
+
+	deflated, err := utils.GetDataFromFinalizedBundle(*finalizedBundle)
+	if err != nil {
+		return err
+	}
+
+	var bundle types.TendermintSsyncBundle
+
+	if err := json.Unmarshal(deflated, &bundle); err != nil {
+		panic(fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err))
+	}
+
+	snapshot := bundle[0].Value.Snapshot
+	state := bundle[0].Value.State
+	chunks := bundle[0].Value.Snapshot.Chunks
+	seenCommit := bundle[0].Value.SeenCommit
+	block := bundle[0].Value.Block
+
+	logger.Info().Msg(fmt.Sprintf("downloaded snapshot and state commits from %s", finalizedBundle.StorageId))
+
 	socketClient := abciClient.NewSocketClient(config.ProxyApp, false)
 
 	if err := socketClient.Start(); err != nil {
@@ -53,19 +78,39 @@ func ApplyStateSync(config *tmCfg.Config, snapshot *types.Snapshot, block *types
 		logger.Info().Err(fmt.Errorf("loading key file failed: %w", err))
 	}
 
-	for chunkIndex, chunk := range chunks {
+	for chunkIndex := uint32(0); chunkIndex < chunks; chunkIndex++ {
+		chunkBundleFinalized, err := utils.GetFinalizedBundle(restEndpoint, poolId, bundleId+int64(chunkIndex))
+		if err != nil {
+			return err
+		}
+
+		chunkBundleDeflated, err := utils.GetDataFromFinalizedBundle(*chunkBundleFinalized)
+		if err != nil {
+			return err
+		}
+
+		var chunkBundle types.TendermintSsyncBundle
+
+		if err := json.Unmarshal(chunkBundleDeflated, &chunkBundle); err != nil {
+			panic(fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err))
+		}
+
+		chunk := chunkBundle[0].Value.Chunk
+
+		logger.Info().Msg(fmt.Sprintf("downloaded snapshot chunk %d/%d from %s", chunkIndex+1, chunks, chunkBundleFinalized.StorageId))
+
 		res, err := socketClient.ApplySnapshotChunkSync(abci.RequestApplySnapshotChunk{
-			Index:  uint32(chunkIndex),
+			Index:  chunkIndex,
 			Chunk:  chunk,
 			Sender: string(nodeKey.ID()),
 		})
 
 		if err != nil {
-			logger.Info().Err(fmt.Errorf("applying snapshot chunk %d/%d failed: %s\"", chunkIndex+1, len(chunks), res.Result))
+			logger.Info().Err(fmt.Errorf("applying snapshot chunk %d/%d failed: %s\"", chunkIndex+1, chunks, res.Result))
 			return err
 		}
 
-		logger.Info().Msg(fmt.Sprintf("applying snapshot chunk %d/%d: %s", chunkIndex+1, len(chunks), res.Result))
+		logger.Info().Msg(fmt.Sprintf("applying snapshot chunk %d/%d: %s", chunkIndex+1, chunks, res.Result))
 	}
 
 	stateDB, stateStore, err := store.GetStateDBs(config)
@@ -95,7 +140,6 @@ func ApplyStateSync(config *tmCfg.Config, snapshot *types.Snapshot, block *types
 	blockStore.SaveBlock(block, blockParts, seenCommit)
 
 	logger.Info().Msg(fmt.Sprintf("saved block for height %d", block.Height))
-	logger.Info().Msg(fmt.Sprintf("snapshot was successfully applied"))
 
 	return nil
 }
@@ -139,7 +183,7 @@ func findSnapshotBundleId(restEndpoint string, poolId int64, snapshotHeight int6
 
 func StartStateSync(homeDir string, restEndpoint string, poolId int64, snapshotHeight int64) {
 	// load config
-	_, err := cfg.LoadConfig(homeDir)
+	config, err := cfg.LoadConfig(homeDir)
 	if err != nil {
 		panic(fmt.Errorf("failed to load config: %w", err))
 	}
@@ -182,50 +226,11 @@ func StartStateSync(homeDir string, restEndpoint string, poolId int64, snapshotH
 		os.Exit(1)
 	}
 
-	fmt.Println(fmt.Sprintf("found snapshot with height %d in bundle with id %d", snapshotHeight, bundleId))
-}
+	logger.Info().Msg(fmt.Sprintf("found snapshot with height %d in bundle with id %d", snapshotHeight, bundleId))
 
-func Demo(homeDir string) {
-	logger.Info().Msg("starting state-sync")
-
-	config, err := cfg.LoadConfig(homeDir)
-	if err != nil {
-		logger.Error().Str("could not load config", err.Error())
+	if err := ApplyStateSync(config, restEndpoint, poolId, bundleId); err != nil {
+		logger.Error().Msg(fmt.Sprintf("snapshot could not be applied: %s", err))
 	}
 
-	chunk0Raw, chunk0Err := utils.DownloadFromUrl("https://storage.kyve.network/45dfb53d-4674-4de4-822b-ef7e8d4f6c56")
-	if chunk0Err != nil {
-		panic(fmt.Errorf("error downloading chunk 0 %w", chunk0Err))
-	}
-	chunk1Raw, chunk1Err := utils.DownloadFromUrl("https://storage.kyve.network/e759d4d2-f2e4-49fb-9c5f-4ee0b4c6c1bb")
-	if chunk1Err != nil {
-		panic(fmt.Errorf("error downloading chunk 1 %w", chunk1Err))
-	}
-
-	chunk0, chunk0Err := utils.DecompressGzip(chunk0Raw)
-	if chunk0Err != nil {
-		panic(fmt.Errorf("error decompressing chunk 0 %w", chunk0Err))
-	}
-
-	chunk1, chunk1Err := utils.DecompressGzip(chunk1Raw)
-	if chunk1Err != nil {
-		panic(fmt.Errorf("error decompressing chunk 1 %w", chunk1Err))
-	}
-
-	var bundle0 types.TendermintSsyncBundle
-	var bundle1 types.TendermintSsyncBundle
-
-	if err := json.Unmarshal(chunk0, &bundle0); err != nil {
-		panic(fmt.Errorf("failed to unmarshal tendermint bundle 0: %w", err))
-	}
-
-	if err := json.Unmarshal(chunk1, &bundle1); err != nil {
-		panic(fmt.Errorf("failed to unmarshal tendermint bundle 1: %w", err))
-	}
-
-	chunks := [][]byte{bundle0[0].Value.Chunk, bundle1[0].Value.Chunk}
-
-	if ApplyStateSync(config, bundle0[0].Value.Snapshot, bundle0[0].Value.Block, bundle0[0].Value.SeenCommit, bundle0[0].Value.State, chunks) != nil {
-		panic(fmt.Errorf("failed to apply state sync"))
-	}
+	logger.Info().Msg(fmt.Sprintf("snapshot was successfully applied"))
 }
