@@ -67,11 +67,16 @@ func ApplyStateSync(config *tmCfg.Config, restEndpoint string, poolId int64, bun
 	})
 
 	if err != nil {
-		logger.Info().Err(fmt.Errorf("offering snapshot for height %d failed: %w", snapshot.Height, err))
+		logger.Error().Err(fmt.Errorf("offering snapshot for height %d failed: %w", snapshot.Height, err))
 		return err
 	}
 
-	logger.Info().Msg(fmt.Sprintf("offering snapshot for height %d: %s", snapshot.Height, res.Result))
+	if res.Result == abci.ResponseOfferSnapshot_ACCEPT {
+		logger.Info().Msg(fmt.Sprintf("offering snapshot for height %d: %s", snapshot.Height, res.Result))
+	} else {
+		logger.Error().Msg(fmt.Sprintf("offering snapshot for height %d failed: %s", snapshot.Height, res.Result))
+		return fmt.Errorf("offering snapshot result: %s", res.Result)
+	}
 
 	nodeKey, err := p2p.LoadNodeKey(config.NodeKeyFile())
 	if err != nil {
@@ -106,11 +111,16 @@ func ApplyStateSync(config *tmCfg.Config, restEndpoint string, poolId int64, bun
 		})
 
 		if err != nil {
-			logger.Info().Err(fmt.Errorf("applying snapshot chunk %d/%d failed: %s\"", chunkIndex+1, chunks, res.Result))
+			logger.Error().Err(fmt.Errorf("applying snapshot chunk %d/%d failed: %w", chunkIndex+1, chunks, err))
 			return err
 		}
 
-		logger.Info().Msg(fmt.Sprintf("applying snapshot chunk %d/%d: %s", chunkIndex+1, chunks, res.Result))
+		if res.Result == abci.ResponseApplySnapshotChunk_ACCEPT {
+			logger.Info().Msg(fmt.Sprintf("applying snapshot chunk %d/%d: %s", chunkIndex+1, chunks, res.Result))
+		} else {
+			logger.Error().Msg(fmt.Sprintf("applying snapshot chunk %d/%d failed: %s", chunkIndex+1, chunks, res.Result))
+			return fmt.Errorf("applying snapshot chunk: %s", res.Result)
+		}
 	}
 
 	stateDB, stateStore, err := store.GetStateDBs(config)
