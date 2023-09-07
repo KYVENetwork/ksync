@@ -8,11 +8,13 @@ import (
 	"github.com/KYVENetwork/ksync/executor/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/pool"
+	"github.com/KYVENetwork/ksync/server"
 	"github.com/KYVENetwork/ksync/types"
 	nm "github.com/tendermint/tendermint/node"
 	sm "github.com/tendermint/tendermint/state"
 	tmTypes "github.com/tendermint/tendermint/types"
 	"os"
+	"time"
 )
 
 var (
@@ -21,7 +23,7 @@ var (
 	logger  = log.Logger("db")
 )
 
-func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string, targetHeight int64) {
+func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string, targetHeight int64, apiServer bool, port int64) {
 	logger.Info().Msg("starting db sync")
 
 	config, err := cfg.LoadConfig(homeDir)
@@ -29,10 +31,10 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 		panic(fmt.Errorf("failed to load config.toml: %w", err))
 	}
 
-	//app, err := cfg.LoadApp(homeDir)
-	//if err != nil {
-	//	panic(fmt.Errorf("failed to load app.toml: %w", err))
-	//}
+	app, err := cfg.LoadApp(homeDir)
+	if err != nil {
+		panic(fmt.Errorf("failed to load app.toml: %w", err))
+	}
 
 	// load start and latest height
 	startHeight, endHeight, poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
@@ -64,6 +66,10 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 
 	if err != nil {
 		panic(fmt.Errorf("failed to load blockstore db: %w", err))
+	}
+
+	if apiServer {
+		go server.StartApiServer(config, blockStore, stateStore, port)
 	}
 
 	// get continuation height
@@ -160,30 +166,30 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 			prevBlock = block
 		}
 
-		// if we have reached a height where a snapshot should be created by the app
-		// we wait until it is created, else if KSYNC moves to fast the snapshot can
-		// not be properly created.
-		//if prevBlock.Height-1%app.StateSync.SnapshotInterval == 0 {
-		//	for {
-		//		logger.Info().Msg(fmt.Sprintf("Waiting until snapshot at height %d is created by app", prevBlock.Height-1))
-		//
-		//		found, err := helpers.IsSnapshotAvailableAtHeight(config, prevBlock.Height-1)
-		//		if err != nil {
-		//			logger.Error().Msg(fmt.Sprintf("Check snapshot availability failed at height %d", prevBlock.Height-1))
-		//			time.Sleep(10 * time.Second)
-		//			continue
-		//		}
-		//
-		//		if !found {
-		//			logger.Info().Msg(fmt.Sprintf("Snapshot at height %d was not created yet. Waiting ...", prevBlock.Height-1))
-		//			time.Sleep(10 * time.Second)
-		//			continue
-		//		}
-		//
-		//		logger.Info().Msg(fmt.Sprintf("Snapshot at height %d was created. Continuing ...", prevBlock.Height-1))
-		//		break
-		//	}
-		//}
+		//if we have reached a height where a snapshot should be created by the app
+		//we wait until it is created, else if KSYNC moves to fast the snapshot can
+		//not be properly created.
+		if app.StateSync.SnapshotInterval > 0 && (block.Height-1)%app.StateSync.SnapshotInterval == 0 {
+			for {
+				logger.Info().Msg(fmt.Sprintf("Waiting until snapshot at height %d is created by app", block.Height-1))
+
+				found, err := helpers.IsSnapshotAvailableAtHeight(config, block.Height-1)
+				if err != nil {
+					logger.Error().Msg(fmt.Sprintf("Check snapshot availability failed at height %d", block.Height-1))
+					time.Sleep(10 * time.Second)
+					continue
+				}
+
+				if !found {
+					logger.Info().Msg(fmt.Sprintf("Snapshot at height %d was not created yet. Waiting ...", block.Height-1))
+					time.Sleep(10 * time.Second)
+					continue
+				}
+
+				logger.Info().Msg(fmt.Sprintf("Snapshot at height %d was created. Continuing ...", block.Height-1))
+				break
+			}
+		}
 	}
 
 	logger.Info().Msg(fmt.Sprintf("Synced from height %d to target height %d", startHeight, endHeight-1))
