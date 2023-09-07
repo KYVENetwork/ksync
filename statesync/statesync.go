@@ -47,7 +47,7 @@ func ApplyStateSync(config *tmCfg.Config, restEndpoint string, poolId int64, bun
 	seenCommit := bundle[0].Value.SeenCommit
 	block := bundle[0].Value.Block
 
-	logger.Info().Msg(fmt.Sprintf("downloaded snapshot and state commits from %s", finalizedBundle.StorageId))
+	logger.Info().Msg("downloaded snapshot and state commits")
 
 	socketClient := abciClient.NewSocketClient(config.ProxyApp, false)
 
@@ -97,7 +97,7 @@ func ApplyStateSync(config *tmCfg.Config, restEndpoint string, poolId int64, bun
 
 		chunk := chunkBundle[0].Value.Chunk
 
-		logger.Info().Msg(fmt.Sprintf("downloaded snapshot chunk %d/%d from %s", chunkIndex+1, chunks, chunkBundleFinalized.StorageId))
+		logger.Info().Msg(fmt.Sprintf("downloaded snapshot chunk %d/%d", chunkIndex+1, chunks))
 
 		res, err := socketClient.ApplySnapshotChunkSync(abci.RequestApplySnapshotChunk{
 			Index:  chunkIndex,
@@ -160,10 +160,8 @@ func findSnapshotBundleId(restEndpoint string, poolId int64, snapshotHeight int6
 			}
 
 			if height < snapshotHeight {
-				logger.Info().Msg(fmt.Sprintf("skipping bundle with storage id %s", bundle.StorageId))
 				continue
 			} else if height == snapshotHeight && chunkIndex == 0 {
-				logger.Info().Msg(fmt.Sprintf("downloading bundle with storage id %s", bundle.StorageId))
 				return strconv.ParseInt(bundle.Id, 10, 64)
 			} else {
 				return bundleId, fmt.Errorf("snapshot height %d not found", snapshotHeight)
@@ -182,6 +180,8 @@ func findSnapshotBundleId(restEndpoint string, poolId int64, snapshotHeight int6
 }
 
 func StartStateSync(homeDir string, restEndpoint string, poolId int64, snapshotHeight int64) {
+	logger.Info().Msg("starting state-sync")
+
 	// load config
 	config, err := cfg.LoadConfig(homeDir)
 	if err != nil {
