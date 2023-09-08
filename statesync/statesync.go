@@ -25,6 +25,56 @@ var (
 func ApplyStateSync(config *tmCfg.Config, restEndpoint string, poolId int64, bundleId int64) error {
 	logger.Info().Msg(fmt.Sprintf("applying state-sync snapshot"))
 
+	stateDB, stateStore, err := store.GetStateDBs(config)
+	defer stateDB.Close()
+
+	if err != nil {
+		panic(fmt.Errorf("failed to load state db: %w", err))
+	}
+
+	// check if state height is zero
+	s, err := stateStore.Load()
+	if err != nil {
+		panic(fmt.Errorf("failed to load latest state: %w", err))
+	}
+
+	if s.LastBlockHeight > 0 {
+		logger.Error().Msg(fmt.Sprintf("state height %d is not zero, please reset with unsafe-reset-all", s.LastBlockHeight))
+		os.Exit(1)
+	}
+
+	blockDB, blockStore, err := store.GetBlockstoreDBs(config)
+	defer blockDB.Close()
+
+	if err != nil {
+		logger.Error().Msg(fmt.Sprintf("failed to open blockstore: %s", err))
+		return err
+	}
+
+	// check if store height is zero
+	if blockStore.Height() > 0 {
+		logger.Error().Msg(fmt.Sprintf("store height %d is not zero, please reset with unsafe-reset-all", blockStore.Height()))
+		os.Exit(1)
+	}
+
+	socketClient := abciClient.NewSocketClient(config.ProxyApp, false)
+
+	if err := socketClient.Start(); err != nil {
+		panic(fmt.Errorf("error starting abci server %w", err))
+	}
+
+	// check if app height is zero
+	info, err := socketClient.InfoSync(abci.RequestInfo{})
+	if err != nil {
+		logger.Error().Err(fmt.Errorf("requesting info from app failed: %w", err))
+		return err
+	}
+
+	if info.LastBlockHeight > 0 {
+		logger.Error().Msg(fmt.Sprintf("app height %d is not zero, please reset with unsafe-reset-all", info.LastBlockHeight))
+		os.Exit(1)
+	}
+
 	finalizedBundle, err := utils.GetFinalizedBundle(restEndpoint, poolId, bundleId)
 	if err != nil {
 		return err
@@ -48,12 +98,6 @@ func ApplyStateSync(config *tmCfg.Config, restEndpoint string, poolId int64, bun
 	block := bundle[0].Value.Block
 
 	logger.Info().Msg("downloaded snapshot and state commits")
-
-	socketClient := abciClient.NewSocketClient(config.ProxyApp, false)
-
-	if err := socketClient.Start(); err != nil {
-		panic(fmt.Errorf("error starting abci server %w", err))
-	}
 
 	res, err := socketClient.OfferSnapshotSync(abci.RequestOfferSnapshot{
 		Snapshot: &abci.Snapshot{
@@ -123,20 +167,9 @@ func ApplyStateSync(config *tmCfg.Config, restEndpoint string, poolId int64, bun
 		}
 	}
 
-	stateDB, stateStore, err := store.GetStateDBs(config)
-	defer stateDB.Close()
-
 	err = stateStore.Bootstrap(*state)
 	if err != nil {
 		logger.Info().Err(fmt.Errorf("failed to bootstrap state: %s\"", err))
-		return err
-	}
-
-	blockDB, blockStore, err := store.GetBlockstoreDBs(config)
-	defer blockDB.Close()
-
-	if err != nil {
-		logger.Info().Err(fmt.Errorf("failed to open blockstore: %s\"", err))
 		return err
 	}
 
