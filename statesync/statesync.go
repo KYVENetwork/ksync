@@ -189,15 +189,8 @@ func findSnapshotBundleId(restEndpoint string, poolId int64, snapshotHeight int6
 	return bundleId, fmt.Errorf("failed to find bundle with snapshot height %d", snapshotHeight)
 }
 
-func StartStateSync(homeDir string, restEndpoint string, poolId int64, snapshotHeight int64) {
-	logger.Info().Msg("starting state-sync")
-
-	// load config
-	config, err := cfg.LoadConfig(homeDir)
-	if err != nil {
-		panic(fmt.Errorf("failed to load config: %w", err))
-	}
-
+// TODO: check if latest snapshot is actually complete
+func CheckStateSyncBoundaries(restEndpoint string, poolId int64, snapshotHeight int64) {
 	// load start and latest height
 	poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
 	if err != nil {
@@ -205,7 +198,7 @@ func StartStateSync(homeDir string, restEndpoint string, poolId int64, snapshotH
 	}
 
 	if poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermintSsync {
-		logger.Error().Msg(fmt.Sprintf("Found invalid runtime on pool %d: Expected = %s Found = %s", poolId, utils.KSyncRuntimeTendermintSsync, poolResponse.Pool.Data.Runtime))
+		logger.Error().Msg(fmt.Sprintf("Found invalid runtime on state-sync pool %d: Expected = %s Found = %s", poolId, utils.KSyncRuntimeTendermintSsync, poolResponse.Pool.Data.Runtime))
 		os.Exit(1)
 	}
 
@@ -220,15 +213,27 @@ func StartStateSync(homeDir string, restEndpoint string, poolId int64, snapshotH
 	}
 
 	if snapshotHeight < startHeight {
-		logger.Error().Msg(fmt.Sprintf("Requested snapshot height %d is smaller than pool start height %d", snapshotHeight, startHeight))
+		logger.Error().Msg(fmt.Sprintf("Requested snapshot height %d is smaller than state-sync pool start height %d", snapshotHeight, startHeight))
 		os.Exit(1)
 	}
 
 	// TODO: double check if we have to do endHeight - 1 because the endHeight has probably not finished every chunk yet
 	if snapshotHeight > endHeight {
-		logger.Error().Msg(fmt.Sprintf("Requested snapshot height %d is greater than current pool height %d", snapshotHeight, endHeight))
+		logger.Error().Msg(fmt.Sprintf("Requested snapshot height %d is greater than current state-sync pool height %d", snapshotHeight, endHeight))
 		os.Exit(1)
 	}
+}
+
+func StartStateSync(homeDir string, restEndpoint string, poolId int64, snapshotHeight int64) {
+	logger.Info().Msg("starting state-sync")
+
+	// load config
+	config, err := cfg.LoadConfig(homeDir)
+	if err != nil {
+		panic(fmt.Errorf("failed to load config: %w", err))
+	}
+
+	CheckStateSyncBoundaries(restEndpoint, poolId, snapshotHeight)
 
 	bundleId, err := findSnapshotBundleId(restEndpoint, poolId, snapshotHeight)
 	if err != nil {

@@ -92,8 +92,7 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 	}
 
 	// get continuation height
-	// startHeight = blockStore.Height() + 1
-	startHeight = 100
+	startHeight = blockStore.Height() + 1
 
 	if endHeight <= startHeight {
 		logger.Error().Msg(fmt.Sprintf("Target height %d has to be bigger than current height %d", endHeight, startHeight))
