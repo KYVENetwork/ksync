@@ -66,7 +66,7 @@ func init() {
 
 	startCmd.Flags().StringVar(&backupDir, "backup-dest-path", "", "destination path of the written backup (default '~/.ksync/backups)'")
 
-	startCmd.Flags().StringVar(&backupCompression, "backup-compression", "tar.gz", "compression type to compress backup directory ['tar.gz', 'zip', '']")
+	startCmd.Flags().StringVar(&backupCompression, "backup-compression", "", "compression type to compress backup directory ['tar.gz', 'zip', '']")
 
 	startCmd.Flags().IntVar(&backupKeepRecent, "backup-keep-recent", 2, "number of kept backups (set 0 to keep all)")
 
