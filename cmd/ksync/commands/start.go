@@ -15,9 +15,9 @@ import (
 )
 
 var (
-	apiServer    bool
+	apiServer         bool
 	backupCompression string
-	backupDest        string
+	backupDir         string
 	backupInterval    int
 	backupKeepRecent  int
 	chainId           string
@@ -26,7 +26,7 @@ var (
 	mode              string
 	home              string
 	poolId            int64
-	port         int64
+	port              int64
 	restEndpoint      string
 	seeds             string
 	targetHeight      int64
@@ -35,7 +35,7 @@ var (
 )
 
 func init() {
-	startCmd.Flags().StringVar(&mode, "mode", utils.DefaultMode, fmt.Sprintf("sync mode (\"auto\",\"db\",\"p2p\"), [default = %s]", utils.DefaultMode))
+	startCmd.Flags().StringVar(&mode, "mode", utils.DefaultMode, fmt.Sprintf("sync mode (\"auto\",\"db\",\"p2p\")"))
 
 	startCmd.Flags().StringVar(&home, "home", "", "home directory")
 	if err := startCmd.MarkFlagRequired("home"); err != nil {
@@ -64,13 +64,13 @@ func init() {
 
 	startCmd.Flags().StringVar(&flags, "flags", "", "Flags for starting the node to be synced; excluding --home and --with-tendermint")
 
-	startCmd.Flags().StringVar(&backupDest, "backup-dest-path", "", "destination path of the written backup (default '~/.ksync/backups)'")
+	startCmd.Flags().StringVar(&backupDir, "backup-dest-path", "", "destination path of the written backup (default '~/.ksync/backups)'")
 
-	backupCmd.Flags().StringVar(&backupCompression, "backup-compression", "tar.gz", "compression type to compress backup directory ['tar.gz', 'zip', '']")
+	startCmd.Flags().StringVar(&backupCompression, "backup-compression", "tar.gz", "compression type to compress backup directory ['tar.gz', 'zip', '']")
 
-	backupCmd.Flags().IntVar(&backupKeepRecent, "backup-keep-recent", 2, "number of kept backups (set 0 to keep all)")
+	startCmd.Flags().IntVar(&backupKeepRecent, "backup-keep-recent", 2, "number of kept backups (set 0 to keep all)")
 
-	backupCmd.Flags().IntVar(&backupInterval, "backup-interval", 0, "block interval to write backups (set 0 to disable backups)")
+	startCmd.Flags().IntVar(&backupInterval, "backup-interval", 0, "block interval to write backups (set 0 to disable backups)")
 
 	rootCmd.AddCommand(startCmd)
 }
@@ -96,32 +96,26 @@ var startCmd = &cobra.Command{
 		// trim trailing slash
 		restEndpoint = strings.TrimSuffix(restEndpoint, "/")
 
-		var backup = &types.BackupConfig{
+		var backupCfg = &types.BackupConfig{
 			Compression: backupCompression,
+			Dir:         backupDir,
 			Src:         "",
-			Dest:        backupDest,
 			Interval:    backupInterval,
 			KeepRecent:  backupKeepRecent,
 		}
 
 		if backupInterval > 0 {
-			backup.Src = filepath.Join(home, "data")
+			backupCfg.Src = filepath.Join(home, "data")
 
-			if backup.Dest == "" {
+			if backupCfg.Dir == "" {
 				backupDir, err := config.GetBackupDir()
 				if err != nil {
-					logger.Error().Str("err", err.Error()).Msg("failed to get ksync home directory")
-					return
+					logger.Error().Str("err", err.Error()).Msg("could not get backup directory")
 				}
-
-				d, err := helpers.CreateDestPath(backupDir)
-				if err != nil {
-					logger.Error().Str("err", err.Error()).Msg("failed to create backup destination")
-					return
-				}
-				backup.Dest = d
+				backupCfg.Dir = backupDir
 			}
-			if err := helpers.ValidatePaths(backup.Src, backup.Dest); err != nil {
+
+			if err := helpers.ValidatePaths(backupCfg.Src, backupCfg.Dir); err != nil {
 				logger.Error().Str("err", err.Error()).Msg("path validation failed")
 				return
 			}
@@ -133,12 +127,12 @@ var startCmd = &cobra.Command{
 			if daemonPath == "" {
 				panic("flag --daemon-path is required for mode \"auto\"")
 			}
-			auto.StartAutoExecutor(quitCh, home, daemonPath, seeds, flags, poolId, restEndpoint, targetHeight, apiServer, port, backup)
+			auto.StartAutoExecutor(quitCh, home, daemonPath, seeds, flags, poolId, restEndpoint, targetHeight, apiServer, port, backupCfg)
 		case "db":
 			if apiServer {
 				panic("flag --api-server not supported for mode \"db\"")
 			}
-			go db.StartDBExecutor(quitCh, home, poolId, restEndpoint, targetHeight, false, port)
+			go db.StartDBExecutor(quitCh, home, poolId, restEndpoint, targetHeight, false, port, nil)
 		case "p2p":
 			if apiServer {
 				panic("flag --api-server not supported for mode \"p2p\"")

@@ -74,8 +74,8 @@ type Pagination struct {
 type FinalizedBundle struct {
 	Id                string `json:"id,omitempty"`
 	StorageId         string `json:"storage_id,omitempty"`
-	StorageProviderId int32  `json:"storage_provider_id,omitempty"`
-	CompressionId     int32  `json:"compression_id,omitempty"`
+	StorageProviderId string `json:"storage_provider_id,omitempty"`
+	CompressionId     string `json:"compression_id,omitempty"`
 	FromKey           string `json:"from_key,omitempty"`
 	ToKey             string `json:"to_key,omitempty"`
 	DataHash          string `json:"data_hash,omitempty"`
@@ -105,9 +105,9 @@ type TendermintSsyncDataItem struct {
 }
 
 type BackupConfig = struct {
+	Dir         string
 	Compression string
-	Src         string
-	Dest        string
 	Interval    int
 	KeepRecent  int
+	Src         string
 }

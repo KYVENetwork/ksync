@@ -25,7 +25,7 @@ var (
 	logger  = log.Logger("db")
 )
 
-func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string, targetHeight int64, apiServer bool, port int64) {
+func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string, targetHeight int64, apiServer bool, port int64, backupCfg *types.BackupConfig) {
 	logger.Info().Msg("starting db sync")
 
 	config, err := cfg.LoadConfig(homeDir)
@@ -205,7 +205,25 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 				}
 
 				logger.Info().Msg(fmt.Sprintf("Snapshot at height %d was created. Continuing ...", block.Height-1))
+
+				if backupCfg != nil && int64(backupCfg.Interval) == app.StateSync.SnapshotInterval {
+					logger.Info().Msg("starting to create backup")
+					time.Sleep(10 * time.Second)
+					if err = helpers.CreateBackup(backupCfg); err != nil {
+						logger.Error().Str("err", err.Error()).Msg("could not create backup")
+						return
+					}
+				}
 				break
+			}
+		}
+
+		if backupCfg != nil && int64(backupCfg.Interval) != app.StateSync.SnapshotInterval && backupCfg.Interval > 0 && (block.Height-1)%int64(backupCfg.Interval) == 0 {
+			logger.Info().Msg("starting to create backup")
+			time.Sleep(10 * time.Second)
+			if err = helpers.CreateBackup(backupCfg); err != nil {
+				logger.Error().Str("err", err.Error()).Msg("could not create backup")
+				return
 			}
 		}
 	}

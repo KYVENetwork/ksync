@@ -20,7 +20,7 @@ var (
 	logger = log.Logger("db")
 )
 
-func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds string, flags string, poolId int64, restEndpoint string, targetHeight int64, backup *types.BackupConfig, apiServer bool, port int64) {
+func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds string, flags string, poolId int64, restEndpoint string, targetHeight int64, apiServer bool, port int64, backupConfig *types.BackupConfig) {
 	syncMode := "db"
 
 	gt100, err := utils.IsFileGreaterThanOrEqualTo100MB(filepath.Join(home, "config", "genesis.json"))
@@ -71,7 +71,7 @@ func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds 
 			}
 			os.Exit(1)
 		}
-		StartSyncProcess(syncProcesses[0], home, poolId, restEndpoint, targetHeight, apiServer, port)
+		StartSyncProcess(syncProcesses[0], home, poolId, restEndpoint, targetHeight, apiServer, port, nil)
 	} else if n.Mode == "db" {
 		_, err = node.GetNodeHeightDB(home)
 		if err != nil {
@@ -81,7 +81,7 @@ func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds 
 			}
 			os.Exit(1)
 		}
-		StartSyncProcess(syncProcesses[1], home, poolId, restEndpoint, targetHeight, apiServer, port)
+		StartSyncProcess(syncProcesses[1], home, poolId, restEndpoint, targetHeight, apiServer, port, backupConfig)
 	}
 
 	for {
@@ -151,7 +151,7 @@ func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds 
 					os.Exit(1)
 				}
 
-				StartSyncProcess(syncProcesses[1], home, poolId, restEndpoint, targetHeight, apiServer, port)
+				StartSyncProcess(syncProcesses[1], home, poolId, restEndpoint, targetHeight, apiServer, port, backupConfig)
 			}
 		} else if endHeight == nodeHeight && syncProcesses[1].Running {
 			logger.Info().Msg("stopping db-sync: reached pool height")

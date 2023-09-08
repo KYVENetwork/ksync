@@ -2,7 +2,10 @@ package helpers
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/backup"
+	"github.com/KYVENetwork/ksync/backup/helpers"
 	log "github.com/KYVENetwork/ksync/logger"
+	kTypes "github.com/KYVENetwork/ksync/types"
 	abciClient "github.com/tendermint/tendermint/abci/client"
 	"github.com/tendermint/tendermint/abci/types"
 	tmCfg "github.com/tendermint/tendermint/config"
@@ -17,12 +20,13 @@ import (
 )
 
 var (
-	logger = log.KLogger()
+	logger  = log.Logger("db-helpers")
+	kLogger = log.KLogger()
 )
 
 func CreateAndStartProxyAppConns(config *tmCfg.Config) (proxy.AppConns, error) {
 	proxyApp := proxy.NewAppConns(proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()))
-	proxyApp.SetLogger(logger.With("module", "proxy"))
+	proxyApp.SetLogger(kLogger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
 	}
@@ -31,7 +35,7 @@ func CreateAndStartProxyAppConns(config *tmCfg.Config) (proxy.AppConns, error) {
 
 func CreateAndStartEventBus() (*tmTypes.EventBus, error) {
 	eventBus := tmTypes.NewEventBus()
-	eventBus.SetLogger(logger.With("module", "events"))
+	eventBus.SetLogger(kLogger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
 		return nil, err
 	}
@@ -47,7 +51,7 @@ func DoHandshake(
 	proxyApp proxy.AppConns,
 ) error {
 	handshaker := cs.NewHandshaker(stateStore, state, blockStore, genDoc)
-	handshaker.SetLogger(logger.With("module", "consensus"))
+	handshaker.SetLogger(kLogger.With("module", "consensus"))
 	handshaker.SetEventBus(eventBus)
 	if err := handshaker.Handshake(proxyApp); err != nil {
 		return fmt.Errorf("error during handshake: %v", err)
@@ -65,7 +69,7 @@ func CreateMempoolAndMempoolReactor(config *tmCfg.Config, proxyApp proxy.AppConn
 		mempl.WithPreCheck(sm.TxPreCheck(state)),
 		mempl.WithPostCheck(sm.TxPostCheck(state)),
 	)
-	mempoolLogger := logger.With("module", "mempool")
+	mempoolLogger := kLogger.With("module", "mempool")
 	mempoolReactor := mempl.NewReactor(config.Mempool, mempool)
 	mempoolReactor.SetLogger(mempoolLogger)
 
@@ -90,7 +94,7 @@ func CreateEvidenceReactor(config *tmCfg.Config, stateStore sm.Store, blockStore
 	if err != nil {
 		return nil, nil, err
 	}
-	evidenceLogger := logger.With("module", "evidence")
+	evidenceLogger := kLogger.With("module", "evidence")
 	evidencePool, err := evidence.NewPool(evidenceDB, stateStore, blockStore)
 	if err != nil {
 		return nil, nil, err
@@ -124,4 +128,40 @@ func IsSnapshotAvailableAtHeight(config *tmCfg.Config, height int64) (found bool
 	}
 
 	return false, nil
+}
+
+func CreateBackup(backupCfg *kTypes.BackupConfig) error {
+	destPath, err := helpers.CreateDestPath(backupCfg.Dir)
+	if err != nil {
+		return err
+	}
+
+	logger.Info().Str("from", backupCfg.Src).Str("to", destPath).Msg("start copying")
+
+	if err = backup.CopyDir(backupCfg.Src, destPath); err != nil {
+		return fmt.Errorf("could not copy backup to destination: %s", err.Error())
+	}
+
+	logger.Info().Msg("created copy successfully")
+
+	if backupCfg.Compression != "" {
+		go func() {
+			logger.Info().Str("src-path", destPath).Str("compression", backupCfg.Compression).Msg("start compressing")
+			if err := backup.CompressDirectory(destPath, backupCfg.Compression); err != nil {
+				logger.Error().Str("err", err.Error()).Msg("compression failed")
+				return
+			}
+			logger.Info().Str("src-path", destPath).Str("compression", backupCfg.Compression).Msg("compressed backup successfully")
+
+			if backupCfg.KeepRecent > 0 {
+				logger.Info().Str("path", backupCfg.Dir).Msg("starting to cleanup backup directory")
+				if err := backup.ClearBackups(backupCfg.Dir, backupCfg.KeepRecent); err != nil {
+					logger.Error().Str("err", err.Error()).Msg("clearing backup directory failed")
+					return
+				}
+				logger.Info().Msg("cleaned backup directory successfully")
+			}
+		}()
+	}
+	return nil
 }

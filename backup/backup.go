@@ -63,7 +63,6 @@ func CompressDirectory(srcPath, compressionType string) error {
 	}
 
 	cmd.Dir = filepath.Dir(srcPath)
-	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	// Run the command

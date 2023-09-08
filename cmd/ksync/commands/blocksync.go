@@ -53,9 +53,9 @@ var blockSyncCmd = &cobra.Command{
 		restEndpoint = strings.TrimSuffix(restEndpoint, "/")
 
 		if daemonPath == "" {
-			go db.StartDBExecutor(quitCh, home, poolId, restEndpoint, targetHeight, false, port)
+			go db.StartDBExecutor(quitCh, home, poolId, restEndpoint, targetHeight, false, port, nil)
 		} else {
-			go auto.StartAutoExecutor(quitCh, home, daemonPath, seeds, flags, poolId, restEndpoint, targetHeight, false, port)
+			go auto.StartAutoExecutor(quitCh, home, daemonPath, seeds, flags, poolId, restEndpoint, targetHeight, false, port, nil)
 		}
 
 		// only exit process if executor has finished
