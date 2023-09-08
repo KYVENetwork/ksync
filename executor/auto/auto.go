@@ -6,6 +6,7 @@ import (
 	"github.com/KYVENetwork/ksync/node"
 	"github.com/KYVENetwork/ksync/node/abci"
 	"github.com/KYVENetwork/ksync/pool"
+	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	nm "github.com/tendermint/tendermint/node"
 	"os"
@@ -17,11 +18,10 @@ var (
 	logger = log.Logger("db")
 )
 
-func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds string, flags string, poolId int64, restEndpoint string, targetHeight int64) {
+func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds string, flags string, poolId int64, restEndpoint string, targetHeight int64, backup *types.BackupConfig) {
 	syncMode := "db"
 
 	gt100, err := utils.IsFileGreaterThanOrEqualTo100MB(filepath.Join(home, "config", "genesis.json"))
-
 	if err != nil {
 		logger.Error().Msg("could not get genesis file size")
 		os.Exit(1)
@@ -39,9 +39,9 @@ func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds 
 			logger.Error().Str("could not load config", err.Error())
 			os.Exit(1)
 		}
+
 		defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
 		genDoc, err := defaultDocProvider()
-
 		if nodeHeight <= genDoc.InitialHeight {
 			syncMode = "p2p"
 		}

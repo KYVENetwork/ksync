@@ -3,11 +3,9 @@ package commands
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/backup"
+	"github.com/KYVENetwork/ksync/backup/helpers"
 	"github.com/KYVENetwork/ksync/config"
 	"github.com/spf13/cobra"
-	"os"
-	"path/filepath"
-	"time"
 )
 
 var (
@@ -43,14 +41,14 @@ var backupCmd = &cobra.Command{
 		}
 
 		if destPath == "" {
-			d, err := createDestPath(backupDir)
+			d, err := helpers.CreateDestPath(backupDir)
 			if err != nil {
 				return
 			}
 			destPath = d
 		}
 
-		if err := validatePaths(srcPath, destPath); err != nil {
+		if err := helpers.ValidatePaths(srcPath, destPath); err != nil {
 			return
 		}
 
@@ -78,41 +76,4 @@ var backupCmd = &cobra.Command{
 			}
 		}
 	},
-}
-
-func createDestPath(backupDir string) (string, error) {
-	t := time.Now().Format("20060102_150405")
-
-	if err := os.Mkdir(filepath.Join(backupDir, t), 0o755); err != nil {
-		logger.Error().Str("err", err.Error()).Msg("error creating backup directory")
-		return "", err
-	}
-	if err := os.Mkdir(filepath.Join(backupDir, t, "data"), 0o755); err != nil {
-		logger.Error().Str("err", err.Error()).Msg("error creating data backup directory")
-		return "", err
-	}
-	return filepath.Join(backupDir, t, "data"), nil
-}
-
-func validatePaths(srcPath, destPath string) error {
-	pathInfo, err := os.Stat(srcPath)
-	if err != nil {
-		logger.Error().Str("err", err.Error()).Msg("could not find src-path")
-		return err
-	}
-	if !pathInfo.IsDir() {
-		logger.Error().Str("src-path", srcPath).Msg("src-path is no directory")
-		return err
-	}
-	pathInfo, err = os.Stat(destPath)
-	if err != nil {
-		logger.Error().Str("err", err.Error()).Msg("could not find dest-path")
-		return err
-	}
-	if !pathInfo.IsDir() {
-		logger.Error().Msg("dest-path is no directory")
-		return err
-	}
-
-	return nil
 }

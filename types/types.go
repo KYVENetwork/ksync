@@ -79,3 +79,11 @@ type FinalizedBundleResponse = struct {
 	FinalizedBundles []FinalizedBundle `json:"finalized_bundles"`
 	Pagination       Pagination        `json:"pagination"`
 }
+
+type BackupConfig = struct {
+	Compression string
+	Src         string
+	Dest        string
+	Interval    int
+	KeepRecent  int
+}
