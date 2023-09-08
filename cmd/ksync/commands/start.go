@@ -15,6 +15,7 @@ import (
 )
 
 var (
+	apiServer    bool
 	backupCompression string
 	backupDest        string
 	backupInterval    int
@@ -25,6 +26,7 @@ var (
 	mode              string
 	home              string
 	poolId            int64
+	port         int64
 	restEndpoint      string
 	seeds             string
 	targetHeight      int64
@@ -53,6 +55,10 @@ func init() {
 	startCmd.Flags().StringVar(&restEndpoint, "rest-endpoint", "", "Overwrite default rest endpoint from chain")
 
 	startCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target height (including)")
+
+	startCmd.Flags().BoolVar(&apiServer, "api-server", false, "start an api server on http://localhost:7878 for a TSP connection to the tendermint app")
+
+	startCmd.Flags().Int64Var(&port, "port", 7878, "change the port of the api server, [default = 7878]")
 
 	startCmd.Flags().StringVar(&seeds, "seeds", "", "P2P seeds to continue syncing process after KSYNC")
 
@@ -127,10 +133,16 @@ var startCmd = &cobra.Command{
 			if daemonPath == "" {
 				panic("flag --daemon-path is required for mode \"auto\"")
 			}
-			auto.StartAutoExecutor(quitCh, home, daemonPath, seeds, flags, poolId, restEndpoint, targetHeight, backup)
+			auto.StartAutoExecutor(quitCh, home, daemonPath, seeds, flags, poolId, restEndpoint, targetHeight, apiServer, port, backup)
 		case "db":
-			go db.StartDBExecutor(quitCh, home, poolId, restEndpoint, targetHeight)
+			if apiServer {
+				panic("flag --api-server not supported for mode \"db\"")
+			}
+			go db.StartDBExecutor(quitCh, home, poolId, restEndpoint, targetHeight, false, port)
 		case "p2p":
+			if apiServer {
+				panic("flag --api-server not supported for mode \"p2p\"")
+			}
 			go p2p.StartP2PExecutor(quitCh, home, poolId, restEndpoint, targetHeight)
 		default:
 			panic("flag --mode has to be either \"auto\", \"db\" or \"p2p\"")

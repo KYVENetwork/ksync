@@ -15,7 +15,7 @@ func InitExecutor(quitCh chan<- int) []*types.SyncProcess {
 	return processes
 }
 
-func StartSyncProcess(s *types.SyncProcess, home string, poolId int64, restEndpoint string, targetHeight int64) {
+func StartSyncProcess(s *types.SyncProcess, home string, poolId int64, restEndpoint string, targetHeight int64, apiServer bool, port int64) {
 	if !s.Running {
 		s.Running = true
 		if s.Name == "p2p" {
@@ -23,7 +23,7 @@ func StartSyncProcess(s *types.SyncProcess, home string, poolId int64, restEndpo
 			go p2p.StartP2PExecutor(s.QuitCh, home, poolId, restEndpoint, targetHeight)
 		} else if s.Name == "db" {
 			logger.Info().Msg("starting DB syncing process")
-			go db.StartDBExecutor(s.QuitCh, home, poolId, restEndpoint, targetHeight)
+			go db.StartDBExecutor(s.QuitCh, home, poolId, restEndpoint, targetHeight, apiServer, port)
 		}
 	}
 }

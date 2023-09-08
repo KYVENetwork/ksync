@@ -1,6 +1,7 @@
 package auto
 
 import (
+	"fmt"
 	cfg "github.com/KYVENetwork/ksync/config"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/node"
@@ -11,6 +12,7 @@ import (
 	nm "github.com/tendermint/tendermint/node"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 )
 
@@ -18,7 +20,7 @@ var (
 	logger = log.Logger("db")
 )
 
-func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds string, flags string, poolId int64, restEndpoint string, targetHeight int64, backup *types.BackupConfig) {
+func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds string, flags string, poolId int64, restEndpoint string, targetHeight int64, backup *types.BackupConfig, apiServer bool, port int64) {
 	syncMode := "db"
 
 	gt100, err := utils.IsFileGreaterThanOrEqualTo100MB(filepath.Join(home, "config", "genesis.json"))
@@ -69,7 +71,7 @@ func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds 
 			}
 			os.Exit(1)
 		}
-		StartSyncProcess(syncProcesses[0], home, poolId, restEndpoint, targetHeight)
+		StartSyncProcess(syncProcesses[0], home, poolId, restEndpoint, targetHeight, apiServer, port)
 	} else if n.Mode == "db" {
 		_, err = node.GetNodeHeightDB(home)
 		if err != nil {
@@ -79,7 +81,7 @@ func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds 
 			}
 			os.Exit(1)
 		}
-		StartSyncProcess(syncProcesses[1], home, poolId, restEndpoint, targetHeight)
+		StartSyncProcess(syncProcesses[1], home, poolId, restEndpoint, targetHeight, apiServer, port)
 	}
 
 	for {
@@ -104,7 +106,7 @@ func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds 
 			}
 		}
 
-		startKey, currentKey, _, err := pool.GetPoolInfo(0, restEndpoint, poolId)
+		poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
 		if err != nil {
 			logger.Error().Msg(err.Error())
 			if err = n.ShutdownNode(n.Mode == "p2p"); err != nil {
@@ -113,11 +115,23 @@ func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds 
 			os.Exit(1)
 		}
 
-		logger.Info().Int64("node-height", nodeHeight).Int64("pool-height", currentKey)
+		startHeight, err := strconv.ParseInt(poolResponse.Pool.Data.StartKey, 10, 64)
+		if err != nil {
+			logger.Error().Msg(fmt.Sprintf("could not parse int from %s", poolResponse.Pool.Data.StartKey))
+			os.Exit(1)
+		}
+
+		endHeight, err := strconv.ParseInt(poolResponse.Pool.Data.CurrentKey, 10, 64)
+		if err != nil {
+			logger.Error().Msg(fmt.Sprintf("could not parse int from %s", poolResponse.Pool.Data.CurrentKey))
+			os.Exit(1)
+		}
+
+		logger.Info().Int64("node-height", nodeHeight).Int64("pool-height", endHeight)
 		logger.Info().Bool("p2p", syncProcesses[0].Running).Bool("db", syncProcesses[1].Running)
 
 		if syncProcesses[0].Running {
-			if nodeHeight > startKey+1 {
+			if nodeHeight > startHeight+1 {
 				logger.Info().Msgf("node height > start_key; stopping p2p-sync...")
 				StopProcess(syncProcesses[0])
 
@@ -137,9 +151,9 @@ func StartAutoExecutor(quitCh chan<- int, home string, daemonPath string, seeds 
 					os.Exit(1)
 				}
 
-				StartSyncProcess(syncProcesses[1], home, poolId, restEndpoint, targetHeight)
+				StartSyncProcess(syncProcesses[1], home, poolId, restEndpoint, targetHeight, apiServer, port)
 			}
-		} else if currentKey == nodeHeight && syncProcesses[1].Running {
+		} else if endHeight == nodeHeight && syncProcesses[1].Running {
 			logger.Info().Msg("stopping db-sync: reached pool height")
 			StopProcess(syncProcesses[1])
 

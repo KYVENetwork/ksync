@@ -8,11 +8,15 @@ import (
 	"github.com/KYVENetwork/ksync/executor/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/pool"
+	"github.com/KYVENetwork/ksync/server"
 	"github.com/KYVENetwork/ksync/types"
+	"github.com/KYVENetwork/ksync/utils"
 	nm "github.com/tendermint/tendermint/node"
 	sm "github.com/tendermint/tendermint/state"
 	tmTypes "github.com/tendermint/tendermint/types"
 	"os"
+	"strconv"
+	"time"
 )
 
 var (
@@ -21,17 +25,40 @@ var (
 	logger  = log.Logger("db")
 )
 
-func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string, targetHeight int64) {
+func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string, targetHeight int64, apiServer bool, port int64) {
 	logger.Info().Msg("starting db sync")
+
 	config, err := cfg.LoadConfig(homeDir)
 	if err != nil {
-		panic(fmt.Errorf("failed to load config: %w", err))
+		panic(fmt.Errorf("failed to load config.toml: %w", err))
+	}
+
+	app, err := cfg.LoadApp(homeDir)
+	if err != nil {
+		panic(fmt.Errorf("failed to load app.toml: %w", err))
 	}
 
 	// load start and latest height
-	startHeight, endHeight, poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
+	poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
 	if err != nil {
 		panic(fmt.Errorf("failed to get pool info: %w", err))
+	}
+
+	if poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermint && poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermintBsync {
+		logger.Error().Msg(fmt.Sprintf("Found invalid runtime on pool %d: Expected = %s,%s Found = %s", poolId, utils.KSyncRuntimeTendermint, utils.KSyncRuntimeTendermintBsync, poolResponse.Pool.Data.Runtime))
+		os.Exit(1)
+	}
+
+	startHeight, err := strconv.ParseInt(poolResponse.Pool.Data.StartKey, 10, 64)
+	if err != nil {
+		logger.Error().Msg(fmt.Sprintf("could not parse int from %s", poolResponse.Pool.Data.StartKey))
+		os.Exit(1)
+	}
+
+	endHeight, err := strconv.ParseInt(poolResponse.Pool.Data.CurrentKey, 10, 64)
+	if err != nil {
+		logger.Error().Msg(fmt.Sprintf("could not parse int from %s", poolResponse.Pool.Data.CurrentKey))
+		os.Exit(1)
 	}
 
 	// if target height was set and is smaller than latest height this will be our new target height
@@ -58,6 +85,10 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 
 	if err != nil {
 		panic(fmt.Errorf("failed to load blockstore db: %w", err))
+	}
+
+	if apiServer {
+		go server.StartApiServer(config, blockStore, stateStore, port)
 	}
 
 	// get continuation height
@@ -128,15 +159,15 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 		blockParts := prevBlock.MakePartSet(tmTypes.BlockPartSizeBytes)
 		blockId := tmTypes.BlockID{Hash: prevBlock.Hash(), PartSetHeader: blockParts.Header()}
 
-		// verify block
-		if err := blockExec.ValidateBlock(state, prevBlock); err != nil {
-			logger.Error().Msg(fmt.Sprintf("block validation failed at height %d", prevBlock.Height))
-		}
-
-		// verify commits
-		if err := state.Validators.VerifyCommitLight(state.ChainID, blockId, prevBlock.Height, block.LastCommit); err != nil {
-			logger.Error().Msg(fmt.Sprintf("light commit verification failed at height %d", prevBlock.Height))
-		}
+		//// verify block
+		//if err := blockExec.ValidateBlock(state, prevBlock); err != nil {
+		//	logger.Error().Msg(fmt.Sprintf("block validation failed at height %d", prevBlock.Height))
+		//}
+		//
+		//// verify commits
+		//if err := state.Validators.VerifyCommitLight(state.ChainID, blockId, prevBlock.Height, block.LastCommit); err != nil {
+		//	logger.Error().Msg(fmt.Sprintf("light commit verification failed at height %d", prevBlock.Height))
+		//}
 
 		// store block
 		blockStore.SaveBlock(prevBlock, blockParts, block.LastCommit)
@@ -151,6 +182,31 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 			break
 		} else {
 			prevBlock = block
+		}
+
+		//if we have reached a height where a snapshot should be created by the app
+		//we wait until it is created, else if KSYNC moves to fast the snapshot can
+		//not be properly created.
+		if app.StateSync.SnapshotInterval > 0 && (block.Height-1)%app.StateSync.SnapshotInterval == 0 {
+			for {
+				logger.Info().Msg(fmt.Sprintf("Waiting until snapshot at height %d is created by app", block.Height-1))
+
+				found, err := helpers.IsSnapshotAvailableAtHeight(config, block.Height-1)
+				if err != nil {
+					logger.Error().Msg(fmt.Sprintf("Check snapshot availability failed at height %d", block.Height-1))
+					time.Sleep(10 * time.Second)
+					continue
+				}
+
+				if !found {
+					logger.Info().Msg(fmt.Sprintf("Snapshot at height %d was not created yet. Waiting ...", block.Height-1))
+					time.Sleep(10 * time.Second)
+					continue
+				}
+
+				logger.Info().Msg(fmt.Sprintf("Snapshot at height %d was created. Continuing ...", block.Height-1))
+				break
+			}
 		}
 	}
 

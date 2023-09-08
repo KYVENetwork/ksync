@@ -6,7 +6,6 @@ import (
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/tendermint/tendermint/libs/json"
-	"os"
 	"time"
 )
 
@@ -14,7 +13,7 @@ var (
 	logger = log.Logger("pool")
 )
 
-func GetPoolInfo(recursionDepth int, restEndpoint string, poolId int64) (int64, int64, *types.PoolResponse, error) {
+func GetPoolInfo(recursionDepth int, restEndpoint string, poolId int64) (*types.PoolResponse, error) {
 	if recursionDepth < 10 {
 		var poolResponse, err = requestPool(restEndpoint, poolId)
 
@@ -24,22 +23,16 @@ func GetPoolInfo(recursionDepth int, restEndpoint string, poolId int64) (int64, 
 			return GetPoolInfo(recursionDepth+1, restEndpoint, poolId)
 		}
 
-		if poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermint && poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermintBsync {
-			logger.Error().Msg(fmt.Sprintf("Found invalid runtime on pool %d: Expected = %s,%s Found = %s", poolId, utils.KSyncRuntimeTendermint, utils.KSyncRuntimeTendermintBsync, poolResponse.Pool.Data.Runtime))
-			os.Exit(1)
-		}
-
-		return poolResponse.Pool.Data.StartKey, poolResponse.Pool.Data.CurrentKey, poolResponse, nil
+		return poolResponse, nil
 	} else {
-		return 0, 0, nil, fmt.Errorf("could not get pool height")
+		return nil, fmt.Errorf("could not get pool height")
 	}
 }
 
 func requestPool(restEndpoint string, poolId int64) (*types.PoolResponse, error) {
 	data, err := utils.DownloadFromUrl(fmt.Sprintf("%s/kyve/query/v1beta1/pool/%d", restEndpoint, poolId))
 	if err != nil {
-		logger.Error().Msg(err.Error())
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to query pool from %s/kyve/query/v1beta1/pool/%d", restEndpoint, poolId)
 	}
 
 	var poolResponse types.PoolResponse

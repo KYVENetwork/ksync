@@ -7,6 +7,7 @@ const (
 	DefaultChainId              = "kyve-1"
 	KSyncRuntimeTendermint      = "@kyvejs/tendermint"
 	KSyncRuntimeTendermintBsync = "@kyvejs/tendermint-bsync"
+	KSyncRuntimeTendermintSsync = "@kyvejs/tendermint-ssync"
 	RestEndpointMainnet         = "https://api-eu-1.kyve.network"
 	RestEndpointKaon            = "https://api-eu-1.kaon.kyve.network"
 	RestEndpointKorellia        = "https://api.korellia.kyve.network"
