@@ -65,25 +65,46 @@ func StartHeightSync(homeDir string, restEndpoint string, snapshotPoolId int64, 
 		panic(fmt.Errorf("failed to load config.toml: %w", err))
 	}
 
-	//statesync.CheckStateSyncBoundaries(restEndpoint, snapshotPoolId, targetHeight)
+	_, _, snapshotEndHeight := statesync.GetSnapshotBoundaries(restEndpoint, snapshotPoolId)
 
-	bundleId, snapshotHeight, err := findNearestSnapshotBundleId(restEndpoint, snapshotPoolId, targetHeight)
-	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("Failed to find bundle with nearest snapshot height %d: %s", targetHeight, err))
+	if targetHeight > snapshotEndHeight {
+		logger.Error().Msg(fmt.Sprintf("latest available snapshot height is %d", snapshotEndHeight))
 		os.Exit(1)
 	}
 
-	//db.CheckDBBlockSyncBoundaries(restEndpoint, blockPoolId, snapshotHeight, targetHeight)
-
-	logger.Info().Msg(fmt.Sprintf("found snapshot with height %d in bundle with id %d", snapshotHeight, bundleId))
-
-	if err := statesync.ApplyStateSync(config, restEndpoint, snapshotPoolId, bundleId); err != nil {
-		logger.Error().Msg(fmt.Sprintf("snapshot could not be applied: %s", err))
+	bundleId, snapshotHeight, err := findNearestSnapshotBundleId(restEndpoint, snapshotPoolId, targetHeight)
+	if err != nil {
+		logger.Error().Msg(fmt.Sprintf("failed to find bundle with nearest snapshot height %d: %s", targetHeight, err))
+		os.Exit(1)
 	}
 
-	logger.Info().Msg(fmt.Sprintf("snapshot was successfully applied"))
+	_, blockStartHeight, blockEndHeight := db.GetBlockBoundaries(restEndpoint, blockPoolId)
 
-	if remaining := targetHeight - snapshotHeight; remaining > 0 {
+	if snapshotHeight > 0 && snapshotHeight < blockStartHeight {
+		logger.Error().Msg(fmt.Sprintf("snapshot is at height %d but first available block on pool is %d", snapshotHeight, blockStartHeight))
+		os.Exit(1)
+	}
+
+	if snapshotHeight > blockEndHeight {
+		logger.Error().Msg(fmt.Sprintf("snapshot is at height %d but last available block on pool is %d", snapshotHeight, blockEndHeight))
+		os.Exit(1)
+	}
+
+	continuationHeight := int64(0)
+
+	// if there are snapshots available before the requested height we apply the nearest
+	if snapshotHeight > 0 {
+		logger.Info().Msg(fmt.Sprintf("found snapshot with height %d in bundle with id %d", snapshotHeight, bundleId))
+
+		if err := statesync.ApplyStateSync(config, restEndpoint, snapshotPoolId, bundleId); err != nil {
+			logger.Error().Msg(fmt.Sprintf("snapshot could not be applied: %s", err))
+		}
+
+		logger.Info().Msg(fmt.Sprintf("snapshot was successfully applied"))
+		continuationHeight = snapshotHeight
+	}
+
+	if remaining := targetHeight - continuationHeight; remaining > 0 {
 		logger.Info().Msg(fmt.Sprintf("block-syncing remaining %d blocks", remaining))
 
 		db.StartDBExecutor(homeDir, restEndpoint, blockPoolId, targetHeight, false, 7878)

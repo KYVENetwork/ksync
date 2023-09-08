@@ -271,7 +271,6 @@ func GetSnapshotBoundaries(restEndpoint string, poolId int64) (types.PoolRespons
 	return *poolResponse, startHeight, endHeight
 }
 
-// TODO: check if state is empty
 func StartStateSync(homeDir string, restEndpoint string, poolId int64, snapshotHeight int64) {
 	logger.Info().Msg("starting state-sync")
 
