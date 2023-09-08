@@ -2,6 +2,8 @@ package heightsync
 
 import (
 	"fmt"
+	cfg "github.com/KYVENetwork/ksync/config"
+	"github.com/KYVENetwork/ksync/executor/db"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/utils"
@@ -55,8 +57,13 @@ func findNearestSnapshotBundleId(restEndpoint string, poolId int64, targetHeight
 	return bundleId, snapshotHeight, fmt.Errorf("unable to find nearest snapshot below heigth %d", targetHeight)
 }
 
-func StartHeightSync(quitCh chan<- int, homeDir string, restEndpoint string, snapshotPoolId int64, blockPoolId int64, targetHeight int64) {
+func StartHeightSync(quitCh chan int, homeDir string, restEndpoint string, snapshotPoolId int64, blockPoolId int64, targetHeight int64) {
 	logger.Info().Msg("starting height-sync")
+
+	config, err := cfg.LoadConfig(homeDir)
+	if err != nil {
+		panic(fmt.Errorf("failed to load config.toml: %w", err))
+	}
 
 	statesync.CheckStateSyncBoundaries(restEndpoint, snapshotPoolId, targetHeight)
 
@@ -66,7 +73,24 @@ func StartHeightSync(quitCh chan<- int, homeDir string, restEndpoint string, sna
 		os.Exit(1)
 	}
 
-	fmt.Println(bundleId, snapshotHeight)
+	db.CheckDBBlockSyncBoundaries(restEndpoint, blockPoolId, snapshotHeight, targetHeight)
 
-	quitCh <- 0
+	logger.Info().Msg(fmt.Sprintf("found snapshot with height %d in bundle with id %d", snapshotHeight, bundleId))
+
+	if err := statesync.ApplyStateSync(config, restEndpoint, snapshotPoolId, bundleId); err != nil {
+		logger.Error().Msg(fmt.Sprintf("snapshot could not be applied: %s", err))
+	}
+
+	logger.Info().Msg(fmt.Sprintf("snapshot was successfully applied"))
+
+	if remaining := targetHeight - snapshotHeight; remaining > 0 {
+		logger.Info().Msg(fmt.Sprintf("block-syncing remaining %d blocks", remaining))
+
+		go db.StartDBExecutor(quitCh, homeDir, blockPoolId, restEndpoint, targetHeight, false, 7878)
+
+		// only exit process if executor has finished
+		<-quitCh
+	}
+
+	logger.Info().Msg(fmt.Sprintf("reached target height %d with applying state-sync snapshot at %d and block-syncing the remaining %d blocks", targetHeight, snapshotHeight, targetHeight-snapshotHeight))
 }

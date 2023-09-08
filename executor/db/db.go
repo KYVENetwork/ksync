@@ -25,19 +25,7 @@ var (
 	logger  = log.Logger("db")
 )
 
-func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string, targetHeight int64, apiServer bool, port int64) {
-	logger.Info().Msg("starting db sync")
-
-	config, err := cfg.LoadConfig(homeDir)
-	if err != nil {
-		panic(fmt.Errorf("failed to load config.toml: %w", err))
-	}
-
-	app, err := cfg.LoadApp(homeDir)
-	if err != nil {
-		panic(fmt.Errorf("failed to load app.toml: %w", err))
-	}
-
+func CheckDBBlockSyncBoundaries(restEndpoint string, poolId int64, continuationHeight int64, targetHeight int64) (*types.PoolResponse, int64) {
 	// load start and latest height
 	poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
 	if err != nil {
@@ -73,6 +61,27 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 		os.Exit(1)
 	}
 
+	if endHeight <= continuationHeight {
+		logger.Error().Msg(fmt.Sprintf("Target height %d has to be bigger than current height %d", endHeight, startHeight))
+		os.Exit(1)
+	}
+
+	return poolResponse, endHeight
+}
+
+func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string, targetHeight int64, apiServer bool, port int64) {
+	logger.Info().Msg("starting db sync")
+
+	config, err := cfg.LoadConfig(homeDir)
+	if err != nil {
+		panic(fmt.Errorf("failed to load config.toml: %w", err))
+	}
+
+	app, err := cfg.LoadApp(homeDir)
+	if err != nil {
+		panic(fmt.Errorf("failed to load app.toml: %w", err))
+	}
+
 	stateDB, stateStore, err := store.GetStateDBs(config)
 	defer stateDB.Close()
 
@@ -87,16 +96,13 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 		panic(fmt.Errorf("failed to load blockstore db: %w", err))
 	}
 
+	// get continuation height
+	startHeight := blockStore.Height() + 1
+
+	poolResponse, endHeight := CheckDBBlockSyncBoundaries(restEndpoint, poolId, startHeight, targetHeight)
+
 	if apiServer {
 		go server.StartApiServer(config, blockStore, stateStore, port)
-	}
-
-	// get continuation height
-	startHeight = blockStore.Height() + 1
-
-	if endHeight <= startHeight {
-		logger.Error().Msg(fmt.Sprintf("Target height %d has to be bigger than current height %d", endHeight, startHeight))
-		os.Exit(1)
 	}
 
 	// start block collector
@@ -159,15 +165,15 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 		blockParts := prevBlock.MakePartSet(tmTypes.BlockPartSizeBytes)
 		blockId := tmTypes.BlockID{Hash: prevBlock.Hash(), PartSetHeader: blockParts.Header()}
 
-		//// verify block
-		//if err := blockExec.ValidateBlock(state, prevBlock); err != nil {
-		//	logger.Error().Msg(fmt.Sprintf("block validation failed at height %d", prevBlock.Height))
-		//}
-		//
-		//// verify commits
-		//if err := state.Validators.VerifyCommitLight(state.ChainID, blockId, prevBlock.Height, block.LastCommit); err != nil {
-		//	logger.Error().Msg(fmt.Sprintf("light commit verification failed at height %d", prevBlock.Height))
-		//}
+		// verify block
+		if err := blockExec.ValidateBlock(state, prevBlock); err != nil {
+			logger.Error().Msg(fmt.Sprintf("block validation failed at height %d", prevBlock.Height))
+		}
+
+		// verify commits
+		if err := state.Validators.VerifyCommitLight(state.ChainID, blockId, prevBlock.Height, block.LastCommit); err != nil {
+			logger.Error().Msg(fmt.Sprintf("light commit verification failed at height %d", prevBlock.Height))
+		}
 
 		// store block
 		blockStore.SaveBlock(prevBlock, blockParts, block.LastCommit)

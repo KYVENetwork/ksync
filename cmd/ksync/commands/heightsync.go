@@ -64,9 +64,6 @@ var heightSyncCmd = &cobra.Command{
 		// trim trailing slash
 		restEndpoint = strings.TrimSuffix(restEndpoint, "/")
 
-		go heightsync.StartHeightSync(quitCh, home, restEndpoint, snapshotPoolId, blockPoolId, targetHeight)
-
-		// only exit process if executor has finished
-		<-quitCh
+		heightsync.StartHeightSync(quitCh, home, restEndpoint, snapshotPoolId, blockPoolId, targetHeight)
 	},
 }
