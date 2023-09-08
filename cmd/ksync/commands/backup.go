@@ -5,12 +5,16 @@ import (
 	"github.com/KYVENetwork/ksync/backup"
 	"github.com/KYVENetwork/ksync/config"
 	"github.com/spf13/cobra"
+	"os"
+	"path/filepath"
+	"time"
 )
 
 var (
-	destPath   string
-	maxBackups int
-	srcPath    string
+	compressionType string
+	destPath        string
+	maxBackups      int
+	srcPath         string
 )
 
 func init() {
@@ -21,7 +25,9 @@ func init() {
 
 	backupCmd.Flags().StringVar(&destPath, "dest-path", "", "destination path of the written backup (default '~/.ksync/backups)'")
 
-	backupCmd.Flags().IntVar(&maxBackups, "max-backups", 2, "number of kept backups (set to 0 to keep all)")
+	backupCmd.Flags().StringVar(&compressionType, "compression", "tar.gz", "compression type to compress backup directory ['tar.gz', 'zip', '']")
+
+	backupCmd.Flags().IntVar(&maxBackups, "max-backups", 0, "number of kept backups (set 0 to keep all)")
 
 	rootCmd.AddCommand(backupCmd)
 }
@@ -30,8 +36,6 @@ var backupCmd = &cobra.Command{
 	Use:   "backup",
 	Short: "Backup data directory",
 	Run: func(cmd *cobra.Command, args []string) {
-		logger.Info().Str("srcPath", srcPath).Str("destinationPath", destPath).Msg("starting to write backup")
-
 		backupDir, err := config.GetBackupDir()
 		if err != nil {
 			logger.Error().Str("err", err.Error()).Msg("failed to get ksync home directory")
@@ -39,39 +43,76 @@ var backupCmd = &cobra.Command{
 		}
 
 		if destPath == "" {
-			destPath = backupDir
+			d, err := createDestPath(backupDir)
+			if err != nil {
+				return
+			}
+			destPath = d
 		}
 
-		if err = backup.CopyDir(srcPath, backupDir); err != nil {
+		if err := validatePaths(srcPath, destPath); err != nil {
+			return
+		}
+
+		logger.Info().Str("from", srcPath).Str("to", destPath).Msg("starting to copy backup")
+
+		if err := backup.CopyDir(srcPath, destPath); err != nil {
 			logger.Error().Str("err", err.Error()).Msg("error copying directory to backup destination")
 		}
 
-		//if destPath == "" {
-		//	t := time.Now().Format("20060102_150405")
-		//
-		//	if err = os.Mkdir(filepath.Join(backupDir, t), 0o755); err != nil {
-		//		logger.Error().Str("err", err.Error()).Msg("error creating backup directory")
-		//	}
-		//	destPath = filepath.Join(backupDir, t, "data")
-		//}
-		//
-		//if !(strings.HasSuffix(destPath, ".tar.gz")) {
-		//	destPath = destPath + ".tar.gz"
-		//}
-		//
-		//if maxBackups != 0 {
-		//	if err = backup.ClearBackups(backupDir, maxBackups); err != nil {
-		//		logger.Error().Str("err", err.Error()).Msg("failed to clear backup directory")
-		//		return
-		//	}
-		//	logger.Info().Msg("cleared backup directory successfully")
-		//}
-		//
-		//err = backup.CompressDirectory(srcPath, destPath)
-		//if err != nil {
-		//	logger.Error().Str("err", err.Error()).Msg("failed to write backup")
-		//	return
-		//}
-		logger.Info().Msg("created backup successfully")
+		logger.Info().Msg("directory copied successfully")
+
+		if compressionType != "" {
+			if err := backup.CompressDirectory(destPath, compressionType); err != nil {
+				logger.Error().Str("err", err.Error()).Msg("compression failed")
+			}
+
+			logger.Info().Msg("compressed backup successfully")
+		}
+
+		if maxBackups > 0 {
+			logger.Info().Str("path", backupDir).Msg("starting to cleanup backup directory")
+			if err := backup.ClearBackups(backupDir, maxBackups); err != nil {
+				logger.Error().Str("err", err.Error()).Msg("clearing backup directory failed")
+				return
+			}
+		}
 	},
+}
+
+func createDestPath(backupDir string) (string, error) {
+	t := time.Now().Format("20060102_150405")
+
+	if err := os.Mkdir(filepath.Join(backupDir, t), 0o755); err != nil {
+		logger.Error().Str("err", err.Error()).Msg("error creating backup directory")
+		return "", err
+	}
+	if err := os.Mkdir(filepath.Join(backupDir, t, "data"), 0o755); err != nil {
+		logger.Error().Str("err", err.Error()).Msg("error creating data backup directory")
+		return "", err
+	}
+	return filepath.Join(backupDir, t, "data"), nil
+}
+
+func validatePaths(srcPath, destPath string) error {
+	pathInfo, err := os.Stat(srcPath)
+	if err != nil {
+		logger.Error().Str("err", err.Error()).Msg("could not find src-path")
+		return err
+	}
+	if !pathInfo.IsDir() {
+		logger.Error().Str("src-path", srcPath).Msg("src-path is no directory")
+		return err
+	}
+	pathInfo, err = os.Stat(destPath)
+	if err != nil {
+		logger.Error().Str("err", err.Error()).Msg("could not find dest-path")
+		return err
+	}
+	if !pathInfo.IsDir() {
+		logger.Error().Msg("dest-path is no directory")
+		return err
+	}
+
+	return nil
 }

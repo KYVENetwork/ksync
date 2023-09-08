@@ -1,80 +1,14 @@
 package backup
 
 import (
-	"archive/tar"
-	"compress/gzip"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 )
-
-// CompressDirectory compresses a directory using Gzip and creates a .tar.gz file.
-func CompressDirectory(sourceDir, outputFileName string) error {
-	output, err := os.Create(outputFileName)
-	if err != nil {
-		return err
-	}
-	defer output.Close()
-
-	gzWriter := gzip.NewWriter(output)
-	defer gzWriter.Close()
-
-	tarWriter := tar.NewWriter(gzWriter)
-	defer tarWriter.Close()
-
-	return filepath.Walk(sourceDir, func(filePath string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		header, err := tar.FileInfoHeader(info, info.Name())
-		if err != nil {
-			return err
-		}
-
-		relPath, err := filepath.Rel(sourceDir, filePath)
-		if err != nil {
-			return err
-		}
-
-		header.Name = relPath
-
-		if err = tarWriter.WriteHeader(header); err != nil {
-			return err
-		}
-
-		if !info.IsDir() {
-			file, err := os.Open(filePath)
-			if err != nil {
-				return err
-			}
-			defer file.Close()
-
-			// Split large files into smaller chunks
-			const chunkSize = 512 * 512
-			buffer := make([]byte, chunkSize)
-
-			for {
-				n, err := file.Read(buffer)
-				if err == io.EOF {
-					break
-				} else if err != nil {
-					return err
-				}
-
-				_, err = tarWriter.Write(buffer[:n])
-				if err != nil {
-					return err
-				}
-			}
-		}
-
-		return nil
-	})
-}
 
 func ClearBackups(srcPath string, threshold int) error {
 	// Get and sort all created Backups
@@ -82,7 +16,6 @@ func ClearBackups(srcPath string, threshold int) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("entries: %v \n", entries)
 
 	backups := []os.DirEntry{}
 	for _, entry := range entries {
@@ -113,6 +46,35 @@ func ClearBackups(srcPath string, threshold int) error {
 			}
 		}
 	}
+	return nil
+}
+
+// CompressDirectory compresses a directory using Gzip and creates a .tar.gz file.
+func CompressDirectory(srcPath, compressionType string) error {
+	var cmd *exec.Cmd
+
+	switch compressionType {
+	case "tar.gz":
+		cmd = exec.Command("tar", "-zcvf", filepath.Base(srcPath)+"."+compressionType, filepath.Base(srcPath))
+	case "zip":
+		cmd = exec.Command("zip", "-r", filepath.Base(srcPath)+"."+compressionType, filepath.Base(srcPath))
+	default:
+		return fmt.Errorf("unsupported compression type")
+	}
+
+	cmd.Dir = filepath.Dir(srcPath)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	// Run the command
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	if err := os.RemoveAll(srcPath); err != nil {
+		return err
+	}
+
 	return nil
 }
 
