@@ -25,7 +25,7 @@ var (
 	logger  = log.Logger("db")
 )
 
-func CheckDBBlockSyncBoundaries(restEndpoint string, poolId int64, continuationHeight int64, targetHeight int64) (*types.PoolResponse, int64) {
+func GetBlockBoundaries(restEndpoint string, poolId int64) (types.PoolResponse, int64, int64) {
 	// load start and latest height
 	poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
 	if err != nil {
@@ -49,39 +49,25 @@ func CheckDBBlockSyncBoundaries(restEndpoint string, poolId int64, continuationH
 		os.Exit(1)
 	}
 
-	// if target height was set and is smaller than latest height this will be our new target height
-	// we add +1 to make target height including
-	if targetHeight > 0 && targetHeight+1 < endHeight {
-		endHeight = targetHeight + 1
-	}
-
-	// if target height is smaller than the base height of the pool we exit
-	if endHeight <= startHeight {
-		logger.Error().Msg(fmt.Sprintf("target height %d has to be bigger than starting height %d", endHeight, startHeight))
-		os.Exit(1)
-	}
-
-	if endHeight <= continuationHeight {
-		logger.Error().Msg(fmt.Sprintf("Target height %d has to be bigger than current height %d", endHeight, startHeight))
-		os.Exit(1)
-	}
-
-	return poolResponse, endHeight
+	return *poolResponse, startHeight, endHeight
 }
 
-func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string, targetHeight int64, apiServer bool, port int64) {
+func StartDBExecutor(homeDir string, restEndpoint string, poolId int64, targetHeight int64, apiServer bool, port int64) {
 	logger.Info().Msg("starting db sync")
 
+	// load tendermint config
 	config, err := cfg.LoadConfig(homeDir)
 	if err != nil {
 		panic(fmt.Errorf("failed to load config.toml: %w", err))
 	}
 
+	// load application config
 	app, err := cfg.LoadApp(homeDir)
 	if err != nil {
 		panic(fmt.Errorf("failed to load app.toml: %w", err))
 	}
 
+	// load state store
 	stateDB, stateStore, err := store.GetStateDBs(config)
 	defer stateDB.Close()
 
@@ -89,6 +75,7 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 		panic(fmt.Errorf("failed to load state db: %w", err))
 	}
 
+	// load block store
 	blockStoreDB, blockStore, err := store.GetBlockstoreDBs(config)
 	defer blockStoreDB.Close()
 
@@ -96,23 +83,68 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 		panic(fmt.Errorf("failed to load blockstore db: %w", err))
 	}
 
-	// get continuation height
-	startHeight := blockStore.Height() + 1
+	// get height at which ksync should continue block-syncing
+	continuationHeight := blockStore.Height() + 1
 
-	poolResponse, endHeight := CheckDBBlockSyncBoundaries(restEndpoint, poolId, startHeight, targetHeight)
-
-	if apiServer {
-		go server.StartApiServer(config, blockStore, stateStore, port)
-	}
-
-	// start block collector
-	go collector.StartBlockCollector(blockCh, restEndpoint, *poolResponse, startHeight, endHeight)
-
+	// load genesis file
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
 	state, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(stateDB, defaultDocProvider)
 	if err != nil {
 		panic(fmt.Errorf("failed to load state and genDoc: %w", err))
 	}
+
+	// check if we start syncing from genesis
+	if genDoc.InitialHeight == continuationHeight {
+		// exit if the genesis file is bigger than 100MB since TSP only supports messages up
+		// to that size. in this case we have to apply the first block over P2P
+		gt100, err := utils.IsFileGreaterThanOrEqualTo100MB(config.GenesisFile())
+		if err != nil {
+			logger.Error().Msg("could not get genesis file size")
+			os.Exit(1)
+		}
+
+		if gt100 {
+			logger.Error().Msg("genesis file is bigger than 100MB which exceeds the socket message limit. Please start ksync with --daemon-path to run the process internally")
+			os.Exit(1)
+		}
+	}
+
+	// perform boundary checks
+	poolResponse, startHeight, endHeight := GetBlockBoundaries(restEndpoint, poolId)
+
+	if continuationHeight < startHeight {
+		logger.Error().Msg(fmt.Sprintf("app is currently at height %d but first available block on pool is %d", continuationHeight, startHeight))
+		os.Exit(1)
+	}
+
+	if continuationHeight > endHeight {
+		logger.Error().Msg(fmt.Sprintf("app is currently at height %d but last available block on pool is %d", continuationHeight, endHeight))
+		os.Exit(1)
+	}
+
+	if targetHeight > 0 && continuationHeight > targetHeight {
+		logger.Error().Msg(fmt.Sprintf("requested target height is %d but app is already at block height %d", targetHeight, continuationHeight))
+		os.Exit(1)
+	}
+
+	if targetHeight > 0 && targetHeight > endHeight {
+		logger.Error().Msg(fmt.Sprintf("requested target height is %d but last available block on pool is %d", targetHeight, endHeight))
+		os.Exit(1)
+	}
+
+	// if target height was set and is smaller than latest height this will be our new target height
+	// we add +1 to make target height including
+	if targetHeight > 0 && targetHeight+1 < endHeight {
+		endHeight = targetHeight + 1
+	}
+
+	// start api server which serves an api endpoint for querying snapshots
+	if apiServer {
+		go server.StartApiServer(config, blockStore, stateStore, port)
+	}
+
+	// start block collector
+	go collector.StartBlockCollector(blockCh, restEndpoint, poolResponse, continuationHeight, endHeight)
 
 	logger.Info().Msg(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
 
@@ -218,6 +250,4 @@ func StartDBExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoi
 
 	logger.Info().Msg(fmt.Sprintf("Synced from height %d to target height %d", startHeight, endHeight-1))
 	logger.Info().Msg("Done.")
-
-	quitCh <- 0
 }

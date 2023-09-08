@@ -13,7 +13,7 @@ var (
 	logger = log.Logger("collector")
 )
 
-func StartBlockCollector(blockCh chan<- *types.Block, restEndpoint string, pool types.PoolResponse, startHeight, targetHeight int64) {
+func StartBlockCollector(blockCh chan<- *types.Block, restEndpoint string, pool types.PoolResponse, continuationHeight, targetHeight int64) {
 	paginationKey := ""
 
 BundleCollector:
@@ -23,12 +23,12 @@ BundleCollector:
 			panic(fmt.Errorf("failed to retrieve finalized bundles: %w", err))
 		}
 		for _, bundle := range bundles {
-			toHeight, err := strconv.ParseInt(bundle.ToKey, 10, 64)
+			height, err := strconv.ParseInt(bundle.ToKey, 10, 64)
 			if err != nil {
 				panic(fmt.Errorf("failed to parse bundle to key to int64: %w", err))
 			}
 
-			if toHeight < startHeight {
+			if height < continuationHeight {
 				logger.Info().Msg(fmt.Sprintf("skipping bundle with storage id %s", bundle.StorageId))
 				continue
 			} else {
@@ -51,7 +51,7 @@ BundleCollector:
 
 				for _, dataItem := range bundle {
 					// skip blocks until we reach start height
-					if dataItem.Value.Block.Block.Height < startHeight {
+					if dataItem.Value.Block.Block.Height < continuationHeight {
 						continue
 					}
 
@@ -73,7 +73,7 @@ BundleCollector:
 
 				for _, dataItem := range bundle {
 					// skip blocks until we reach start height
-					if dataItem.Value.Height < startHeight {
+					if dataItem.Value.Height < continuationHeight {
 						continue
 					}
 

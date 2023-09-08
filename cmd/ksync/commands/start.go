@@ -87,22 +87,19 @@ var startCmd = &cobra.Command{
 				panic("flag --daemon-path is required for mode \"auto\"")
 			}
 
-			go auto.StartAutoExecutor(quitCh, home, daemonPath, seeds, flags, poolId, restEndpoint, targetHeight, apiServer, port)
+			auto.StartAutoExecutor(quitCh, home, daemonPath, seeds, flags, poolId, restEndpoint, targetHeight, apiServer, port)
 		case "db":
 			if apiServer {
 				panic("flag --api-server not supported for mode \"db\"")
 			}
-			go db.StartDBExecutor(quitCh, home, poolId, restEndpoint, targetHeight, false, port)
+			db.StartDBExecutor(home, restEndpoint, poolId, targetHeight, false, port)
 		case "p2p":
 			if apiServer {
 				panic("flag --api-server not supported for mode \"p2p\"")
 			}
-			go p2p.StartP2PExecutor(quitCh, home, poolId, restEndpoint, targetHeight)
+			p2p.StartP2PExecutor(quitCh, home, poolId, restEndpoint, targetHeight)
 		default:
 			panic("flag --mode has to be either \"auto\", \"db\" or \"p2p\"")
 		}
-
-		// only exit process if executor has finished
-		<-quitCh
 	},
 }

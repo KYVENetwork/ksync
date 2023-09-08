@@ -57,7 +57,7 @@ func findNearestSnapshotBundleId(restEndpoint string, poolId int64, targetHeight
 	return bundleId, snapshotHeight, fmt.Errorf("unable to find nearest snapshot below heigth %d", targetHeight)
 }
 
-func StartHeightSync(quitCh chan int, homeDir string, restEndpoint string, snapshotPoolId int64, blockPoolId int64, targetHeight int64) {
+func StartHeightSync(homeDir string, restEndpoint string, snapshotPoolId int64, blockPoolId int64, targetHeight int64) {
 	logger.Info().Msg("starting height-sync")
 
 	config, err := cfg.LoadConfig(homeDir)
@@ -65,7 +65,7 @@ func StartHeightSync(quitCh chan int, homeDir string, restEndpoint string, snaps
 		panic(fmt.Errorf("failed to load config.toml: %w", err))
 	}
 
-	statesync.CheckStateSyncBoundaries(restEndpoint, snapshotPoolId, targetHeight)
+	//statesync.CheckStateSyncBoundaries(restEndpoint, snapshotPoolId, targetHeight)
 
 	bundleId, snapshotHeight, err := findNearestSnapshotBundleId(restEndpoint, snapshotPoolId, targetHeight)
 	if err != nil {
@@ -73,7 +73,7 @@ func StartHeightSync(quitCh chan int, homeDir string, restEndpoint string, snaps
 		os.Exit(1)
 	}
 
-	db.CheckDBBlockSyncBoundaries(restEndpoint, blockPoolId, snapshotHeight, targetHeight)
+	//db.CheckDBBlockSyncBoundaries(restEndpoint, blockPoolId, snapshotHeight, targetHeight)
 
 	logger.Info().Msg(fmt.Sprintf("found snapshot with height %d in bundle with id %d", snapshotHeight, bundleId))
 
@@ -86,10 +86,7 @@ func StartHeightSync(quitCh chan int, homeDir string, restEndpoint string, snaps
 	if remaining := targetHeight - snapshotHeight; remaining > 0 {
 		logger.Info().Msg(fmt.Sprintf("block-syncing remaining %d blocks", remaining))
 
-		go db.StartDBExecutor(quitCh, homeDir, blockPoolId, restEndpoint, targetHeight, false, 7878)
-
-		// only exit process if executor has finished
-		<-quitCh
+		db.StartDBExecutor(homeDir, restEndpoint, blockPoolId, targetHeight, false, 7878)
 	}
 
 	logger.Info().Msg(fmt.Sprintf("reached target height %d with applying state-sync snapshot at %d and block-syncing the remaining %d blocks", targetHeight, snapshotHeight, targetHeight-snapshotHeight))

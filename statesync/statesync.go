@@ -189,8 +189,7 @@ func findSnapshotBundleId(restEndpoint string, poolId int64, snapshotHeight int6
 	return bundleId, fmt.Errorf("failed to find bundle with snapshot height %d", snapshotHeight)
 }
 
-// TODO: check if latest snapshot is actually complete
-func CheckStateSyncBoundaries(restEndpoint string, poolId int64, snapshotHeight int64) {
+func GetSnapshotBoundaries(restEndpoint string, poolId int64) (types.PoolResponse, int64, int64) {
 	// load start and latest height
 	poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
 	if err != nil {
@@ -212,18 +211,34 @@ func CheckStateSyncBoundaries(restEndpoint string, poolId int64, snapshotHeight 
 		panic(fmt.Errorf("failed to parse snapshot key: %w", err))
 	}
 
-	if snapshotHeight < startHeight {
-		logger.Error().Msg(fmt.Sprintf("Requested snapshot height %d is smaller than state-sync pool start height %d", snapshotHeight, startHeight))
-		os.Exit(1)
+	latestBundleId := poolResponse.Pool.Data.TotalBundles - 1
+
+	for {
+		bundle, err := utils.GetFinalizedBundle(restEndpoint, poolId, latestBundleId)
+		if err != nil {
+			panic(fmt.Errorf("failed to get finalized bundle with id %d: %w", latestBundleId, err))
+		}
+
+		height, chunkIndex, err := utils.ParseSnapshotFromKey(bundle.ToKey)
+		if err != nil {
+			panic(fmt.Errorf("failed to parse snapshot key: %w", err))
+		}
+
+		// we need to go back until we find the first complete snapshot since
+		// the current key belongs to a snapshot which is still being archived and
+		// therefore not ready to use
+		if height < endHeight && chunkIndex == 0 {
+			endHeight = height
+			break
+		}
+
+		latestBundleId--
 	}
 
-	// TODO: double check if we have to do endHeight - 1 because the endHeight has probably not finished every chunk yet
-	if snapshotHeight > endHeight {
-		logger.Error().Msg(fmt.Sprintf("Requested snapshot height %d is greater than current state-sync pool height %d", snapshotHeight, endHeight))
-		os.Exit(1)
-	}
+	return *poolResponse, startHeight, endHeight
 }
 
+// TODO: check if state is empty
 func StartStateSync(homeDir string, restEndpoint string, poolId int64, snapshotHeight int64) {
 	logger.Info().Msg("starting state-sync")
 
@@ -233,11 +248,22 @@ func StartStateSync(homeDir string, restEndpoint string, poolId int64, snapshotH
 		panic(fmt.Errorf("failed to load config: %w", err))
 	}
 
-	CheckStateSyncBoundaries(restEndpoint, poolId, snapshotHeight)
+	// perform boundary checks
+	_, startHeight, endHeight := GetSnapshotBoundaries(restEndpoint, poolId)
+
+	if snapshotHeight < startHeight {
+		logger.Error().Msg(fmt.Sprintf("requested snapshot height %d but first available snapshot on pool is %d", snapshotHeight, startHeight))
+		os.Exit(1)
+	}
+
+	if snapshotHeight > endHeight {
+		logger.Error().Msg(fmt.Sprintf("requested snapshot height %d but last available snapshot on pool is %d", snapshotHeight, endHeight))
+		os.Exit(1)
+	}
 
 	bundleId, err := findSnapshotBundleId(restEndpoint, poolId, snapshotHeight)
 	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("Failed to find bundle with requested snapshot height %d: %s", snapshotHeight, err))
+		logger.Error().Msg(fmt.Sprintf("failed to find bundle with requested snapshot height %d: %s", snapshotHeight, err))
 		os.Exit(1)
 	}
 

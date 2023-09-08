@@ -64,6 +64,6 @@ var heightSyncCmd = &cobra.Command{
 		// trim trailing slash
 		restEndpoint = strings.TrimSuffix(restEndpoint, "/")
 
-		heightsync.StartHeightSync(quitCh, home, restEndpoint, snapshotPoolId, blockPoolId, targetHeight)
+		heightsync.StartHeightSync(home, restEndpoint, snapshotPoolId, blockPoolId, targetHeight)
 	},
 }
