@@ -103,11 +103,6 @@ func (bcR *BlockchainReactor) GetChannels() []*p2p.ChannelDescriptor {
 
 func (bcR *BlockchainReactor) AddPeer(peer p2p.Peer) {
 	bcR.sendStatusToPeer(peer)
-	logger.Info().Msg("added peer to blockchain reactor!!!!!!!!!")
-}
-
-func (bcR *BlockchainReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
-	logger.Info().Msg("removed peer from blockchain reactor!!!!!!!!!")
 }
 
 func (bcR *BlockchainReactor) sendStatusToPeer(src p2p.Peer) (queued bool) {
