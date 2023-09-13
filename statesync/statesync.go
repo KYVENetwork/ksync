@@ -303,6 +303,7 @@ func StartStateSync(homeDir string, restEndpoint string, poolId int64, snapshotH
 
 	if err := ApplyStateSync(config, restEndpoint, poolId, bundleId); err != nil {
 		logger.Error().Msg(fmt.Sprintf("snapshot could not be applied: %s", err))
+		os.Exit(1)
 	}
 
 	logger.Info().Msg(fmt.Sprintf("snapshot was successfully applied"))

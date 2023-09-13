@@ -3,12 +3,14 @@ package p2p
 import (
 	"fmt"
 	cfg "github.com/KYVENetwork/ksync/config"
+	"github.com/KYVENetwork/ksync/executor/db"
 	p2pHelpers "github.com/KYVENetwork/ksync/executor/p2p/helpers"
 	"github.com/KYVENetwork/ksync/executor/p2p/reactor"
 	log "github.com/KYVENetwork/ksync/logger"
-	"github.com/KYVENetwork/ksync/pool"
+	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/tendermint/tendermint/libs/json"
 	nm "github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"net/url"
@@ -21,7 +23,81 @@ var (
 	logger  = log.Logger("p2p")
 )
 
-func StartP2PExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string, targetHeight int64) {
+func retrieveBlock(pool *types.PoolResponse, restEndpoint string, height int64) (*types.Block, error) {
+	paginationKey := ""
+
+	for {
+		bundles, nextKey, err := utils.GetFinalizedBundlesPage(restEndpoint, pool.Pool.Id, utils.BundlesPageLimit, paginationKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve finalized bundles: %w", err)
+		}
+
+		for _, bundle := range bundles {
+			toHeight, err := strconv.ParseInt(bundle.ToKey, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse bundle to key to int64: %w", err)
+			}
+
+			if toHeight < height {
+				logger.Info().Msg(fmt.Sprintf("skipping bundle with storage id %s", bundle.StorageId))
+				continue
+			} else {
+				logger.Info().Msg(fmt.Sprintf("downloading bundle with storage id %s", bundle.StorageId))
+			}
+
+			deflated, err := utils.GetDataFromFinalizedBundle(bundle)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get data from finalized bundle: %w", err)
+			}
+
+			// depending on runtime the data items can look differently
+			if pool.Pool.Data.Runtime == utils.KSyncRuntimeTendermint {
+				// parse bundle
+				var bundle types.TendermintBundle
+
+				if err := json.Unmarshal(deflated, &bundle); err != nil {
+					panic(fmt.Errorf("failed to unmarshal tendermint bundle: %w", err))
+				}
+
+				for _, dataItem := range bundle {
+					// skip blocks until we reach start height
+					if dataItem.Value.Block.Block.Height < height {
+						continue
+					}
+
+					return dataItem.Value.Block.Block, nil
+				}
+			} else if pool.Pool.Data.Runtime == utils.KSyncRuntimeTendermintBsync {
+				// parse bundle
+				var bundle types.TendermintBsyncBundle
+
+				if err := json.Unmarshal(deflated, &bundle); err != nil {
+					panic(fmt.Errorf("failed to unmarshal tendermint bsync bundle: %w", err))
+				}
+
+				for _, dataItem := range bundle {
+					// skip blocks until we reach start height
+					if dataItem.Value.Height < height {
+						continue
+					}
+
+					return dataItem.Value, nil
+				}
+			}
+		}
+
+		// if there is no new page we do not continue
+		if nextKey == "" {
+			break
+		}
+
+		paginationKey = nextKey
+	}
+
+	return nil, fmt.Errorf("failed to find bundle with block height %d", height)
+}
+
+func StartP2PExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string) {
 	logger.Info().Msg("starting p2p sync")
 	// load config
 	config, err := cfg.LoadConfig(homeDir)
@@ -29,38 +105,32 @@ func StartP2PExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpo
 		panic(fmt.Errorf("failed to load config: %w", err))
 	}
 
-	// load start and latest height
-	poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
+	genDoc, err := nm.DefaultGenesisDocProviderFunc(config)()
 	if err != nil {
-		panic(fmt.Errorf("failed to get pool info: %w", err))
+		panic(fmt.Errorf("failed to load state and genDoc: %w", err))
 	}
 
-	if poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermint && poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermintBsync {
-		logger.Error().Msg(fmt.Sprintf("Found invalid runtime on pool %d: Expected = %s,%s Found = %s", poolId, utils.KSyncRuntimeTendermint, utils.KSyncRuntimeTendermintBsync, poolResponse.Pool.Data.Runtime))
+	poolResponse, startHeight, endHeight := db.GetBlockBoundaries(restEndpoint, poolId)
+
+	if genDoc.InitialHeight < startHeight {
+		logger.Error().Msg(fmt.Sprintf("initial height %d smaller than pool start height %d", genDoc.InitialHeight, startHeight))
 		os.Exit(1)
 	}
 
-	startHeight, err := strconv.ParseInt(poolResponse.Pool.Data.StartKey, 10, 64)
-	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("could not parse int from %s", poolResponse.Pool.Data.StartKey))
+	if genDoc.InitialHeight+1 > endHeight {
+		logger.Error().Msg(fmt.Sprintf("initial height %d bigger than latest pool height %d", genDoc.InitialHeight+1, endHeight))
 		os.Exit(1)
 	}
 
-	endHeight, err := strconv.ParseInt(poolResponse.Pool.Data.CurrentKey, 10, 64)
+	block, err := retrieveBlock(&poolResponse, restEndpoint, genDoc.InitialHeight)
 	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("could not parse int from %s", poolResponse.Pool.Data.CurrentKey))
+		logger.Error().Msg(fmt.Sprintf("failed to retrieve block %d from pool", genDoc.InitialHeight))
 		os.Exit(1)
 	}
 
-	// if target height was set and is smaller than latest height this will be our new target height
-	// we add +1 to make target height including
-	if targetHeight > 0 && targetHeight+1 < endHeight {
-		endHeight = targetHeight + 1
-	}
-
-	// if target height is smaller than the base height of the pool we exit
-	if endHeight <= startHeight {
-		logger.Error().Msg(fmt.Sprintf("target height %d has to be bigger than starting height %d", endHeight, startHeight))
+	nextBlock, err := retrieveBlock(&poolResponse, restEndpoint, genDoc.InitialHeight+1)
+	if err != nil {
+		logger.Error().Msg(fmt.Sprintf("failed to retrieve block %d from pool", genDoc.InitialHeight+1))
 		os.Exit(1)
 	}
 
@@ -92,11 +162,6 @@ func StartP2PExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpo
 
 	logger.Info().Msg(fmt.Sprintf("generated new node key with id = %s", ksyncNodeKey.ID()))
 
-	genDoc, err := nm.DefaultGenesisDocProviderFunc(config)()
-	if err != nil {
-		panic(fmt.Errorf("failed to load state and genDoc: %w", err))
-	}
-
 	nodeInfo, err := p2pHelpers.MakeNodeInfo(config, ksyncNodeKey, genDoc)
 
 	logger.Info().Msg("created node info")
@@ -105,7 +170,7 @@ func StartP2PExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpo
 
 	logger.Info().Msg("created multiplex transport")
 
-	bcR := reactor.NewBlockchainReactor(quitCh, *poolResponse, restEndpoint, startHeight, endHeight)
+	bcR := reactor.NewBlockchainReactor(quitCh, block, nextBlock)
 	sw := p2pHelpers.CreateSwitch(config, transport, bcR, nodeInfo, ksyncNodeKey, kLogger)
 
 	// start the transport

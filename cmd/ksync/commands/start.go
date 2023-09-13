@@ -97,9 +97,11 @@ var startCmd = &cobra.Command{
 			if apiServer {
 				panic("flag --api-server not supported for mode \"p2p\"")
 			}
-			p2p.StartP2PExecutor(quitCh, home, poolId, restEndpoint, targetHeight)
+			p2p.StartP2PExecutor(quitCh, home, poolId, restEndpoint)
 		default:
 			panic("flag --mode has to be either \"auto\", \"db\" or \"p2p\"")
 		}
+
+		<-quitCh
 	},
 }
