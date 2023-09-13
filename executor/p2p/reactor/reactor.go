@@ -171,7 +171,6 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 	}
 
 	logger.Info().Int64("height", block.Height).Msg("Sent block to peer")
-	delete(bcR.blocks, block.Height)
 
 	return src.TrySend(BlockchainChannel, msgBytes)
 }
