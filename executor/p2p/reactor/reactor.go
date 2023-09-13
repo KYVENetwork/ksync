@@ -8,12 +8,10 @@ import (
 	"github.com/tendermint/tendermint/p2p"
 	bcproto "github.com/tendermint/tendermint/proto/tendermint/blockchain"
 	"reflect"
-	"time"
 )
 
 const (
 	BlockchainChannel = byte(0x40)
-	BlockDelta        = int64(30)
 )
 
 var (
@@ -23,43 +21,17 @@ var (
 type BlockchainReactor struct {
 	p2p.BaseReactor
 
-	quitCh    chan<- int
 	block     *types.Block
 	nextBlock *types.Block
 }
 
-func NewBlockchainReactor(quitCh chan<- int, block *types.Block, nextBlock *types.Block) *BlockchainReactor {
+func NewBlockchainReactor(block *types.Block, nextBlock *types.Block) *BlockchainReactor {
 	bcR := &BlockchainReactor{
-		quitCh:    quitCh,
 		block:     block,
 		nextBlock: nextBlock,
 	}
 	bcR.BaseReactor = *p2p.NewBaseReactor("BlockchainReactor", bcR)
 	return bcR
-}
-
-func (bcR *BlockchainReactor) retrieveStatusResponses(src p2p.Peer) {
-	for {
-		msgBytes, err := bc.EncodeMsg(&bcproto.StatusRequest{})
-		if err != nil {
-			logger.Error().Str("could not convert msg to protobuf", err.Error())
-			return
-		}
-
-		logger.Info().Msg("Sent status request to peer")
-
-		src.Send(BlockchainChannel, msgBytes)
-		time.Sleep(1 * time.Second)
-	}
-}
-
-func (bcR *BlockchainReactor) OnStart() (err error) {
-	logger.Info().Msg("starting blockchain reactor")
-	return nil
-}
-
-func (bcR *BlockchainReactor) OnStop() {
-	logger.Info().Msg("stopping blockchain reactor")
 }
 
 func (bcR *BlockchainReactor) GetChannels() []*p2p.ChannelDescriptor {
@@ -72,10 +44,6 @@ func (bcR *BlockchainReactor) GetChannels() []*p2p.ChannelDescriptor {
 			RecvMessageCapacity: bc.MaxMsgSize,
 		},
 	}
-}
-
-func (bcR *BlockchainReactor) AddPeer(peer p2p.Peer) {
-	bcR.sendStatusToPeer(peer)
 }
 
 func (bcR *BlockchainReactor) sendStatusToPeer(src p2p.Peer) (queued bool) {
@@ -150,10 +118,6 @@ func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 		bcR.sendBlockToPeer(msg, src)
 	case *bcproto.StatusResponse:
 		logger.Info().Int64("base", msg.Base).Int64("height", msg.Height).Msgf("Incoming status response")
-
-		if msg.Height == bcR.block.Height {
-			bcR.quitCh <- 0
-		}
 	default:
 		logger.Error().Msg(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
 	}

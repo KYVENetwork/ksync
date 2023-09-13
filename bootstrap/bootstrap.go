@@ -6,10 +6,14 @@ import (
 	"github.com/KYVENetwork/ksync/executor/p2p"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/node"
+	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
+	"github.com/tendermint/tendermint/libs/json"
 	nm "github.com/tendermint/tendermint/node"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -18,9 +22,7 @@ var (
 	logger = log.Logger("bootstrap")
 )
 
-func startBinaryProcess(binaryPath string, homePath string) (int, <-chan int) {
-	quitCh := make(chan int)
-
+func startBinaryProcess(binaryPath string, homePath string) int {
 	cmdPath, err := exec.LookPath(binaryPath)
 	if err != nil {
 		panic(fmt.Errorf("failed to lookup binary path: %w", err))
@@ -43,85 +45,128 @@ func startBinaryProcess(binaryPath string, homePath string) (int, <-chan int) {
 		panic(fmt.Errorf("failed to start binary process: %w", err))
 	}
 
-	go func() {
-		fmt.Println("waiting!")
-		err = cmd.Wait()
-		if err != nil {
-			panic(fmt.Errorf("failed to wait for binary process: %w", err))
-		}
-		fmt.Println("completed!!!!!!!!!!!!!!!!!!!!!!!!!!")
-		quitCh <- 0
-	}()
-
-	return cmd.Process.Pid, quitCh
+	return cmd.Process.Pid
 }
 
-func startBootstrapProcess(homePath string, restEndpoint string, poolId int64) {
-	quitCh := make(chan int)
-
-	go p2p.StartP2PExecutor(quitCh, homePath, poolId, restEndpoint)
-
-	<-quitCh
-}
-
-func bootstrap(binaryPath string, homePath string, restEndpoint string, poolId int64) {
-	processId, quitCh := startBinaryProcess(binaryPath, homePath)
-
-	time.Sleep(10 * time.Second)
-
-	startBootstrapProcess(homePath, restEndpoint, poolId)
-
-	time.Sleep(20 * time.Second)
-
-	process, err := os.FindProcess(processId)
-	if err != nil {
-		panic(fmt.Errorf("failed to find binary process: %w", err))
-	}
-
-	if err = process.Signal(syscall.SIGTERM); err != nil {
-		panic(fmt.Errorf("failed to SIGTERM process: %w", err))
-	}
-
-	<-quitCh
-}
-
-func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poolId int64) {
-	logger.Info().Msg("starting bootstrap")
-
+func getNodeHeight(homePath string) (height int64, err error) {
 	config, err := cfg.LoadConfig(homePath)
 	if err != nil {
 		panic(fmt.Errorf("failed to load config.toml: %w", err))
 	}
 
+	rpc := fmt.Sprintf("%s/abci_info", strings.Replace(config.RPC.ListenAddress, "tcp", "http", 1))
+
+	responseData, err := utils.DownloadFromUrl(rpc)
+	if err != nil {
+		return height, err
+	}
+
+	var response types.HeightResponse
+	if err := json.Unmarshal(responseData, &response); err != nil {
+		return height, err
+	}
+
+	if response.Result.Response.LastBlockHeight == "" {
+		return 0, nil
+	}
+
+	height, err = strconv.ParseInt(response.Result.Response.LastBlockHeight, 10, 64)
+	if err != nil {
+		return height, err
+	}
+
+	return
+}
+
+func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poolId int64) (err error) {
+	logger.Info().Msg("starting bootstrap")
+
+	config, err := cfg.LoadConfig(homePath)
+	if err != nil {
+		return err
+	}
+
 	gt100, err := utils.IsFileGreaterThanOrEqualTo100MB(config.GenesisFile())
 	if err != nil {
-		panic(fmt.Errorf("failed to load genesis.json: %w", err))
+		return err
 	}
 
 	// if genesis file is smaller than 100MB we can skip further bootstrapping
 	if !gt100 {
 		logger.Info().Msg("KSYNC is successfully bootstrapped!")
-		// os.Exit(0)
+		//return
 	}
-
-	fmt.Println("test")
 
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
 	genDoc, err := defaultDocProvider()
 	if err != nil {
-		panic(fmt.Errorf("failed to load genesis.json: %w", err))
+		return err
 	}
 
 	height, err := node.GetNodeHeightDB(homePath)
 	if err != nil {
-		panic(fmt.Errorf("failed to read blockstore.db: %w", err))
+		return err
 	}
 
 	// if the app already has mined at least one block we can skip further bootstrapping
 	if height > genDoc.InitialHeight {
 		logger.Info().Msg("KSYNC is successfully bootstrapped!")
-		// os.Exit(0)
+		//return
 	}
 
-	bootstrap(binaryPath, homePath, restEndpoint, poolId)
+	// start binary process thread
+	processId := startBinaryProcess(binaryPath, homePath)
+
+	// wait until binary has properly started by testing if the /abci
+	// endpoint is up
+	for {
+		_, err := getNodeHeight(homePath)
+		if err != nil {
+			logger.Info().Msg("Waiting for node to start...")
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		logger.Info().Msg("Node started. Beginning with p2p sync")
+		break
+	}
+
+	// start p2p executor and try to execute the first block on the app
+	sw := p2p.StartP2PExecutor(homePath, poolId, restEndpoint)
+
+	// wait until block was properly executed by testing if the /abci
+	// endpoint returns the correct block height
+	for {
+		height, err := getNodeHeight(homePath)
+		if err != nil {
+			return err
+		}
+
+		if height != genDoc.InitialHeight {
+			logger.Info().Msg("Waiting for node to mine block...")
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		logger.Info().Msg("Node mined block. Shutting down")
+		break
+	}
+
+	// exit binary process thread
+	process, err := os.FindProcess(processId)
+	if err != nil {
+		return err
+	}
+
+	if err = process.Signal(syscall.SIGTERM); err != nil {
+		return err
+	}
+
+	// stop switch from p2p executor
+	if err := sw.Stop(); err != nil {
+		return err
+	}
+
+	logger.Info().Msg("done")
+	return
 }

@@ -20,7 +20,7 @@ func StartSyncProcess(s *types.SyncProcess, home string, poolId int64, restEndpo
 		s.Running = true
 		if s.Name == "p2p" {
 			logger.Info().Msg("starting P2P syncing process")
-			go p2p.StartP2PExecutor(s.QuitCh, home, poolId, restEndpoint)
+			go p2p.StartP2PExecutor(home, poolId, restEndpoint)
 		} else if s.Name == "db" {
 			logger.Info().Msg("starting DB syncing process")
 			go db.StartDBExecutor(home, restEndpoint, poolId, targetHeight, apiServer, port)

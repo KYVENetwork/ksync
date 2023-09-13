@@ -97,8 +97,9 @@ func retrieveBlock(pool *types.PoolResponse, restEndpoint string, height int64) 
 	return nil, fmt.Errorf("failed to find bundle with block height %d", height)
 }
 
-func StartP2PExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpoint string) {
+func StartP2PExecutor(homeDir string, poolId int64, restEndpoint string) *p2p.Switch {
 	logger.Info().Msg("starting p2p sync")
+
 	// load config
 	config, err := cfg.LoadConfig(homeDir)
 	if err != nil {
@@ -170,7 +171,7 @@ func StartP2PExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpo
 
 	logger.Info().Msg("created multiplex transport")
 
-	bcR := reactor.NewBlockchainReactor(quitCh, block, nextBlock)
+	bcR := reactor.NewBlockchainReactor(block, nextBlock)
 	sw := p2pHelpers.CreateSwitch(config, transport, bcR, nodeInfo, ksyncNodeKey, kLogger)
 
 	// start the transport
@@ -205,4 +206,6 @@ func StartP2PExecutor(quitCh chan<- int, homeDir string, poolId int64, restEndpo
 	if err := sw.DialPeerWithAddress(peer); err != nil {
 		logger.Error().Msg(fmt.Sprintf("Failed to dial peer %v", err.Error()))
 	}
+
+	return sw
 }
