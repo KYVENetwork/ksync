@@ -5,7 +5,9 @@ import (
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
+	"os"
 	"strings"
+	"syscall"
 )
 
 var (
@@ -16,6 +18,11 @@ func init() {
 	stateSyncCmd.Flags().StringVar(&home, "home", "", "home directory")
 	if err := stateSyncCmd.MarkFlagRequired("home"); err != nil {
 		panic(fmt.Errorf("flag 'home' should be required: %w", err))
+	}
+
+	stateSyncCmd.Flags().StringVar(&binary, "binary", "", "binary path of node to be synced")
+	if err := stateSyncCmd.MarkFlagRequired("binary"); err != nil {
+		panic(fmt.Errorf("flag 'binary' should be required: %w", err))
 	}
 
 	stateSyncCmd.Flags().StringVar(&chainId, "chain-id", utils.DefaultChainId, fmt.Sprintf("kyve chain id (\"kyve-1\",\"kaon-1\",\"korellia\"), [default = %s]", utils.DefaultChainId))
@@ -56,6 +63,21 @@ var stateSyncCmd = &cobra.Command{
 		// trim trailing slash
 		restEndpoint = strings.TrimSuffix(restEndpoint, "/")
 
+		// start binary process thread
+		processId := startBinaryProcess(binary, home)
+
 		statesync.StartStateSync(home, restEndpoint, poolId, snapshotHeight)
+
+		// exit binary process thread
+		process, err := os.FindProcess(processId)
+		if err != nil {
+			panic(err)
+		}
+
+		if err = process.Signal(syscall.SIGTERM); err != nil {
+			panic(err)
+		}
+
+		logger.Info().Msg("successfully finished state-sync")
 	},
 }

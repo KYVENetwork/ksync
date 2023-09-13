@@ -2,8 +2,8 @@ package db
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/collector"
 	cfg "github.com/KYVENetwork/ksync/config"
+	"github.com/KYVENetwork/ksync/executor/db/collector"
 	"github.com/KYVENetwork/ksync/executor/db/helpers"
 	"github.com/KYVENetwork/ksync/executor/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
@@ -52,17 +52,15 @@ func GetBlockBoundaries(restEndpoint string, poolId int64) (types.PoolResponse, 
 	return *poolResponse, startHeight, endHeight
 }
 
-func StartDBExecutor(homeDir string, restEndpoint string, poolId int64, targetHeight int64, apiServer bool, port int64) {
-	logger.Info().Msg("starting db sync")
-
+func StartDBExecutor(homePath, restEndpoint string, poolId, targetHeight int64, apiServer bool, port int64) {
 	// load tendermint config
-	config, err := cfg.LoadConfig(homeDir)
+	config, err := cfg.LoadConfig(homePath)
 	if err != nil {
 		panic(fmt.Errorf("failed to load config.toml: %w", err))
 	}
 
 	// load application config
-	app, err := cfg.LoadApp(homeDir)
+	app, err := cfg.LoadApp(homePath)
 	if err != nil {
 		panic(fmt.Errorf("failed to load app.toml: %w", err))
 	}
@@ -248,6 +246,5 @@ func StartDBExecutor(homeDir string, restEndpoint string, poolId int64, targetHe
 		}
 	}
 
-	logger.Info().Msg(fmt.Sprintf("Synced from height %d to target height %d", startHeight, endHeight-1))
-	logger.Info().Msg("Done.")
+	logger.Info().Msg(fmt.Sprintf("synced from height %d to target height %d", startHeight, endHeight-1))
 }

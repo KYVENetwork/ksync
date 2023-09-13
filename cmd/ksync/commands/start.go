@@ -2,9 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/executor/auto"
-	"github.com/KYVENetwork/ksync/executor/db"
-	"github.com/KYVENetwork/ksync/executor/p2p"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"strings"
@@ -80,28 +77,5 @@ var startCmd = &cobra.Command{
 		// trim trailing slash
 		restEndpoint = strings.TrimSuffix(restEndpoint, "/")
 
-		// start block executor based on sync mode
-		switch mode {
-		case "auto":
-			if daemonPath == "" {
-				panic("flag --daemon-path is required for mode \"auto\"")
-			}
-
-			auto.StartAutoExecutor(quitCh, home, daemonPath, seeds, flags, poolId, restEndpoint, targetHeight, apiServer, port)
-		case "db":
-			if apiServer {
-				panic("flag --api-server not supported for mode \"db\"")
-			}
-			db.StartDBExecutor(home, restEndpoint, poolId, targetHeight, false, port)
-		case "p2p":
-			if apiServer {
-				panic("flag --api-server not supported for mode \"p2p\"")
-			}
-			p2p.StartP2PExecutor(home, poolId, restEndpoint)
-		default:
-			panic("flag --mode has to be either \"auto\", \"db\" or \"p2p\"")
-		}
-
-		<-quitCh
 	},
 }

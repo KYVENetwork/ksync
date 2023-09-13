@@ -169,7 +169,8 @@ func GetNodeHeightDB(home string) (int64, error) {
 		return 0, err
 	}
 
-	return blockStore.Height(), nil
+	height := blockStore.Height()
+	return height, nil
 }
 
 // The GetNodeHeightURL function retrieves the height of the node by querying the ABCI endpoint.
