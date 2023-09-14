@@ -15,7 +15,9 @@ var (
 	blockPoolId    int64
 	targetHeight   int64
 	snapshotHeight int64
-	port           int64
+	metrics        bool
+	metricsPort    int64
+	snapshotPort   int64
 )
 
 // RootCmd is the root command for KSYNC.

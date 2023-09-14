@@ -29,5 +29,5 @@ func StartServeSnapshots(binaryPath, homePath, restEndpoint string, poolId, port
 
 	// db executes blocks against app until target height is reached
 	// TODO: instead of throwing panics return all errors here
-	db.StartDBExecutor(homePath, restEndpoint, poolId, 0, true, port)
+	db.StartDBExecutor(homePath, restEndpoint, poolId, 0, false, 0, true, port)
 }

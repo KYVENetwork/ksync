@@ -53,7 +53,7 @@ func GetBlockBoundaries(restEndpoint string, poolId int64) (types.PoolResponse, 
 	return *poolResponse, startHeight, endHeight
 }
 
-func StartDBExecutor(homePath, restEndpoint string, poolId, targetHeight int64, snapshotApiServer bool, port int64) {
+func StartDBExecutor(homePath, restEndpoint string, poolId, targetHeight int64, metricsServer bool, metricsPort int64, snapshotServer bool, snapshotPort int64) {
 	// load tendermint config
 	config, err := cfg.LoadConfig(homePath)
 	if err != nil {
@@ -137,13 +137,18 @@ func StartDBExecutor(homePath, restEndpoint string, poolId, targetHeight int64, 
 		endHeight = targetHeight + 1
 	}
 
+	// start metrics api server which serves an api endpoint sync metrics
+	if metricsServer {
+		go server.StartMetricsApiServer(blockStore, metricsPort)
+	}
+
 	// start api server which serves an api endpoint for querying snapshots
-	if snapshotApiServer {
-		go server.StartSnapshotApiServer(config, blockStore, stateStore, port)
+	if snapshotServer {
+		go server.StartSnapshotApiServer(config, blockStore, stateStore, snapshotPort)
 	}
 
 	// start block collector
-	go blocks.StartBlockStreamCollector(blockCh, restEndpoint, poolResponse, continuationHeight, endHeight, !snapshotApiServer)
+	go blocks.StartBlockStreamCollector(blockCh, restEndpoint, poolResponse, continuationHeight, endHeight, !snapshotServer)
 
 	logger.Info().Msg(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
 
@@ -221,10 +226,10 @@ func StartDBExecutor(homePath, restEndpoint string, poolId, targetHeight int64, 
 			prevBlock = block
 		}
 
-		//if we have reached a height where a snapshot should be created by the app
-		//we wait until it is created, else if KSYNC moves to fast the snapshot can
-		//not be properly created.
-		if snapshotApiServer && app.StateSync.SnapshotInterval > 0 && (block.Height-1)%app.StateSync.SnapshotInterval == 0 {
+		// if we have reached a height where a snapshot should be created by the app
+		// we wait until it is created, else if KSYNC moves to fast the snapshot can
+		// not be properly created.
+		if snapshotServer && app.StateSync.SnapshotInterval > 0 && (block.Height-1)%app.StateSync.SnapshotInterval == 0 {
 			for {
 				logger.Info().Msg(fmt.Sprintf("Waiting until snapshot at height %d is created by app", block.Height-1))
 

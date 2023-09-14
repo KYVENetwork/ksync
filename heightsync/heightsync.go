@@ -55,7 +55,7 @@ func StartHeightSync(binaryPath, homePath, restEndpoint string, snapshotPoolId, 
 
 	if remaining := targetHeight - continuationHeight; remaining > 0 {
 		logger.Info().Msg(fmt.Sprintf("block-syncing remaining %d blocks", remaining))
-		blocksync.StartBlockSync(binaryPath, homePath, restEndpoint, blockPoolId, targetHeight)
+		blocksync.StartBlockSync(binaryPath, homePath, restEndpoint, blockPoolId, targetHeight, false, 0)
 	}
 
 	logger.Info().Msg(fmt.Sprintf("reached target height %d with applying state-sync snapshot at %d and block-syncing the remaining %d blocks", targetHeight, snapshotHeight, targetHeight-snapshotHeight))
