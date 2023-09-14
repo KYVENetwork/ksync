@@ -246,5 +246,5 @@ func StartDBExecutor(homePath, restEndpoint string, poolId, targetHeight int64, 
 		}
 	}
 
-	logger.Info().Msg(fmt.Sprintf("synced from height %d to target height %d", startHeight, endHeight-1))
+	logger.Info().Msg(fmt.Sprintf("synced from height %d to target height %d", continuationHeight, endHeight-1))
 }

@@ -5,7 +5,6 @@ import (
 	cfg "github.com/KYVENetwork/ksync/config"
 	"github.com/KYVENetwork/ksync/executors/blocksync/p2p"
 	log "github.com/KYVENetwork/ksync/logger"
-	"github.com/KYVENetwork/ksync/node"
 	"github.com/KYVENetwork/ksync/supervisor"
 	"github.com/KYVENetwork/ksync/utils"
 	nm "github.com/tendermint/tendermint/node"
@@ -41,7 +40,7 @@ func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poo
 		return err
 	}
 
-	height, err := node.GetNodeHeightDB(homePath)
+	height, err := helpers.GetNodeHeightFromDB(homePath)
 	if err != nil {
 		return err
 	}

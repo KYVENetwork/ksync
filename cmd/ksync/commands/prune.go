@@ -13,7 +13,7 @@ var (
 )
 
 func init() {
-	pruneCmd.Flags().StringVar(&home, "home", "", "home directory")
+	pruneCmd.Flags().StringVar(&homePath, "home", "", "home directory")
 	if err := pruneCmd.MarkFlagRequired("home"); err != nil {
 		panic(fmt.Errorf("flag 'home' should be required: %w", err))
 	}
@@ -30,7 +30,7 @@ var pruneCmd = &cobra.Command{
 	Use:   "prune-blocks",
 	Short: "Prune blocks until a specific height",
 	Run: func(cmd *cobra.Command, args []string) {
-		config, err := cfg.LoadConfig(home)
+		config, err := cfg.LoadConfig(homePath)
 		if err != nil {
 			panic(fmt.Errorf("failed to load config: %w", err))
 		}

@@ -8,15 +8,15 @@ import (
 	"github.com/KYVENetwork/ksync/executors/statesync/db"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
+	"github.com/KYVENetwork/ksync/supervisor"
+	"os"
 )
 
 var (
 	logger = log.Logger("state-sync")
 )
 
-func StartStateSync(homePath, restEndpoint string, poolId, snapshotHeight int64) error {
-	logger.Info().Msg("starting state-sync")
-
+func runStateSync(homePath, restEndpoint string, poolId, snapshotHeight int64) error {
 	// load config
 	config, err := cfg.LoadConfig(homePath)
 	if err != nil {
@@ -50,6 +50,30 @@ func StartStateSync(homePath, restEndpoint string, poolId, snapshotHeight int64)
 		return errors.New("")
 	}
 
-	logger.Info().Msg(fmt.Sprintf("snapshot was successfully applied"))
 	return nil
+}
+
+func StartStateSync(binaryPath, homePath, restEndpoint string, poolId, snapshotHeight int64) {
+	logger.Info().Msg("starting state-sync")
+
+	// start binary process thread
+	processId, err := supervisor.StartBinaryProcessForDB(binaryPath, homePath)
+	if err != nil {
+		panic(err)
+	}
+
+	if runStateSync(homePath, restEndpoint, poolId, snapshotHeight) != nil {
+		// stop binary process thread
+		if err := supervisor.StopProcessByProcessId(processId); err != nil {
+			panic(err)
+		}
+		os.Exit(1)
+	}
+
+	// stop binary process thread
+	if err := supervisor.StopProcessByProcessId(processId); err != nil {
+		panic(err)
+	}
+
+	logger.Info().Msg(fmt.Sprintf("successfully applied state-sync snapshot"))
 }

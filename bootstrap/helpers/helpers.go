@@ -3,6 +3,7 @@ package helpers
 import (
 	"fmt"
 	cfg "github.com/KYVENetwork/ksync/config"
+	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/tendermint/tendermint/libs/json"
@@ -38,4 +39,21 @@ func GetNodeHeightFromRPC(homePath string) (height int64, err error) {
 	}
 
 	return
+}
+
+func GetNodeHeightFromDB(home string) (int64, error) {
+	config, err := cfg.LoadConfig(home)
+	if err != nil {
+		return 0, err
+	}
+
+	blockStoreDB, blockStore, err := store.GetBlockstoreDBs(config)
+	defer blockStoreDB.Close()
+
+	if err != nil {
+		return 0, err
+	}
+
+	height := blockStore.Height()
+	return height, nil
 }

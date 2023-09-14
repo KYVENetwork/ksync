@@ -29,7 +29,6 @@ BundleCollector:
 			}
 
 			if height < continuationHeight {
-				logger.Info().Msg(fmt.Sprintf("skipping bundle with storage id %s", bundle.StorageId))
 				continue
 			} else {
 				logger.Info().Msg(fmt.Sprintf("downloading bundle with storage id %s", bundle.StorageId))

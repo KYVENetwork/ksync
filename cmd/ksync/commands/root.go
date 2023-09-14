@@ -2,12 +2,19 @@ package commands
 
 import (
 	"fmt"
-	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/spf13/cobra"
 )
 
 var (
-	logger = log.Logger("commands")
+	binaryPath     string
+	homePath       string
+	chainId        string
+	restEndpoint   string
+	poolId         int64
+	snapshotPoolId int64
+	blockPoolId    int64
+	targetHeight   int64
+	snapshotHeight int64
 )
 
 // RootCmd is the root command for KSYNC.
