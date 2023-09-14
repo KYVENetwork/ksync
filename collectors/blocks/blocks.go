@@ -1,4 +1,4 @@
-package collector
+package blocks
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ var (
 	logger = log.Logger("collector")
 )
 
-func StartBlockCollector(blockCh chan<- *types.Block, restEndpoint string, pool types.PoolResponse, continuationHeight, targetHeight int64) {
+func StartBlockStreamCollector(blockCh chan<- *types.Block, restEndpoint string, pool types.PoolResponse, continuationHeight, targetHeight int64) {
 	paginationKey := ""
 
 BundleCollector:

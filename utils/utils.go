@@ -17,6 +17,28 @@ import (
 	"time"
 )
 
+func GetRestEndpoint(chainId, customEndpoint string) (restEndpoint string) {
+	restEndpoint = customEndpoint
+
+	// if no custom rest endpoint was given we take it from the chainId
+	if restEndpoint == "" {
+		switch chainId {
+		case "kyve-1":
+			restEndpoint = RestEndpointMainnet
+		case "kaon-1":
+			restEndpoint = RestEndpointKaon
+		case "korellia":
+			restEndpoint = RestEndpointKorellia
+		default:
+			panic("flag --chain-id has to be either \"kyve-1\", \"kaon-1\" or \"korellia\"")
+		}
+	}
+
+	// trim trailing slash
+	restEndpoint = strings.TrimSuffix(restEndpoint, "/")
+	return
+}
+
 func GetFinalizedBundlesPage(restEndpoint string, poolId int64, paginationLimit int64, paginationKey string) ([]types.FinalizedBundle, string, error) {
 	//raw, err := DownloadFromUrl(fmt.Sprintf(
 	//	"%s/kyve/v1/bundles/%d?pagination.limit=%d&pagination.key=%s",

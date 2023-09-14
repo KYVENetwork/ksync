@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 	cfg "github.com/KYVENetwork/ksync/config"
-	"github.com/KYVENetwork/ksync/executor/db/store"
+	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
 	"github.com/spf13/cobra"
 	"os"
 )

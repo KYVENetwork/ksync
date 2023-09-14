@@ -1,80 +1,20 @@
 package bootstrap
 
 import (
-	"fmt"
+	"github.com/KYVENetwork/ksync/bootstrap/helpers"
 	cfg "github.com/KYVENetwork/ksync/config"
-	"github.com/KYVENetwork/ksync/executor/p2p"
+	"github.com/KYVENetwork/ksync/executors/blocksync/p2p"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/node"
-	"github.com/KYVENetwork/ksync/types"
+	"github.com/KYVENetwork/ksync/supervisor"
 	"github.com/KYVENetwork/ksync/utils"
-	"github.com/tendermint/tendermint/libs/json"
 	nm "github.com/tendermint/tendermint/node"
-	"os"
-	"os/exec"
-	"strconv"
-	"strings"
-	"syscall"
 	"time"
 )
 
 var (
 	logger = log.Logger("bootstrap")
 )
-
-func startBinaryProcess(binaryPath string, homePath string) int {
-	cmdPath, err := exec.LookPath(binaryPath)
-	if err != nil {
-		panic(fmt.Errorf("failed to lookup binary path: %w", err))
-	}
-
-	cmd := exec.Command(cmdPath, []string{
-		"start",
-		"--home",
-		homePath,
-		"--x-crisis-skip-assert-invariants",
-	}...)
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	err = cmd.Start()
-	if err != nil {
-		panic(fmt.Errorf("failed to start binary process: %w", err))
-	}
-
-	return cmd.Process.Pid
-}
-
-func getNodeHeight(homePath string) (height int64, err error) {
-	config, err := cfg.LoadConfig(homePath)
-	if err != nil {
-		panic(fmt.Errorf("failed to load config.toml: %w", err))
-	}
-
-	rpc := fmt.Sprintf("%s/abci_info", strings.Replace(config.RPC.ListenAddress, "tcp", "http", 1))
-
-	responseData, err := utils.DownloadFromUrl(rpc)
-	if err != nil {
-		return height, err
-	}
-
-	var response types.HeightResponse
-	if err := json.Unmarshal(responseData, &response); err != nil {
-		return height, err
-	}
-
-	if response.Result.Response.LastBlockHeight == "" {
-		return 0, nil
-	}
-
-	height, err = strconv.ParseInt(response.Result.Response.LastBlockHeight, 10, 64)
-	if err != nil {
-		return height, err
-	}
-
-	return
-}
 
 func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poolId int64) (err error) {
 	logger.Info().Msg("starting bootstrap")
@@ -113,12 +53,15 @@ func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poo
 	}
 
 	// start binary process thread
-	processId := startBinaryProcess(binaryPath, homePath)
+	processId, err := supervisor.StartBinaryProcessForP2P(binaryPath, homePath)
+	if err != nil {
+		return err
+	}
 
 	// wait until binary has properly started by testing if the /abci
 	// endpoint is up
 	for {
-		_, err := getNodeHeight(homePath)
+		_, err := helpers.GetNodeHeightFromRPC(homePath)
 		if err != nil {
 			logger.Info().Msg("Waiting for node to start...")
 			time.Sleep(5 * time.Second)
@@ -129,13 +72,13 @@ func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poo
 		break
 	}
 
-	// start p2p executor and try to execute the first block on the app
+	// start p2p executors and try to execute the first block on the app
 	sw := p2p.StartP2PExecutor(homePath, poolId, restEndpoint)
 
 	// wait until block was properly executed by testing if the /abci
 	// endpoint returns the correct block height
 	for {
-		height, err := getNodeHeight(homePath)
+		height, err := helpers.GetNodeHeightFromRPC(homePath)
 		if err != nil {
 			return err
 		}
@@ -150,22 +93,18 @@ func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poo
 		break
 	}
 
-	// exit binary process thread
-	process, err := os.FindProcess(processId)
-	if err != nil {
+	// stop process by sending signal SIGTERM
+	if err := supervisor.StopProcessByProcessId(processId); err != nil {
 		return err
 	}
 
-	if err = process.Signal(syscall.SIGTERM); err != nil {
-		return err
-	}
-
-	// stop switch from p2p executor
+	// stop switch from p2p executors
 	if err := sw.Stop(); err != nil {
 		return err
 	}
 
-	// TODO: how to check if node has properly exited?
+	// TODO: how to check if node has properly exited and that DBs
+	// are not locked anymore?
 	time.Sleep(10 * time.Second)
 
 	logger.Info().Msg("done")

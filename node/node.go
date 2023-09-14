@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	cfg "github.com/KYVENetwork/ksync/config"
-	"github.com/KYVENetwork/ksync/executor/db/store"
+	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/node/helpers"
 	"github.com/KYVENetwork/ksync/types"

@@ -3,9 +3,10 @@ package heightsync
 import (
 	"fmt"
 	cfg "github.com/KYVENetwork/ksync/config"
-	"github.com/KYVENetwork/ksync/executor/db"
+	"github.com/KYVENetwork/ksync/executors/blocksync/db"
+	db2 "github.com/KYVENetwork/ksync/executors/statesync/db"
 	log "github.com/KYVENetwork/ksync/logger"
-	"github.com/KYVENetwork/ksync/statesync"
+	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/utils"
 	"os"
 	"strconv"
@@ -65,7 +66,7 @@ func StartHeightSync(homeDir string, restEndpoint string, snapshotPoolId int64, 
 		panic(fmt.Errorf("failed to load config.toml: %w", err))
 	}
 
-	_, _, snapshotEndHeight := statesync.GetSnapshotBoundaries(restEndpoint, snapshotPoolId)
+	_, _, snapshotEndHeight := helpers.GetSnapshotBoundaries(restEndpoint, snapshotPoolId)
 
 	if targetHeight > snapshotEndHeight {
 		logger.Error().Msg(fmt.Sprintf("latest available snapshot height is %d", snapshotEndHeight))
@@ -96,7 +97,7 @@ func StartHeightSync(homeDir string, restEndpoint string, snapshotPoolId int64, 
 	if snapshotHeight > 0 {
 		logger.Info().Msg(fmt.Sprintf("found snapshot with height %d in bundle with id %d", snapshotHeight, bundleId))
 
-		if err := statesync.ApplyStateSync(config, restEndpoint, snapshotPoolId, bundleId); err != nil {
+		if err := db2.StartStateSyncExecutor(config, restEndpoint, snapshotPoolId, bundleId); err != nil {
 			logger.Error().Msg(fmt.Sprintf("snapshot could not be applied: %s", err))
 		}
 

@@ -2,10 +2,10 @@ package db
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/collectors/blocks"
 	cfg "github.com/KYVENetwork/ksync/config"
-	"github.com/KYVENetwork/ksync/executor/db/collector"
-	"github.com/KYVENetwork/ksync/executor/db/helpers"
-	"github.com/KYVENetwork/ksync/executor/db/store"
+	"github.com/KYVENetwork/ksync/executors/blocksync/db/helpers"
+	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/pool"
 	"github.com/KYVENetwork/ksync/server"
@@ -142,7 +142,7 @@ func StartDBExecutor(homePath, restEndpoint string, poolId, targetHeight int64, 
 	}
 
 	// start block collector
-	go collector.StartBlockCollector(blockCh, restEndpoint, poolResponse, continuationHeight, endHeight)
+	go blocks.StartBlockStreamCollector(blockCh, restEndpoint, poolResponse, continuationHeight, endHeight)
 
 	logger.Info().Msg(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
 

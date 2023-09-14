@@ -3,9 +3,9 @@ package p2p
 import (
 	"fmt"
 	cfg "github.com/KYVENetwork/ksync/config"
-	"github.com/KYVENetwork/ksync/executor/db"
-	p2pHelpers "github.com/KYVENetwork/ksync/executor/p2p/helpers"
-	"github.com/KYVENetwork/ksync/executor/p2p/reactor"
+	"github.com/KYVENetwork/ksync/executors/blocksync/db"
+	p2pHelpers "github.com/KYVENetwork/ksync/executors/blocksync/p2p/helpers"
+	"github.com/KYVENetwork/ksync/executors/blocksync/p2p/reactor"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"

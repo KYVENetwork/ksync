@@ -3,11 +3,10 @@ package commands
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/statesync"
+	"github.com/KYVENetwork/ksync/supervisor"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"os"
-	"strings"
-	"syscall"
 )
 
 var (
@@ -46,35 +45,23 @@ var stateSyncCmd = &cobra.Command{
 	Use:   "state-sync",
 	Short: "Apply a state-sync snapshot",
 	Run: func(cmd *cobra.Command, args []string) {
-		// if no custom rest endpoint was given we take it from the chainId
-		if restEndpoint == "" {
-			switch chainId {
-			case "kyve-1":
-				restEndpoint = utils.RestEndpointMainnet
-			case "kaon-1":
-				restEndpoint = utils.RestEndpointKaon
-			case "korellia":
-				restEndpoint = utils.RestEndpointKorellia
-			default:
-				panic("flag --chain-id has to be either \"kyve-1\", \"kaon-1\" or \"korellia\"")
-			}
-		}
-
-		// trim trailing slash
-		restEndpoint = strings.TrimSuffix(restEndpoint, "/")
+		restEndpoint = utils.GetRestEndpoint(chainId, restEndpoint)
 
 		// start binary process thread
-		processId := startBinaryProcess(binary, home)
-
-		statesync.StartStateSync(home, restEndpoint, poolId, snapshotHeight)
-
-		// exit binary process thread
-		process, err := os.FindProcess(processId)
+		processId, err := supervisor.StartBinaryProcessForDB(binary, home)
 		if err != nil {
 			panic(err)
 		}
 
-		if err = process.Signal(syscall.SIGTERM); err != nil {
+		if statesync.StartStateSync(home, restEndpoint, poolId, snapshotHeight) != nil {
+			if err := supervisor.StopProcessByProcessId(processId); err != nil {
+				panic(err)
+			}
+			os.Exit(1)
+		}
+
+		// stop binary process thread
+		if err := supervisor.StopProcessByProcessId(processId); err != nil {
 			panic(err)
 		}
 

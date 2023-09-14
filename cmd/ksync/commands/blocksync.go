@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/bootstrap"
-	"github.com/KYVENetwork/ksync/executor/db"
+	"github.com/KYVENetwork/ksync/executors/blocksync/db"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"os"

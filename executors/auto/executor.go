@@ -1,8 +1,8 @@
 package auto
 
 import (
-	"github.com/KYVENetwork/ksync/executor/db"
-	"github.com/KYVENetwork/ksync/executor/p2p"
+	"github.com/KYVENetwork/ksync/executors/blocksync/db"
+	"github.com/KYVENetwork/ksync/executors/blocksync/p2p"
 	"github.com/KYVENetwork/ksync/types"
 )
 
