@@ -31,7 +31,7 @@ func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poo
 	// if genesis file is smaller than 100MB we can skip further bootstrapping
 	if !gt100 {
 		logger.Info().Msg("KSYNC is successfully bootstrapped!")
-		return
+		//return
 	}
 
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
@@ -48,8 +48,12 @@ func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poo
 	// if the app already has mined at least one block we can skip further bootstrapping
 	if height > genDoc.InitialHeight {
 		logger.Info().Msg("KSYNC is successfully bootstrapped!")
-		return
+		//return
 	}
+
+	// if we reached this point we have to sync over p2p
+
+	logger.Info().Msg("successfully set p2p.pex = false and set p2p.allow_duplicate_ip = true")
 
 	// start binary process thread
 	processId, err := supervisor.StartBinaryProcessForP2P(binaryPath, homePath)

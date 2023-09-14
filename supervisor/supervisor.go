@@ -21,8 +21,8 @@ func StartBinaryProcessForDB(binaryPath string, homePath string) (processId int,
 	}...)
 
 	// TODO: make logs prettier
-	//cmd.Stdout = os.Stdout
-	//cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	err = cmd.Start()
 	if err != nil {
@@ -43,11 +43,18 @@ func StartBinaryProcessForP2P(binaryPath string, homePath string) (processId int
 		"start",
 		"--home",
 		homePath,
+		"--p2p.pex=false",
+		"--p2p.persistent_peers",
+		"",
+		"--p2p.private_peer_ids",
+		"",
+		"--p2p.unconditional_peer_ids",
+		"",
 	}...)
 
 	// TODO: make logs prettier
-	//cmd.Stdout = os.Stdout
-	//cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	err = cmd.Start()
 	if err != nil {

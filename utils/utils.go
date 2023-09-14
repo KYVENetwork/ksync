@@ -40,20 +40,20 @@ func GetRestEndpoint(chainId, customEndpoint string) (restEndpoint string) {
 }
 
 func GetFinalizedBundlesPage(restEndpoint string, poolId int64, paginationLimit int64, paginationKey string) ([]types.FinalizedBundle, string, error) {
-	//raw, err := DownloadFromUrl(fmt.Sprintf(
-	//	"%s/kyve/v1/bundles/%d?pagination.limit=%d&pagination.key=%s",
-	//	restEndpoint,
-	//	poolId,
-	//	paginationLimit,
-	//	paginationKey,
-	//))
 	raw, err := DownloadFromUrl(fmt.Sprintf(
-		"%s/kyve/query/v1beta1/finalized_bundles/%d?pagination.limit=%d&pagination.key=%s",
+		"%s/kyve/v1/bundles/%d?pagination.limit=%d&pagination.key=%s",
 		restEndpoint,
 		poolId,
 		paginationLimit,
 		paginationKey,
 	))
+	//raw, err := DownloadFromUrl(fmt.Sprintf(
+	//	"%s/kyve/query/v1beta1/finalized_bundles/%d?pagination.limit=%d&pagination.key=%s",
+	//	restEndpoint,
+	//	poolId,
+	//	paginationLimit,
+	//	paginationKey,
+	//))
 	if err != nil {
 		return nil, "", err
 	}
@@ -126,7 +126,7 @@ func DecompressBundleFromStorageProvider(bundle types.FinalizedBundle, data []by
 	//}
 
 	switch bundle.CompressionId {
-	case 1:
+	case "1":
 		return DecompressGzip(data)
 	default:
 		return nil, fmt.Errorf("bundle has an invalid compression id %s. canceling sync", bundle.CompressionId)
@@ -140,11 +140,11 @@ func RetrieveBundleFromStorageProvider(bundle types.FinalizedBundle) ([]byte, er
 	//}
 
 	switch bundle.StorageProviderId {
-	case 1:
+	case "1":
 		return DownloadFromUrl(fmt.Sprintf("https://arweave.net/%s", bundle.StorageId))
-	case 2:
+	case "2":
 		return DownloadFromUrl(fmt.Sprintf("https://arweave.net/%s", bundle.StorageId))
-	case 3:
+	case "3":
 		return DownloadFromUrl(fmt.Sprintf("https://storage.kyve.network/%s", bundle.StorageId))
 	default:
 		return nil, fmt.Errorf("bundle has an invalid storage provider id %s. canceling sync", bundle.StorageProviderId)
