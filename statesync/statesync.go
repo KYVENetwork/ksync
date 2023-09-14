@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	logger = log.Logger("state-sync")
+	logger = log.KsyncLogger("state-sync")
 )
 
 func runStateSync(homePath, restEndpoint string, poolId, snapshotHeight int64) error {

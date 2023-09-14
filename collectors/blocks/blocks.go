@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	logger = log.Logger("collector")
+	logger = log.KsyncLogger("collector")
 )
 
 func StartBlockStreamCollector(blockCh chan<- *types.Block, restEndpoint string, pool types.PoolResponse, continuationHeight, targetHeight int64) {

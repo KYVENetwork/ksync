@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	logger = log.Logger("block-sync")
+	logger = log.KsyncLogger("block-sync")
 )
 
 func StartBlockSync(binaryPath, homePath, restEndpoint string, poolId int64, targetHeight int64) {

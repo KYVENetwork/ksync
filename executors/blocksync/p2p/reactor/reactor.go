@@ -15,7 +15,7 @@ const (
 )
 
 var (
-	logger = log.Logger("reactor")
+	logger = log.KsyncLogger("reactor")
 )
 
 type BlockchainReactor struct {

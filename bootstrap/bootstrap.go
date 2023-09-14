@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	logger = log.Logger("bootstrap")
+	logger = log.KsyncLogger("bootstrap")
 )
 
 func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poolId int64) (err error) {

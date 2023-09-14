@@ -20,7 +20,7 @@ import (
 
 var (
 	kLogger = log.KLogger().With("module", "p2p")
-	logger  = log.Logger("p2p")
+	logger  = log.KsyncLogger("p2p")
 )
 
 func retrieveBlock(pool *types.PoolResponse, restEndpoint string, height int64) (*types.Block, error) {

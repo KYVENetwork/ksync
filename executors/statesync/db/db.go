@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	logger = log.Logger("state-sync")
+	logger = log.KsyncLogger("state-sync")
 )
 
 func StartStateSyncExecutor(config *tmCfg.Config, restEndpoint string, poolId int64, bundleId int64) error {

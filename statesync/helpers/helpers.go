@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	logger = log.Logger("state-sync")
+	logger = log.KsyncLogger("state-sync")
 )
 
 func GetSnapshotBoundaries(restEndpoint string, poolId int64) (types.PoolResponse, int64, int64) {

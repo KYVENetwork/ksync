@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	logger = log.Logger("pool")
+	logger = log.KsyncLogger("pool")
 )
 
 func GetPoolInfo(recursionDepth int, restEndpoint string, poolId int64) (*types.PoolResponse, error) {

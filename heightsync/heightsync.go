@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	logger = log.Logger("height-sync")
+	logger = log.KsyncLogger("height-sync")
 )
 
 func StartHeightSync(binaryPath, homePath, restEndpoint string, snapshotPoolId, blockPoolId, targetHeight int64) {

@@ -22,10 +22,11 @@ import (
 var (
 	blockCh = make(chan *types.Block, 1000)
 	kLogger = log.KLogger()
-	logger  = log.Logger("db")
+	logger  = log.KsyncLogger("db")
 )
 
 func GetBlockBoundaries(restEndpoint string, poolId int64) (types.PoolResponse, int64, int64) {
+
 	// load start and latest height
 	poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
 	if err != nil {
