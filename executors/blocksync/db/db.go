@@ -82,14 +82,18 @@ func StartDBExecutor(homePath, restEndpoint string, poolId, targetHeight int64, 
 		panic(fmt.Errorf("failed to load blockstore db: %w", err))
 	}
 
-	// get height at which ksync should continue block-syncing
-	continuationHeight := blockStore.Height() + 1
-
 	// load genesis file
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
 	state, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(stateDB, defaultDocProvider)
 	if err != nil {
 		panic(fmt.Errorf("failed to load state and genDoc: %w", err))
+	}
+
+	// get height at which ksync should continue block-syncing
+	continuationHeight := blockStore.Height() + 1
+
+	if continuationHeight < genDoc.InitialHeight {
+		continuationHeight = genDoc.InitialHeight
 	}
 
 	// check if we start syncing from genesis
