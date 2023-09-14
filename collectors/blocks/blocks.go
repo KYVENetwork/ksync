@@ -13,7 +13,7 @@ var (
 	logger = log.KsyncLogger("collector")
 )
 
-func StartBlockStreamCollector(blockCh chan<- *types.Block, restEndpoint string, pool types.PoolResponse, continuationHeight, targetHeight int64) {
+func StartBlockStreamCollector(blockCh chan<- *types.Block, restEndpoint string, pool types.PoolResponse, continuationHeight, targetHeight int64, exitOnTargetHeight bool) {
 	paginationKey := ""
 
 BundleCollector:
@@ -58,7 +58,7 @@ BundleCollector:
 					blockCh <- dataItem.Value.Block.Block
 
 					// exit if target height is reached
-					if targetHeight > 0 && dataItem.Value.Block.Block.Height == targetHeight+1 {
+					if exitOnTargetHeight && targetHeight > 0 && dataItem.Value.Block.Block.Height == targetHeight+1 {
 						break BundleCollector
 					}
 				}

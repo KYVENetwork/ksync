@@ -22,7 +22,7 @@ type ApiServer struct {
 	port       int64
 }
 
-func StartApiServer(config *config.Config, blockStore *store.BlockStore, stateStore state.Store, port int64) *ApiServer {
+func StartSnapshotApiServer(config *config.Config, blockStore *store.BlockStore, stateStore state.Store, port int64) *ApiServer {
 	apiServer := &ApiServer{
 		config:     config,
 		blockStore: blockStore,

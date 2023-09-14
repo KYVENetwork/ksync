@@ -1,4 +1,4 @@
-package blocksync
+package servesnapshots
 
 import (
 	"fmt"
@@ -10,11 +10,11 @@ import (
 )
 
 var (
-	logger = log.KsyncLogger("block-sync")
+	logger = log.KsyncLogger("serve-snapshots")
 )
 
-func StartBlockSync(binaryPath, homePath, restEndpoint string, poolId, targetHeight int64) {
-	logger.Info().Msg("starting block-sync")
+func StartServeSnapshots(binaryPath, homePath, restEndpoint string, poolId, port int64) {
+	logger.Info().Msg("starting serve-snapshots")
 
 	if err := bootstrap.StartBootstrap(binaryPath, homePath, restEndpoint, poolId); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
@@ -22,19 +22,12 @@ func StartBlockSync(binaryPath, homePath, restEndpoint string, poolId, targetHei
 	}
 
 	// start binary process thread
-	processId, err := supervisor.StartBinaryProcessForDB(binaryPath, homePath)
+	_, err := supervisor.StartBinaryProcessForDB(binaryPath, homePath)
 	if err != nil {
 		panic(err)
 	}
 
 	// db executes blocks against app until target height is reached
 	// TODO: instead of throwing panics return all errors here
-	db.StartDBExecutor(homePath, restEndpoint, poolId, targetHeight, false, 7878)
-
-	// stop binary process thread
-	if err := supervisor.StopProcessByProcessId(processId); err != nil {
-		panic(err)
-	}
-
-	logger.Info().Msg("successfully finished block-sync")
+	db.StartDBExecutor(homePath, restEndpoint, poolId, 0, true, port)
 }
