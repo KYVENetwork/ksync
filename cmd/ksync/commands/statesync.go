@@ -27,9 +27,9 @@ func init() {
 		panic(fmt.Errorf("flag 'pool-id' should be required: %w", err))
 	}
 
-	stateSyncCmd.Flags().Int64Var(&snapshotHeight, "snapshot-height", 0, "snapshot height")
-	if err := stateSyncCmd.MarkFlagRequired("snapshot-height"); err != nil {
-		panic(fmt.Errorf("flag 'snapshot-height' should be required: %w", err))
+	stateSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target height")
+	if err := stateSyncCmd.MarkFlagRequired("target-height"); err != nil {
+		panic(fmt.Errorf("flag 'target-height' should be required: %w", err))
 	}
 
 	rootCmd.AddCommand(stateSyncCmd)
@@ -40,6 +40,6 @@ var stateSyncCmd = &cobra.Command{
 	Short: "Apply a state-sync snapshot",
 	Run: func(cmd *cobra.Command, args []string) {
 		restEndpoint = utils.GetRestEndpoint(chainId, restEndpoint)
-		statesync.StartStateSync(binaryPath, homePath, restEndpoint, poolId, snapshotHeight)
+		statesync.StartStateSync(binaryPath, homePath, restEndpoint, poolId, targetHeight)
 	},
 }

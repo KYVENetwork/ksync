@@ -204,22 +204,22 @@ func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight in
 		// not be properly written to disk.
 		if snapshotInterval > 0 && prevBlock.Height%snapshotInterval == 0 {
 			for {
-				logger.Info().Msg(fmt.Sprintf("Waiting until snapshot at height %d is created by app", prevBlock.Height))
+				logger.Info().Msg(fmt.Sprintf("waiting until snapshot at height %d is created by app", prevBlock.Height))
 
 				found, err := helpers.IsSnapshotAvailableAtHeight(config, prevBlock.Height)
 				if err != nil {
-					logger.Error().Msg(fmt.Sprintf("Check snapshot availability failed at height %d", prevBlock.Height))
+					logger.Error().Msg(fmt.Sprintf("check snapshot availability failed at height %d", prevBlock.Height))
 					time.Sleep(10 * time.Second)
 					continue
 				}
 
 				if !found {
-					logger.Info().Msg(fmt.Sprintf("Snapshot at height %d was not created yet. Waiting ...", prevBlock.Height))
+					logger.Info().Msg(fmt.Sprintf("snapshot at height %d was not created yet. Waiting ...", prevBlock.Height))
 					time.Sleep(10 * time.Second)
 					continue
 				}
 
-				logger.Info().Msg(fmt.Sprintf("Snapshot at height %d was created. Continuing ...", prevBlock.Height))
+				logger.Info().Msg(fmt.Sprintf("snapshot at height %d was created. Continuing ...", prevBlock.Height))
 				break
 			}
 		}
@@ -239,11 +239,12 @@ func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight in
 				}
 
 				// if we are in that range we wait until the snapshot pool moved on
-				if prevBlock.Height > snapshotHeight+(3*snapshotInterval) {
-					time.Sleep(30 * time.Second)
+				if block.Height > snapshotHeight+(3*snapshotInterval) {
+					logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to catch up ...")
+					time.Sleep(10 * time.Second)
 					continue
 				}
-
+				
 				break
 			}
 		}

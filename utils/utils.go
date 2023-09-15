@@ -211,6 +211,11 @@ func IsFileGreaterThanOrEqualTo100MB(filePath string) (bool, error) {
 }
 
 func ParseSnapshotFromKey(key string) (height int64, chunkIndex int64, err error) {
+	// if key is empty we are at height 0
+	if key == "" {
+		return
+	}
+
 	s := strings.Split(key, "/")
 
 	if len(s) != 2 {

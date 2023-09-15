@@ -9,6 +9,7 @@ import (
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"os"
+	"time"
 )
 
 var (
@@ -54,6 +55,9 @@ func StartHeightSync(binaryPath, homePath, restEndpoint string, snapshotPoolId, 
 	}
 
 	if remaining := targetHeight - continuationHeight; remaining > 0 {
+		// wait after state-sync to give binary process some time to properly exit
+		time.Sleep(10 * time.Second)
+
 		logger.Info().Msg(fmt.Sprintf("block-syncing remaining %d blocks", remaining))
 		blocksync.StartBlockSync(binaryPath, homePath, restEndpoint, blockPoolId, targetHeight, false, 0)
 	}
