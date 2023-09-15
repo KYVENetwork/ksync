@@ -53,27 +53,26 @@ func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poo
 
 	// if we reached this point we have to sync over p2p
 
-	logger.Info().Msg("successfully set p2p.pex = false and set p2p.allow_duplicate_ip = true")
-
 	// start binary process thread
 	processId, err := supervisor.StartBinaryProcessForP2P(binaryPath, homePath)
 	if err != nil {
 		return err
 	}
 
+	logger.Info().Msg("Bootstrapping node. Depending on the size of the genesis file, this step can take several minutes")
+
 	// wait until binary has properly started by testing if the /abci
 	// endpoint is up
 	for {
 		_, err := helpers.GetNodeHeightFromRPC(homePath)
 		if err != nil {
-			logger.Info().Msg("Waiting for node to start...")
 			time.Sleep(5 * time.Second)
 			continue
 		}
-
-		logger.Info().Msg("Node started. Beginning with p2p sync")
 		break
 	}
+
+	logger.Info().Msg("Loaded genesis file and completed ABCI handshake between app and tendermint")
 
 	// start p2p executors and try to execute the first block on the app
 	sw := p2p.StartP2PExecutor(homePath, poolId, restEndpoint)
@@ -87,14 +86,14 @@ func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poo
 		}
 
 		if height != genDoc.InitialHeight {
-			logger.Info().Msg("Waiting for node to mine block...")
 			time.Sleep(5 * time.Second)
 			continue
 		}
 
-		logger.Info().Msg("Node mined block. Shutting down")
 		break
 	}
+
+	logger.Info().Msg("Node was bootstrapped. Cleaning up")
 
 	// stop process by sending signal SIGTERM
 	if err := supervisor.StopProcessByProcessId(processId); err != nil {
@@ -106,10 +105,9 @@ func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poo
 		return err
 	}
 
-	// TODO: how to check if node has properly exited and that DBs
-	// are not locked anymore?
+	// wait until process has properly shut down
 	time.Sleep(10 * time.Second)
 
-	logger.Info().Msg("done")
+	logger.Info().Msg("Successfully bootstrapped node. Continuing with syncing blocks over DB")
 	return
 }
