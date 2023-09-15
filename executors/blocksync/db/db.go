@@ -224,7 +224,7 @@ func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight in
 			}
 		}
 
-		// if KSYNC has already fetched 3 * snapshot_interval ahead of the snapshot pool we wait
+		// if KSYNC has already fetched 2 * snapshot_interval ahead of the snapshot pool we wait
 		// in order to not bloat the KSYNC process
 		if snapshotInterval > 0 {
 			for {
@@ -239,13 +239,25 @@ func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight in
 				}
 
 				// if we are in that range we wait until the snapshot pool moved on
-				if block.Height > snapshotHeight+(3*snapshotInterval) {
+				if block.Height > snapshotHeight+(2*snapshotInterval) {
 					logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to catch up ...")
 					time.Sleep(10 * time.Second)
 					continue
 				}
-				
+
 				break
+			}
+		}
+
+		if snapshotInterval > 0 {
+			height := blockStore.Height() - 100
+
+			if height < blockStore.Base() {
+				height = blockStore.Base()
+			}
+
+			if _, err := blockStore.PruneBlocks(height); err != nil {
+				logger.Error().Msg(fmt.Sprintf("failed to prune blocks from height %d to %d: %s", height, blockStore.Height(), err))
 			}
 		}
 

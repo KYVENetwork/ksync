@@ -80,7 +80,7 @@ func StartBinaryProcessForSnapshotServe(binaryPath string, homePath string, snap
 		"--state-sync.snapshot-interval",
 		strconv.FormatInt(snapshotInterval, 10),
 		"--state-sync.snapshot-keep-recent",
-		"0",
+		"5",
 	}...)
 
 	// TODO: make logs prettier
