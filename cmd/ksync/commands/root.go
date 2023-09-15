@@ -6,18 +6,19 @@ import (
 )
 
 var (
-	binaryPath     string
-	homePath       string
-	chainId        string
-	restEndpoint   string
-	poolId         int64
-	snapshotPoolId int64
-	blockPoolId    int64
-	targetHeight   int64
-	snapshotHeight int64
-	metrics        bool
-	metricsPort    int64
-	snapshotPort   int64
+	binaryPath       string
+	homePath         string
+	chainId          string
+	restEndpoint     string
+	poolId           int64
+	snapshotPoolId   int64
+	blockPoolId      int64
+	targetHeight     int64
+	snapshotHeight   int64
+	metrics          bool
+	metricsPort      int64
+	snapshotPort     int64
+	snapshotInterval int64
 )
 
 // RootCmd is the root command for KSYNC.

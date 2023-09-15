@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"syscall"
 )
 
@@ -50,6 +51,36 @@ func StartBinaryProcessForP2P(binaryPath string, homePath string) (processId int
 		"",
 		"--p2p.unconditional_peer_ids",
 		"",
+	}...)
+
+	// TODO: make logs prettier
+	//cmd.Stdout = os.Stdout
+	//cmd.Stderr = os.Stderr
+
+	err = cmd.Start()
+	if err != nil {
+		return processId, fmt.Errorf("failed to start binary process: %w", err)
+	}
+
+	processId = cmd.Process.Pid
+	return
+}
+
+func StartBinaryProcessForSnapshotServe(binaryPath string, homePath string, snapshotInterval int64) (processId int, err error) {
+	cmdPath, err := exec.LookPath(binaryPath)
+	if err != nil {
+		return processId, fmt.Errorf("failed to lookup binary path: %w", err)
+	}
+
+	cmd := exec.Command(cmdPath, []string{
+		"start",
+		"--home",
+		homePath,
+		"--with-tendermint=false",
+		"--state-sync.snapshot-interval",
+		strconv.FormatInt(snapshotInterval, 10),
+		"--state-sync.snapshot-keep-recent",
+		"0",
 	}...)
 
 	// TODO: make logs prettier

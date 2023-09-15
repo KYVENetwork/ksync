@@ -27,6 +27,11 @@ func init() {
 		panic(fmt.Errorf("flag 'pool-id' should be required: %w", err))
 	}
 
+	serveCmd.Flags().Int64Var(&snapshotInterval, "snapshot-interval", 0, "The interval at which snapshots should be created")
+	if err := serveCmd.MarkFlagRequired("snapshot-interval"); err != nil {
+		panic(fmt.Errorf("flag 'snapshot-interval' should be required: %w", err))
+	}
+
 	serveCmd.Flags().Int64Var(&snapshotPort, "port", 7878, "port [default = 7878]")
 
 	rootCmd.AddCommand(serveCmd)
@@ -37,6 +42,6 @@ var serveCmd = &cobra.Command{
 	Short: "Serve snapshots for running KYVE state-sync pools",
 	Run: func(cmd *cobra.Command, args []string) {
 		restEndpoint = utils.GetRestEndpoint(chainId, restEndpoint)
-		servesnapshots.StartServeSnapshots(binaryPath, homePath, restEndpoint, poolId, snapshotPort)
+		servesnapshots.StartServeSnapshots(binaryPath, homePath, restEndpoint, poolId, snapshotInterval, snapshotPort)
 	},
 }

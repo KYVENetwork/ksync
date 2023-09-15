@@ -31,7 +31,7 @@ func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poo
 	// if genesis file is smaller than 100MB we can skip further bootstrapping
 	if !gt100 {
 		logger.Info().Msg("KSYNC is successfully bootstrapped!")
-		//return
+		return
 	}
 
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
@@ -48,7 +48,7 @@ func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poo
 	// if the app already has mined at least one block we can skip further bootstrapping
 	if height > genDoc.InitialHeight {
 		logger.Info().Msg("KSYNC is successfully bootstrapped!")
-		//return
+		return
 	}
 
 	// if we reached this point we have to sync over p2p
@@ -59,7 +59,7 @@ func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poo
 		return err
 	}
 
-	logger.Info().Msg("Bootstrapping node. Depending on the size of the genesis file, this step can take several minutes")
+	logger.Info().Msg("bootstrapping node. Depending on the size of the genesis file, this step can take several minutes")
 
 	// wait until binary has properly started by testing if the /abci
 	// endpoint is up
@@ -72,7 +72,7 @@ func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poo
 		break
 	}
 
-	logger.Info().Msg("Loaded genesis file and completed ABCI handshake between app and tendermint")
+	logger.Info().Msg("loaded genesis file and completed ABCI handshake between app and tendermint")
 
 	// start p2p executors and try to execute the first block on the app
 	sw := p2p.StartP2PExecutor(homePath, poolId, restEndpoint)
@@ -93,7 +93,7 @@ func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poo
 		break
 	}
 
-	logger.Info().Msg("Node was bootstrapped. Cleaning up")
+	logger.Info().Msg("node was bootstrapped. Cleaning up")
 
 	// stop process by sending signal SIGTERM
 	if err := supervisor.StopProcessByProcessId(processId); err != nil {
@@ -108,6 +108,6 @@ func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poo
 	// wait until process has properly shut down
 	time.Sleep(10 * time.Second)
 
-	logger.Info().Msg("Successfully bootstrapped node. Continuing with syncing blocks over DB")
+	logger.Info().Msg("successfully bootstrapped node. Continuing with syncing blocks over DB")
 	return
 }

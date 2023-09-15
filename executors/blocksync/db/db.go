@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	blockCh = make(chan *types.Block, 1000)
+	blockCh = make(chan *types.Block, 300)
 	kLogger = log.KLogger()
 	logger  = log.KsyncLogger("db")
 )
@@ -53,17 +53,11 @@ func GetBlockBoundaries(restEndpoint string, poolId int64) (types.PoolResponse, 
 	return *poolResponse, startHeight, endHeight
 }
 
-func StartDBExecutor(homePath, restEndpoint string, poolId, targetHeight int64, metricsServer bool, metricsPort int64, snapshotServer bool, snapshotPort int64) {
+func StartDBExecutor(homePath, restEndpoint string, poolId, targetHeight int64, metricsServer bool, metricsPort int64, snapshotServer bool, snapshotPort, snapshotInterval int64) {
 	// load tendermint config
 	config, err := cfg.LoadConfig(homePath)
 	if err != nil {
 		panic(fmt.Errorf("failed to load config.toml: %w", err))
-	}
-
-	// load application config
-	app, err := cfg.LoadApp(homePath)
-	if err != nil {
-		panic(fmt.Errorf("failed to load app.toml: %w", err))
 	}
 
 	// load state store
@@ -135,12 +129,6 @@ func StartDBExecutor(homePath, restEndpoint string, poolId, targetHeight int64, 
 		os.Exit(1)
 	}
 
-	// if target height was set and is smaller than latest height this will be our new target height
-	// we add +1 to make target height including
-	if targetHeight > 0 && targetHeight+1 < endHeight {
-		endHeight = targetHeight + 1
-	}
-
 	// start metrics api server which serves an api endpoint sync metrics
 	if metricsServer {
 		go server.StartMetricsApiServer(blockStore, metricsPort)
@@ -152,7 +140,7 @@ func StartDBExecutor(homePath, restEndpoint string, poolId, targetHeight int64, 
 	}
 
 	// start block collector
-	go blocks.StartBlockStreamCollector(blockCh, restEndpoint, poolResponse, continuationHeight, endHeight, !snapshotServer)
+	go blocks.StartContinuousBlockCollector(blockCh, restEndpoint, poolResponse, continuationHeight, targetHeight)
 
 	logger.Info().Msg(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
 
@@ -224,7 +212,7 @@ func StartDBExecutor(homePath, restEndpoint string, poolId, targetHeight int64, 
 			panic(fmt.Errorf("failed to apply block: %w", err))
 		}
 
-		if block.Height == endHeight {
+		if targetHeight > 0 && block.Height == targetHeight+1 {
 			break
 		} else {
 			prevBlock = block
@@ -233,7 +221,7 @@ func StartDBExecutor(homePath, restEndpoint string, poolId, targetHeight int64, 
 		// if we have reached a height where a snapshot should be created by the app
 		// we wait until it is created, else if KSYNC moves to fast the snapshot can
 		// not be properly created.
-		if snapshotServer && app.StateSync.SnapshotInterval > 0 && (block.Height-1)%app.StateSync.SnapshotInterval == 0 {
+		if snapshotServer && (block.Height-1)%snapshotInterval == 0 {
 			for {
 				logger.Info().Msg(fmt.Sprintf("Waiting until snapshot at height %d is created by app", block.Height-1))
 
@@ -256,5 +244,5 @@ func StartDBExecutor(homePath, restEndpoint string, poolId, targetHeight int64, 
 		}
 	}
 
-	logger.Info().Msg(fmt.Sprintf("synced from height %d to target height %d", continuationHeight, endHeight-1))
+	logger.Info().Msg(fmt.Sprintf("synced from height %d to target height %d", continuationHeight, targetHeight))
 }

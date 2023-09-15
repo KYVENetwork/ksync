@@ -29,7 +29,7 @@ func StartBlockSync(binaryPath, homePath, restEndpoint string, poolId, targetHei
 
 	// db executes blocks against app until target height is reached
 	// TODO: instead of throwing panics return all errors here
-	db.StartDBExecutor(homePath, restEndpoint, poolId, targetHeight, metrics, port, false, 7878)
+	db.StartDBExecutor(homePath, restEndpoint, poolId, targetHeight, metrics, port, false, 7878, 0)
 
 	// stop binary process thread
 	if err := supervisor.StopProcessByProcessId(processId); err != nil {
