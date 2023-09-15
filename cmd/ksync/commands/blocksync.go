@@ -28,8 +28,9 @@ func init() {
 	}
 
 	blockSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target height (including)")
+
 	blockSyncCmd.Flags().BoolVar(&metrics, "metrics", false, "metrics server exposing sync status")
-	blockSyncCmd.Flags().Int64Var(&metricsPort, "port", 8080, "port for metrics server [default = 7878]")
+	blockSyncCmd.Flags().Int64Var(&metricsPort, "metrics-port", utils.DefaultMetricsServerPort, fmt.Sprintf("port for metrics server [default = %d]", utils.DefaultMetricsServerPort))
 
 	rootCmd.AddCommand(blockSyncCmd)
 }

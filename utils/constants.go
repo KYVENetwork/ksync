@@ -1,10 +1,11 @@
 package utils
 
 const (
-	ABCIEndpoint                = "http://127.0.0.1:26657/abci_info?"
 	BundlesPageLimit            = 100
-	DefaultMode                 = "auto"
+	BlockBuffer                 = 300
 	DefaultChainId              = "kyve-1"
+	DefaultMetricsServerPort    = 8080
+	DefaultSnapshotServerPort   = 7878
 	KSyncRuntimeTendermint      = "@kyvejs/tendermint"
 	KSyncRuntimeTendermintBsync = "@kyvejs/tendermint-bsync"
 	KSyncRuntimeTendermintSsync = "@kyvejs/tendermint-ssync"

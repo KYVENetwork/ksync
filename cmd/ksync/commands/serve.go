@@ -22,9 +22,14 @@ func init() {
 
 	serveCmd.Flags().StringVar(&restEndpoint, "rest-endpoint", "", "Overwrite default rest endpoint from chain")
 
-	serveCmd.Flags().Int64Var(&poolId, "pool-id", 0, "pool id")
-	if err := serveCmd.MarkFlagRequired("pool-id"); err != nil {
-		panic(fmt.Errorf("flag 'pool-id' should be required: %w", err))
+	serveCmd.Flags().Int64Var(&blockPoolId, "block-pool-id", 0, "pool id of the block-sync pool")
+	if err := serveCmd.MarkFlagRequired("block-pool-id"); err != nil {
+		panic(fmt.Errorf("flag 'block-pool-id' should be required: %w", err))
+	}
+
+	serveCmd.Flags().Int64Var(&snapshotPoolId, "snapshot-pool-id", 0, "pool id of the state-sync pool")
+	if err := serveCmd.MarkFlagRequired("snapshot-pool-id"); err != nil {
+		panic(fmt.Errorf("flag 'snapshot-pool-id' should be required: %w", err))
 	}
 
 	serveCmd.Flags().Int64Var(&snapshotInterval, "snapshot-interval", 0, "The interval at which snapshots should be created")
@@ -32,7 +37,10 @@ func init() {
 		panic(fmt.Errorf("flag 'snapshot-interval' should be required: %w", err))
 	}
 
-	serveCmd.Flags().Int64Var(&snapshotPort, "port", 7878, "port [default = 7878]")
+	serveCmd.Flags().Int64Var(&snapshotPort, "snapshot-port", utils.DefaultSnapshotServerPort, fmt.Sprintf("port for snapshot server [default = %d]", utils.DefaultSnapshotServerPort))
+
+	serveCmd.Flags().BoolVar(&metrics, "metrics", false, "metrics server exposing sync status")
+	serveCmd.Flags().Int64Var(&metricsPort, "metrics-port", utils.DefaultMetricsServerPort, fmt.Sprintf("port for metrics server [default = %d]", utils.DefaultMetricsServerPort))
 
 	rootCmd.AddCommand(serveCmd)
 }
@@ -42,6 +50,6 @@ var serveCmd = &cobra.Command{
 	Short: "Serve snapshots for running KYVE state-sync pools",
 	Run: func(cmd *cobra.Command, args []string) {
 		restEndpoint = utils.GetRestEndpoint(chainId, restEndpoint)
-		servesnapshots.StartServeSnapshots(binaryPath, homePath, restEndpoint, poolId, snapshotInterval, snapshotPort)
+		servesnapshots.StartServeSnapshots(binaryPath, homePath, restEndpoint, blockPoolId, metrics, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort)
 	},
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/KYVENetwork/ksync/executors/blocksync/db"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/supervisor"
+	"github.com/KYVENetwork/ksync/utils"
 	"os"
 )
 
@@ -29,7 +30,7 @@ func StartBlockSync(binaryPath, homePath, restEndpoint string, poolId, targetHei
 
 	// db executes blocks against app until target height is reached
 	// TODO: instead of throwing panics return all errors here
-	db.StartDBExecutor(homePath, restEndpoint, poolId, targetHeight, metrics, port, false, 7878, 0)
+	db.StartDBExecutor(homePath, restEndpoint, poolId, targetHeight, metrics, port, 0, 0, utils.DefaultSnapshotServerPort)
 
 	// stop binary process thread
 	if err := supervisor.StopProcessByProcessId(processId); err != nil {

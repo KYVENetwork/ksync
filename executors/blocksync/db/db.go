@@ -20,13 +20,12 @@ import (
 )
 
 var (
-	blockCh = make(chan *types.Block, 300)
+	blockCh = make(chan *types.Block, utils.BlockBuffer)
 	kLogger = log.KLogger()
 	logger  = log.KsyncLogger("db")
 )
 
 func GetBlockBoundaries(restEndpoint string, poolId int64) (types.PoolResponse, int64, int64) {
-
 	// load start and latest height
 	poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
 	if err != nil {
@@ -53,7 +52,7 @@ func GetBlockBoundaries(restEndpoint string, poolId int64) (types.PoolResponse, 
 	return *poolResponse, startHeight, endHeight
 }
 
-func StartDBExecutor(homePath, restEndpoint string, poolId, targetHeight int64, metricsServer bool, metricsPort int64, snapshotServer bool, snapshotPort, snapshotInterval int64) {
+func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort int64, snapshotPoolId, snapshotInterval, snapshotPort int64) {
 	// load tendermint config
 	config, err := cfg.LoadConfig(homePath)
 	if err != nil {
@@ -90,24 +89,8 @@ func StartDBExecutor(homePath, restEndpoint string, poolId, targetHeight int64, 
 		continuationHeight = genDoc.InitialHeight
 	}
 
-	// check if we start syncing from genesis
-	if genDoc.InitialHeight == continuationHeight {
-		// exit if the genesis file is bigger than 100MB since TSP only supports messages up
-		// to that size. in this case we have to apply the first block over P2P
-		gt100, err := utils.IsFileGreaterThanOrEqualTo100MB(config.GenesisFile())
-		if err != nil {
-			logger.Error().Msg("could not get genesis file size")
-			os.Exit(1)
-		}
-
-		if gt100 {
-			logger.Error().Msg("genesis file is bigger than 100MB which exceeds the socket message limit. Please start ksync with --daemon-path to run the process internally")
-			os.Exit(1)
-		}
-	}
-
 	// perform boundary checks
-	poolResponse, startHeight, endHeight := GetBlockBoundaries(restEndpoint, poolId)
+	poolResponse, startHeight, endHeight := GetBlockBoundaries(restEndpoint, blockPoolId)
 
 	if continuationHeight < startHeight {
 		logger.Error().Msg(fmt.Sprintf("app is currently at height %d but first available block on pool is %d", continuationHeight, startHeight))
@@ -135,12 +118,16 @@ func StartDBExecutor(homePath, restEndpoint string, poolId, targetHeight int64, 
 	}
 
 	// start api server which serves an api endpoint for querying snapshots
-	if snapshotServer {
+	if snapshotInterval > 0 {
 		go server.StartSnapshotApiServer(config, blockStore, stateStore, snapshotPort)
 	}
 
 	// start block collector
-	go blocks.StartContinuousBlockCollector(blockCh, restEndpoint, poolResponse, continuationHeight, targetHeight)
+	if snapshotInterval > 0 {
+		go blocks.StartIncrementalBlockCollector(blockCh, restEndpoint, poolResponse, continuationHeight)
+	} else {
+		go blocks.StartContinuousBlockCollector(blockCh, restEndpoint, poolResponse, continuationHeight, targetHeight)
+	}
 
 	logger.Info().Msg(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
 
@@ -212,35 +199,60 @@ func StartDBExecutor(homePath, restEndpoint string, poolId, targetHeight int64, 
 			panic(fmt.Errorf("failed to apply block: %w", err))
 		}
 
-		if targetHeight > 0 && block.Height == targetHeight+1 {
-			break
-		} else {
-			prevBlock = block
-		}
-
 		// if we have reached a height where a snapshot should be created by the app
 		// we wait until it is created, else if KSYNC moves to fast the snapshot can
-		// not be properly created.
-		if snapshotServer && (block.Height-1)%snapshotInterval == 0 {
+		// not be properly written to disk.
+		if snapshotInterval > 0 && prevBlock.Height%snapshotInterval == 0 {
 			for {
-				logger.Info().Msg(fmt.Sprintf("Waiting until snapshot at height %d is created by app", block.Height-1))
+				logger.Info().Msg(fmt.Sprintf("Waiting until snapshot at height %d is created by app", prevBlock.Height))
 
-				found, err := helpers.IsSnapshotAvailableAtHeight(config, block.Height-1)
+				found, err := helpers.IsSnapshotAvailableAtHeight(config, prevBlock.Height)
 				if err != nil {
-					logger.Error().Msg(fmt.Sprintf("Check snapshot availability failed at height %d", block.Height-1))
+					logger.Error().Msg(fmt.Sprintf("Check snapshot availability failed at height %d", prevBlock.Height))
 					time.Sleep(10 * time.Second)
 					continue
 				}
 
 				if !found {
-					logger.Info().Msg(fmt.Sprintf("Snapshot at height %d was not created yet. Waiting ...", block.Height-1))
+					logger.Info().Msg(fmt.Sprintf("Snapshot at height %d was not created yet. Waiting ...", prevBlock.Height))
 					time.Sleep(10 * time.Second)
 					continue
 				}
 
-				logger.Info().Msg(fmt.Sprintf("Snapshot at height %d was created. Continuing ...", block.Height-1))
+				logger.Info().Msg(fmt.Sprintf("Snapshot at height %d was created. Continuing ...", prevBlock.Height))
 				break
 			}
+		}
+
+		// if KSYNC has already fetched 3 * snapshot_interval ahead of the snapshot pool we wait
+		// in order to not bloat the KSYNC process
+		if snapshotInterval > 0 {
+			for {
+				snapshotPool, err := pool.GetPoolInfo(0, restEndpoint, snapshotPoolId)
+				if err != nil {
+					panic(fmt.Errorf("could not get snapshot pool: %w", err))
+				}
+
+				snapshotHeight, _, err := utils.ParseSnapshotFromKey(snapshotPool.Pool.Data.CurrentKey)
+				if err != nil {
+					panic(fmt.Errorf("could not parse snapshot height from current key: %w", err))
+				}
+
+				// if we are in that range we wait until the snapshot pool moved on
+				if prevBlock.Height > snapshotHeight+(3*snapshotInterval) {
+					time.Sleep(30 * time.Second)
+					continue
+				}
+
+				break
+			}
+		}
+
+		// stop with block execution if we have reached our target height
+		if targetHeight > 0 && block.Height == targetHeight+1 {
+			break
+		} else {
+			prevBlock = block
 		}
 	}
 
