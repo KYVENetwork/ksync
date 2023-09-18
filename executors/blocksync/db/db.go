@@ -9,6 +9,7 @@ import (
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/pool"
 	"github.com/KYVENetwork/ksync/server"
+	stateSyncHelpers "github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	nm "github.com/tendermint/tendermint/node"
@@ -167,6 +168,8 @@ func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight in
 
 	var prevBlock *types.Block
 
+	snapshotPoolHeight := stateSyncHelpers.GetSnapshotPoolHeight(restEndpoint, snapshotPoolId)
+
 	for {
 		block := <-blockCh
 
@@ -223,28 +226,21 @@ func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight in
 				break
 			}
 
-			// if KSYNC has already fetched 2 * snapshot_interval ahead of the snapshot pool we wait
-			// in order to not bloat the KSYNC process
-			for {
-				snapshotPool, err := pool.GetPoolInfo(0, restEndpoint, snapshotPoolId)
-				if err != nil {
-					panic(fmt.Errorf("could not get snapshot pool: %w", err))
-				}
+			// refresh snapshot pool height here, because we don't want to fetch this on every block
+			snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(restEndpoint, snapshotPoolId)
+		}
 
-				snapshotHeight, _, err := utils.ParseSnapshotFromKey(snapshotPool.Pool.Data.CurrentKey)
-				if err != nil {
-					panic(fmt.Errorf("could not parse snapshot height from current key: %w", err))
-				}
-
-				// if we are in that range we wait until the snapshot pool moved on
-				if block.Height > snapshotHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
-					logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to catch up ...")
-					time.Sleep(10 * time.Second)
-					continue
-				}
-
-				break
+		// if KSYNC has already fetched 2 * snapshot_interval ahead of the snapshot pool we wait
+		// in order to not bloat the KSYNC process
+		if snapshotInterval > 0 {
+			// if we are in that range we wait until the snapshot pool moved on
+			if block.Height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
+				logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to catch up ...")
+				time.Sleep(10 * time.Second)
+				continue
 			}
+
+			break
 		}
 
 		if pruning && prevBlock.Height%utils.PruningInterval == 0 {

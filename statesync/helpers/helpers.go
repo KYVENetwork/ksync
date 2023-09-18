@@ -13,6 +13,20 @@ var (
 	logger = log.KsyncLogger("state-sync")
 )
 
+func GetSnapshotPoolHeight(restEndpoint string, poolId int64) int64 {
+	snapshotPool, err := pool.GetPoolInfo(0, restEndpoint, poolId)
+	if err != nil {
+		panic(fmt.Errorf("could not get snapshot pool: %w", err))
+	}
+
+	snapshotHeight, _, err := utils.ParseSnapshotFromKey(snapshotPool.Pool.Data.CurrentKey)
+	if err != nil {
+		panic(fmt.Errorf("could not parse snapshot height from current key: %w", err))
+	}
+
+	return snapshotHeight
+}
+
 func GetSnapshotBoundaries(restEndpoint string, poolId int64) (types.PoolResponse, int64, int64) {
 	// load start and latest height
 	poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
