@@ -173,10 +173,13 @@ func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight in
 	// if KSYNC has already fetched 2 * snapshot_interval ahead of the snapshot pool we wait
 	// in order to not bloat the KSYNC process
 	if snapshotInterval > 0 {
+		if continuationHeight > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
+			logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to produce new bundles")
+		}
+
 		for {
 			// if we are in that range we wait until the snapshot pool moved on
 			if continuationHeight > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
-				logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to catch up ...")
 				time.Sleep(10 * time.Second)
 
 				// refresh snapshot pool height
@@ -264,7 +267,9 @@ func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight in
 
 			base := height - int64(blocksPruned)
 
-			logger.Info().Msg(fmt.Sprintf("pruned blockstore.db from height %d to %d", base, height))
+			if blocksPruned > 0 {
+				logger.Info().Msg(fmt.Sprintf("pruned blockstore.db from height %d to %d", base, height))
+			}
 
 			if height > base {
 				if err := stateStore.PruneStates(base, height); err != nil {
@@ -278,10 +283,14 @@ func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight in
 		// if KSYNC has already fetched 2 * snapshot_interval ahead of the snapshot pool we wait
 		// in order to not bloat the KSYNC process
 		if snapshotInterval > 0 {
+			// only log this message once
+			if block.Height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
+				logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to produce new bundles")
+			}
+
 			for {
 				// if we are in that range we wait until the snapshot pool moved on
 				if block.Height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
-					logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to catch up ...")
 					time.Sleep(10 * time.Second)
 
 					// refresh snapshot pool height
