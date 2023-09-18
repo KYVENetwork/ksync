@@ -168,11 +168,13 @@ func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight in
 
 	var prevBlock *types.Block
 
-	snapshotPoolHeight := stateSyncHelpers.GetSnapshotPoolHeight(restEndpoint, snapshotPoolId)
+	snapshotPoolHeight := int64(0)
 
 	// if KSYNC has already fetched 2 * snapshot_interval ahead of the snapshot pool we wait
 	// in order to not bloat the KSYNC process
 	if snapshotInterval > 0 {
+		snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(restEndpoint, snapshotPoolId)
+
 		if continuationHeight > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
 			logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to produce new bundles")
 		}
