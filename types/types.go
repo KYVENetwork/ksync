@@ -37,8 +37,14 @@ type PoolResponse = struct {
 			StartKey     string `json:"start_key"`
 			CurrentKey   string `json:"current_key"`
 			TotalBundles int64  `json:"total_bundles"`
+			Config       string `json:"config"`
 		} `json:"data"`
 	} `json:"pool"`
+}
+
+type TendermintSSyncConfig = struct {
+	Api      string `json:"api"`
+	Interval int64  `json:"interval"`
 }
 
 type SyncProcess struct {

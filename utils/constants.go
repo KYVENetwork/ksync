@@ -4,6 +4,8 @@ const (
 	BundlesPageLimit            = 100
 	BlockBuffer                 = 300
 	PruningInterval             = 100
+	SnapshotPruningAheadFactor  = 2
+	SnapshotPruningWindowFactor = 5
 	DefaultChainId              = "kyve-1"
 	DefaultMetricsServerPort    = 8080
 	DefaultSnapshotServerPort   = 7878
