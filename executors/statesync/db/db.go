@@ -36,7 +36,7 @@ func StartStateSyncExecutor(config *tmCfg.Config, restEndpoint string, poolId in
 	}
 
 	if s.LastBlockHeight > 0 {
-		logger.Error().Msg(fmt.Sprintf("state height %d is not zero, please reset with unsafe-reset-all", s.LastBlockHeight))
+		logger.Error().Msg(fmt.Sprintf("state height %d is not zero, please reset with \"ksync unsafe-reset-all\"", s.LastBlockHeight))
 		os.Exit(1)
 	}
 
@@ -50,7 +50,7 @@ func StartStateSyncExecutor(config *tmCfg.Config, restEndpoint string, poolId in
 
 	// check if store height is zero
 	if blockStore.Height() > 0 {
-		logger.Error().Msg(fmt.Sprintf("store height %d is not zero, please reset with unsafe-reset-all", blockStore.Height()))
+		logger.Error().Msg(fmt.Sprintf("store height %d is not zero, please reset with \"ksync unsafe-reset-all\"", blockStore.Height()))
 		os.Exit(1)
 	}
 
@@ -68,7 +68,7 @@ func StartStateSyncExecutor(config *tmCfg.Config, restEndpoint string, poolId in
 	}
 
 	if info.LastBlockHeight > 0 {
-		logger.Error().Msg(fmt.Sprintf("app height %d is not zero, please reset with unsafe-reset-all", info.LastBlockHeight))
+		logger.Error().Msg(fmt.Sprintf("app height %d is not zero, please reset with \"ksync unsafe-reset-all\"", info.LastBlockHeight))
 		os.Exit(1)
 	}
 
