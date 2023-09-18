@@ -35,6 +35,10 @@ func GetSnapshotBoundaries(restEndpoint string, poolId int64) (types.PoolRespons
 		panic(fmt.Errorf("failed to parse snapshot key: %w", err))
 	}
 
+	if poolResponse.Pool.Data.TotalBundles == 0 {
+		return *poolResponse, startHeight, endHeight
+	}
+
 	latestBundleId := poolResponse.Pool.Data.TotalBundles - 1
 
 	for {
