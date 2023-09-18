@@ -18,6 +18,7 @@ var (
 	metricsPort      int64
 	snapshotPort     int64
 	snapshotInterval int64
+	pruning          bool
 )
 
 // RootCmd is the root command for KSYNC.

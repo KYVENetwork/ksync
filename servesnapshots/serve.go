@@ -10,6 +10,7 @@ import (
 	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/supervisor"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -18,7 +19,7 @@ var (
 )
 
 // TODO: prune application.db, state.db and blockstore.db after pool has gone past KSYNC's base height
-func StartServeSnapshots(binaryPath, homePath, restEndpoint string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort int64) {
+func StartServeSnapshots(binaryPath, homePath, restEndpoint string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool) {
 	logger.Info().Msg("starting serve-snapshots")
 
 	height, err := helpers2.GetNodeHeightFromDB(homePath)
@@ -47,13 +48,28 @@ func StartServeSnapshots(binaryPath, homePath, restEndpoint string, blockPoolId 
 		os.Exit(1)
 	}
 
+	snapshotArgs := []string{
+		"--state-sync.snapshot-interval",
+		strconv.FormatInt(snapshotInterval, 10),
+		"--state-sync.snapshot-keep-recent",
+		"5",
+	}
+
+	if pruning {
+		snapshotArgs = append(
+			snapshotArgs,
+			"--pruning-keep-recent",
+			strconv.FormatInt(5*snapshotInterval, 10),
+		)
+	}
+
 	// start binary process thread
-	_, err = supervisor.StartBinaryProcessForSnapshotServe(binaryPath, homePath, snapshotInterval)
+	_, err = supervisor.StartBinaryProcessForDB(binaryPath, homePath, snapshotArgs)
 	if err != nil {
 		panic(err)
 	}
 
 	// db executes blocks against app until target height is reached
 	// TODO: instead of throwing panics return all errors here
-	db.StartDBExecutor(homePath, restEndpoint, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort)
+	db.StartDBExecutor(homePath, restEndpoint, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort, pruning)
 }

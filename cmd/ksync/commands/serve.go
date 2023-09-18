@@ -42,6 +42,8 @@ func init() {
 	serveCmd.Flags().BoolVar(&metrics, "metrics", false, "metrics server exposing sync status")
 	serveCmd.Flags().Int64Var(&metricsPort, "metrics-port", utils.DefaultMetricsServerPort, fmt.Sprintf("port for metrics server [default = %d]", utils.DefaultMetricsServerPort))
 
+	serveCmd.Flags().BoolVar(&pruning, "pruning", true, "prune application, state and blockstore db")
+
 	rootCmd.AddCommand(serveCmd)
 }
 
@@ -50,6 +52,6 @@ var serveCmd = &cobra.Command{
 	Short: "Serve snapshots for running KYVE state-sync pools",
 	Run: func(cmd *cobra.Command, args []string) {
 		restEndpoint = utils.GetRestEndpoint(chainId, restEndpoint)
-		servesnapshots.StartServeSnapshots(binaryPath, homePath, restEndpoint, blockPoolId, metrics, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort)
+		servesnapshots.StartServeSnapshots(binaryPath, homePath, restEndpoint, blockPoolId, metrics, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort, pruning)
 	},
 }

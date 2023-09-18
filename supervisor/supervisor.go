@@ -4,22 +4,21 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strconv"
 	"syscall"
 )
 
-func StartBinaryProcessForDB(binaryPath string, homePath string) (processId int, err error) {
+func StartBinaryProcessForDB(binaryPath string, homePath string, args []string) (processId int, err error) {
 	cmdPath, err := exec.LookPath(binaryPath)
 	if err != nil {
 		return processId, fmt.Errorf("failed to lookup binary path: %w", err)
 	}
 
-	cmd := exec.Command(cmdPath, []string{
+	cmd := exec.Command(cmdPath, append([]string{
 		"start",
 		"--home",
 		homePath,
 		"--with-tendermint=false",
-	}...)
+	}, args...)...)
 
 	// TODO: make logs prettier
 	//cmd.Stdout = os.Stdout
@@ -34,13 +33,13 @@ func StartBinaryProcessForDB(binaryPath string, homePath string) (processId int,
 	return
 }
 
-func StartBinaryProcessForP2P(binaryPath string, homePath string) (processId int, err error) {
+func StartBinaryProcessForP2P(binaryPath string, homePath string, args []string) (processId int, err error) {
 	cmdPath, err := exec.LookPath(binaryPath)
 	if err != nil {
 		return processId, fmt.Errorf("failed to lookup binary path: %w", err)
 	}
 
-	cmd := exec.Command(cmdPath, []string{
+	cmd := exec.Command(cmdPath, append([]string{
 		"start",
 		"--home",
 		homePath,
@@ -51,37 +50,7 @@ func StartBinaryProcessForP2P(binaryPath string, homePath string) (processId int
 		"",
 		"--p2p.unconditional_peer_ids",
 		"",
-	}...)
-
-	// TODO: make logs prettier
-	//cmd.Stdout = os.Stdout
-	//cmd.Stderr = os.Stderr
-
-	err = cmd.Start()
-	if err != nil {
-		return processId, fmt.Errorf("failed to start binary process: %w", err)
-	}
-
-	processId = cmd.Process.Pid
-	return
-}
-
-func StartBinaryProcessForSnapshotServe(binaryPath string, homePath string, snapshotInterval int64) (processId int, err error) {
-	cmdPath, err := exec.LookPath(binaryPath)
-	if err != nil {
-		return processId, fmt.Errorf("failed to lookup binary path: %w", err)
-	}
-
-	cmd := exec.Command(cmdPath, []string{
-		"start",
-		"--home",
-		homePath,
-		"--with-tendermint=false",
-		"--state-sync.snapshot-interval",
-		strconv.FormatInt(snapshotInterval, 10),
-		"--state-sync.snapshot-keep-recent",
-		"5",
-	}...)
+	}, args...)...)
 
 	// TODO: make logs prettier
 	//cmd.Stdout = os.Stdout

@@ -57,7 +57,7 @@ func StartStateSync(binaryPath, homePath, restEndpoint string, poolId, snapshotH
 	logger.Info().Msg("starting state-sync")
 
 	// start binary process thread
-	processId, err := supervisor.StartBinaryProcessForDB(binaryPath, homePath)
+	processId, err := supervisor.StartBinaryProcessForDB(binaryPath, homePath, []string{})
 	if err != nil {
 		panic(err)
 	}

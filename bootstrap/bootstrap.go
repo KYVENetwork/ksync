@@ -54,7 +54,7 @@ func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poo
 	// if we reached this point we have to sync over p2p
 
 	// start binary process thread
-	processId, err := supervisor.StartBinaryProcessForP2P(binaryPath, homePath)
+	processId, err := supervisor.StartBinaryProcessForP2P(binaryPath, homePath, []string{})
 	if err != nil {
 		return err
 	}

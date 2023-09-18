@@ -52,7 +52,7 @@ func GetBlockBoundaries(restEndpoint string, poolId int64) (types.PoolResponse, 
 	return *poolResponse, startHeight, endHeight
 }
 
-func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort int64, snapshotPoolId, snapshotInterval, snapshotPort int64) {
+func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort int64, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool) {
 	// load tendermint config
 	config, err := cfg.LoadConfig(homePath)
 	if err != nil {
@@ -222,11 +222,9 @@ func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight in
 				logger.Info().Msg(fmt.Sprintf("snapshot at height %d was created. Continuing ...", prevBlock.Height))
 				break
 			}
-		}
 
-		// if KSYNC has already fetched 2 * snapshot_interval ahead of the snapshot pool we wait
-		// in order to not bloat the KSYNC process
-		if snapshotInterval > 0 {
+			// if KSYNC has already fetched 2 * snapshot_interval ahead of the snapshot pool we wait
+			// in order to not bloat the KSYNC process
 			for {
 				snapshotPool, err := pool.GetPoolInfo(0, restEndpoint, snapshotPoolId)
 				if err != nil {
@@ -249,15 +247,30 @@ func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight in
 			}
 		}
 
-		if snapshotInterval > 0 {
-			height := blockStore.Height() - 100
+		if pruning && prevBlock.Height%utils.PruningInterval == 0 {
+			// Because we sync 2 * snapshot_interval ahead we keep the latest
+			// 5 * snapshot_interval blocks and prune everything before that
+			height := blockStore.Height() - (5 * snapshotInterval)
 
 			if height < blockStore.Base() {
 				height = blockStore.Base()
 			}
 
-			if _, err := blockStore.PruneBlocks(height); err != nil {
-				logger.Error().Msg(fmt.Sprintf("failed to prune blocks from height %d to %d: %s", height, blockStore.Height(), err))
+			blocksPruned, err := blockStore.PruneBlocks(height)
+			if err != nil {
+				logger.Error().Msg(fmt.Sprintf("failed to prune blocks up to %d: %s", height, err))
+			}
+
+			base := height - int64(blocksPruned)
+
+			logger.Info().Msg(fmt.Sprintf("pruned blockstore.db from height %d to %d", base, height))
+
+			if height > base {
+				if err := stateStore.PruneStates(base, height); err != nil {
+					logger.Error().Msg(fmt.Sprintf("failed to prune state up to %d: %s", height, err))
+				}
+
+				logger.Info().Msg(fmt.Sprintf("pruned state.db from height %d to %d", base, height))
 			}
 		}
 

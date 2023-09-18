@@ -3,6 +3,7 @@ package utils
 const (
 	BundlesPageLimit            = 100
 	BlockBuffer                 = 300
+	PruningInterval             = 100
 	DefaultChainId              = "kyve-1"
 	DefaultMetricsServerPort    = 8080
 	DefaultSnapshotServerPort   = 7878
