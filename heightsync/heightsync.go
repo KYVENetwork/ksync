@@ -63,7 +63,9 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 		}
 
 		// apply state sync snapshot
-		if statesync.StartStateSync(homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight) != nil {
+		if err := statesync.StartStateSync(homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to apply state-sync: %s", err))
+
 			// stop binary process thread
 			if err := supervisor.StopProcessByProcessId(processId); err != nil {
 				panic(err)
@@ -90,7 +92,7 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 	if remaining := targetHeight - continuationHeight; remaining > 0 {
 		logger.Info().Msg(fmt.Sprintf("block-syncing remaining %d blocks", remaining))
 		if err := blocksync.StartBlockSync(homePath, chainRest, storageRest, blockPoolId, targetHeight, false, 0); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to start block sync: %s", err))
+			logger.Error().Msg(fmt.Sprintf("failed to apply block-sync: %s", err))
 
 			// stop binary process thread
 			if err := supervisor.StopProcessByProcessId(processId); err != nil {
