@@ -1,7 +1,6 @@
 package statesync
 
 import (
-	"errors"
 	"fmt"
 	"github.com/KYVENetwork/ksync/collectors/snapshots"
 	cfg "github.com/KYVENetwork/ksync/config"
@@ -20,34 +19,29 @@ func StartStateSync(homePath, chainRest, storageRest string, poolId, snapshotHei
 	// load config
 	config, err := cfg.LoadConfig(homePath)
 	if err != nil {
-		logger.Error().Msg("could not load config file")
-		return errors.New("")
+		return fmt.Errorf("failed to load config.toml: %w", err)
 	}
 
 	// perform boundary checks
 	_, startHeight, endHeight := helpers.GetSnapshotBoundaries(chainRest, poolId)
 
 	if snapshotHeight < startHeight {
-		logger.Error().Msg(fmt.Sprintf("requested snapshot height %d but first available snapshot on pool is %d", snapshotHeight, startHeight))
-		return errors.New("")
+		return fmt.Errorf("requested snapshot height %d but first available snapshot on pool is %d", snapshotHeight, startHeight)
 	}
 
 	if snapshotHeight > endHeight {
-		logger.Error().Msg(fmt.Sprintf("requested snapshot height %d but last available snapshot on pool is %d", snapshotHeight, endHeight))
-		return errors.New("")
+		return fmt.Errorf("requested snapshot height %d but last available snapshot on pool is %d", snapshotHeight, endHeight)
 	}
 
 	bundleId, err := snapshots.FindBundleIdBySnapshot(chainRest, poolId, snapshotHeight)
 	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("failed to find bundle with requested snapshot height %d: %s", snapshotHeight, err))
-		return errors.New("")
+		return fmt.Errorf("failed to find bundle with requested snapshot height %d: %s", snapshotHeight, err)
 	}
 
 	logger.Info().Msg(fmt.Sprintf("found snapshot with height %d in bundle with id %d", snapshotHeight, bundleId))
 
 	if err := db.StartStateSyncExecutor(config, chainRest, storageRest, poolId, bundleId); err != nil {
-		logger.Error().Msg(fmt.Sprintf("snapshot could not be applied: %s", err))
-		return errors.New("")
+		return fmt.Errorf("snapshot could not be applied: %w", err)
 	}
 
 	return nil
@@ -62,7 +56,9 @@ func StartStateSyncWithBinary(binaryPath, homePath, chainRest, storageRest strin
 		panic(err)
 	}
 
-	if StartStateSync(homePath, chainRest, storageRest, poolId, snapshotHeight) != nil {
+	if err := StartStateSync(homePath, chainRest, storageRest, poolId, snapshotHeight); err != nil {
+		logger.Error().Err(err)
+
 		// stop binary process thread
 		if err := supervisor.StopProcessByProcessId(processId); err != nil {
 			panic(err)

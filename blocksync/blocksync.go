@@ -14,9 +14,8 @@ var (
 	logger = log.KsyncLogger("block-sync")
 )
 
-func StartBlockSync(homePath, chainRest, storageRest string, poolId, targetHeight int64, metrics bool, port int64) {
-	// TODO: instead of throwing panics return all errors here
-	db.StartDBExecutor(homePath, chainRest, storageRest, poolId, targetHeight, metrics, port, 0, 0, utils.DefaultSnapshotServerPort, false)
+func StartBlockSync(homePath, chainRest, storageRest string, poolId, targetHeight int64, metrics bool, port int64) error {
+	return db.StartDBExecutor(homePath, chainRest, storageRest, poolId, targetHeight, metrics, port, 0, 0, utils.DefaultSnapshotServerPort, false)
 }
 
 func StartBlockSyncWithBinary(binaryPath, homePath, chainRest, storageRest string, poolId, targetHeight int64, metrics bool, port int64) {
@@ -34,7 +33,15 @@ func StartBlockSyncWithBinary(binaryPath, homePath, chainRest, storageRest strin
 	}
 
 	// db executes blocks against app until target height is reached
-	StartBlockSync(homePath, chainRest, storageRest, poolId, targetHeight, metrics, port)
+	if err := StartBlockSync(homePath, chainRest, storageRest, poolId, targetHeight, metrics, port); err != nil {
+		logger.Error().Err(err)
+
+		// stop binary process thread
+		if err := supervisor.StopProcessByProcessId(processId); err != nil {
+			panic(err)
+		}
+		os.Exit(1)
+	}
 
 	// stop binary process thread
 	if err := supervisor.StopProcessByProcessId(processId); err != nil {

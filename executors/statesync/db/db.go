@@ -42,8 +42,7 @@ func StartStateSyncExecutor(config *tmCfg.Config, chainRest, storageRest string,
 	defer blockDB.Close()
 
 	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("failed to open blockstore: %s", err))
-		return err
+		return fmt.Errorf("failed to open blockstore: %w", err)
 	}
 
 	// check if store height is zero
@@ -54,14 +53,13 @@ func StartStateSyncExecutor(config *tmCfg.Config, chainRest, storageRest string,
 	socketClient := abciClient.NewSocketClient(config.ProxyApp, false)
 
 	if err := socketClient.Start(); err != nil {
-		panic(fmt.Errorf("error starting abci server %w", err))
+		return fmt.Errorf("error starting abci server %w", err)
 	}
 
 	// check if app height is zero
 	info, err := socketClient.InfoSync(abci.RequestInfo{})
 	if err != nil {
-		logger.Error().Err(fmt.Errorf("requesting info from app failed: %w", err))
-		return err
+		return fmt.Errorf("requesting info from app failed: %w", err)
 	}
 
 	if info.LastBlockHeight > 0 {
@@ -70,12 +68,12 @@ func StartStateSyncExecutor(config *tmCfg.Config, chainRest, storageRest string,
 
 	finalizedBundle, err := utils.GetFinalizedBundle(chainRest, poolId, bundleId)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed getting finalized bundle: %w", err)
 	}
 
 	deflated, err := utils.GetDataFromFinalizedBundle(*finalizedBundle, storageRest)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed getting data from finalized bundle: %w", err)
 	}
 
 	var bundle types.TendermintSsyncBundle
@@ -104,8 +102,7 @@ func StartStateSyncExecutor(config *tmCfg.Config, chainRest, storageRest string,
 	})
 
 	if err != nil {
-		logger.Error().Err(fmt.Errorf("offering snapshot for height %d failed: %w", snapshot.Height, err))
-		return err
+		return fmt.Errorf("offering snapshot for height %d failed: %w", snapshot.Height, err)
 	}
 
 	if res.Result == abci.ResponseOfferSnapshot_ACCEPT {
@@ -117,18 +114,18 @@ func StartStateSyncExecutor(config *tmCfg.Config, chainRest, storageRest string,
 
 	nodeKey, err := p2p.LoadNodeKey(config.NodeKeyFile())
 	if err != nil {
-		logger.Info().Err(fmt.Errorf("loading key file failed: %w", err))
+		return fmt.Errorf("loading key file failed: %w", err)
 	}
 
 	for chunkIndex := uint32(0); chunkIndex < chunks; chunkIndex++ {
 		chunkBundleFinalized, err := utils.GetFinalizedBundle(chainRest, poolId, bundleId+int64(chunkIndex))
 		if err != nil {
-			return err
+			return fmt.Errorf("failed getting finalized bundle: %w", err)
 		}
 
 		chunkBundleDeflated, err := utils.GetDataFromFinalizedBundle(*chunkBundleFinalized, storageRest)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed getting data from finalized bundle: %w", err)
 		}
 
 		var chunkBundle types.TendermintSsyncBundle
@@ -162,14 +159,12 @@ func StartStateSyncExecutor(config *tmCfg.Config, chainRest, storageRest string,
 
 	err = stateStore.Bootstrap(*state)
 	if err != nil {
-		logger.Info().Err(fmt.Errorf("failed to bootstrap state: %s\"", err))
-		return err
+		return fmt.Errorf("failed to bootstrap state: %s\"", err)
 	}
 
 	err = blockStore.SaveSeenCommit(state.LastBlockHeight, seenCommit)
 	if err != nil {
-		logger.Info().Err(fmt.Errorf("failed to save seen commit: %s\"", err))
-		return err
+		return fmt.Errorf("failed to save seen commit: %s\"", err)
 	}
 
 	blockParts := block.MakePartSet(tmTypes.BlockPartSizeBytes)

@@ -15,7 +15,6 @@ import (
 	nm "github.com/tendermint/tendermint/node"
 	sm "github.com/tendermint/tendermint/state"
 	tmTypes "github.com/tendermint/tendermint/types"
-	"os"
 	"strconv"
 	"time"
 )
@@ -26,38 +25,35 @@ var (
 	logger  = log.KsyncLogger("db")
 )
 
-func GetBlockBoundaries(restEndpoint string, poolId int64) (types.PoolResponse, int64, int64) {
+func GetBlockBoundaries(restEndpoint string, poolId int64) (*types.PoolResponse, int64, int64, error) {
 	// load start and latest height
 	poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
 	if err != nil {
-		panic(fmt.Errorf("failed to get pool info: %w", err))
+		return nil, 0, 0, fmt.Errorf("failed to get pool info: %w", err)
 	}
 
 	if poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermint && poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermintBsync {
-		logger.Error().Msg(fmt.Sprintf("Found invalid runtime on pool %d: Expected = %s,%s Found = %s", poolId, utils.KSyncRuntimeTendermint, utils.KSyncRuntimeTendermintBsync, poolResponse.Pool.Data.Runtime))
-		os.Exit(1)
+		return nil, 0, 0, fmt.Errorf("found invalid runtime on pool %d: Expected = %s,%s Found = %s", poolId, utils.KSyncRuntimeTendermint, utils.KSyncRuntimeTendermintBsync, poolResponse.Pool.Data.Runtime)
 	}
 
 	startHeight, err := strconv.ParseInt(poolResponse.Pool.Data.StartKey, 10, 64)
 	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("could not parse int from %s", poolResponse.Pool.Data.StartKey))
-		os.Exit(1)
+		return nil, 0, 0, fmt.Errorf("could not parse int from %s", poolResponse.Pool.Data.StartKey)
 	}
 
 	endHeight, err := strconv.ParseInt(poolResponse.Pool.Data.CurrentKey, 10, 64)
 	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("could not parse int from %s", poolResponse.Pool.Data.CurrentKey))
-		os.Exit(1)
+		return nil, 0, 0, fmt.Errorf("could not parse int from %s", poolResponse.Pool.Data.CurrentKey)
 	}
 
-	return *poolResponse, startHeight, endHeight
+	return poolResponse, startHeight, endHeight, nil
 }
 
-func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort int64, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool) {
+func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort int64, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool) error {
 	// load tendermint config
 	config, err := cfg.LoadConfig(homePath)
 	if err != nil {
-		panic(fmt.Errorf("failed to load config.toml: %w", err))
+		return fmt.Errorf("failed to load config.toml: %w", err)
 	}
 
 	// load state store
@@ -65,7 +61,7 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 	defer stateDB.Close()
 
 	if err != nil {
-		panic(fmt.Errorf("failed to load state db: %w", err))
+		return fmt.Errorf("failed to load state db: %w", err)
 	}
 
 	// load block store
@@ -73,14 +69,14 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 	defer blockStoreDB.Close()
 
 	if err != nil {
-		panic(fmt.Errorf("failed to load blockstore db: %w", err))
+		return fmt.Errorf("failed to load blockstore db: %w", err)
 	}
 
 	// load genesis file
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
 	state, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(stateDB, defaultDocProvider)
 	if err != nil {
-		panic(fmt.Errorf("failed to load state and genDoc: %w", err))
+		return fmt.Errorf("failed to load state and genDoc: %w", err)
 	}
 
 	// get height at which ksync should continue block-syncing
@@ -91,26 +87,25 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 	}
 
 	// perform boundary checks
-	poolResponse, startHeight, endHeight := GetBlockBoundaries(chainRest, blockPoolId)
+	poolResponse, startHeight, endHeight, err := GetBlockBoundaries(chainRest, blockPoolId)
+	if err != nil {
+		return fmt.Errorf("failed to get block boundaries: %w", err)
+	}
 
 	if continuationHeight < startHeight {
-		logger.Error().Msg(fmt.Sprintf("app is currently at height %d but first available block on pool is %d", continuationHeight, startHeight))
-		os.Exit(1)
+		return fmt.Errorf("app is currently at height %d but first available block on pool is %d", continuationHeight, startHeight)
 	}
 
 	if continuationHeight > endHeight {
-		logger.Error().Msg(fmt.Sprintf("app is currently at height %d but last available block on pool is %d", continuationHeight, endHeight))
-		os.Exit(1)
+		return fmt.Errorf("app is currently at height %d but last available block on pool is %d", continuationHeight, endHeight)
 	}
 
 	if targetHeight > 0 && continuationHeight > targetHeight {
-		logger.Error().Msg(fmt.Sprintf("requested target height is %d but app is already at block height %d", targetHeight, continuationHeight))
-		os.Exit(1)
+		return fmt.Errorf("requested target height is %d but app is already at block height %d", targetHeight, continuationHeight)
 	}
 
 	if targetHeight > 0 && targetHeight > endHeight {
-		logger.Error().Msg(fmt.Sprintf("requested target height is %d but last available block on pool is %d", targetHeight, endHeight))
-		os.Exit(1)
+		return fmt.Errorf("requested target height is %d but last available block on pool is %d", targetHeight, endHeight)
 	}
 
 	// start metrics api server which serves an api endpoint sync metrics
@@ -125,37 +120,37 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 
 	// start block collector
 	if snapshotInterval > 0 {
-		go blocks.StartIncrementalBlockCollector(blockCh, chainRest, storageRest, poolResponse, continuationHeight)
+		go blocks.StartIncrementalBlockCollector(blockCh, chainRest, storageRest, *poolResponse, continuationHeight)
 	} else {
-		go blocks.StartContinuousBlockCollector(blockCh, chainRest, storageRest, poolResponse, continuationHeight, targetHeight)
+		go blocks.StartContinuousBlockCollector(blockCh, chainRest, storageRest, *poolResponse, continuationHeight, targetHeight)
 	}
 
 	logger.Info().Msg(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
 
 	proxyApp, err := helpers.CreateAndStartProxyAppConns(config)
 	if err != nil {
-		panic(fmt.Errorf("failed to start proxy app: %w", err))
+		return fmt.Errorf("failed to start proxy app: %w", err)
 	}
 
 	eventBus, err := helpers.CreateAndStartEventBus()
 	if err != nil {
-		panic(fmt.Errorf("failed to start event bus: %w", err))
+		return fmt.Errorf("failed to start event bus: %w", err)
 	}
 
 	if err := helpers.DoHandshake(stateStore, state, blockStore, genDoc, eventBus, proxyApp); err != nil {
-		panic(fmt.Errorf("failed to do handshake: %w", err))
+		return fmt.Errorf("failed to do handshake: %w", err)
 	}
 
 	state, err = stateStore.Load()
 	if err != nil {
-		panic(fmt.Errorf("failed to reload state: %w", err))
+		return fmt.Errorf("failed to reload state: %w", err)
 	}
 
 	_, mempool := helpers.CreateMempoolAndMempoolReactor(config, proxyApp, state)
 
 	_, evidencePool, err := helpers.CreateEvidenceReactor(config, stateStore, blockStore)
 	if err != nil {
-		panic(fmt.Errorf("failed to create evidence reactor: %w", err))
+		return fmt.Errorf("failed to create evidence reactor: %w", err)
 	}
 
 	blockExec := sm.NewBlockExecutor(
@@ -208,12 +203,12 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 
 		// verify block
 		if err := blockExec.ValidateBlock(state, prevBlock); err != nil {
-			logger.Error().Msg(fmt.Sprintf("block validation failed at height %d", prevBlock.Height))
+			return fmt.Errorf("block validation failed at height %d: %w", prevBlock.Height, err)
 		}
 
 		// verify commits
 		if err := state.Validators.VerifyCommitLight(state.ChainID, blockId, prevBlock.Height, block.LastCommit); err != nil {
-			logger.Error().Msg(fmt.Sprintf("light commit verification failed at height %d", prevBlock.Height))
+			return fmt.Errorf("light commit verification failed at height %d: %w", prevBlock.Height, err)
 		}
 
 		// store block
@@ -222,7 +217,7 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 		// execute block against app
 		state, _, err = blockExec.ApplyBlock(state, blockId, prevBlock)
 		if err != nil {
-			panic(fmt.Errorf("failed to apply block: %w", err))
+			return fmt.Errorf("failed to apply block at height %d: %w", prevBlock.Height, err)
 		}
 
 		// if we have reached a height where a snapshot should be created by the app
@@ -313,4 +308,5 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 	}
 
 	logger.Info().Msg(fmt.Sprintf("synced from height %d to target height %d", continuationHeight, targetHeight))
+	return nil
 }

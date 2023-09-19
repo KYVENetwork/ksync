@@ -92,8 +92,15 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest 
 	}
 
 	// db executes blocks against app indefinitely
-	// TODO: instead of throwing panics return all errors here
-	db.StartDBExecutor(homePath, chainRest, storageRest, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning)
+	if err := db.StartDBExecutor(homePath, chainRest, storageRest, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning); err != nil {
+		logger.Error().Err(err)
+
+		// stop binary process thread
+		if err := supervisor.StopProcessByProcessId(processId); err != nil {
+			panic(err)
+		}
+		os.Exit(1)
+	}
 
 	// stop binary process thread
 	if err := supervisor.StopProcessByProcessId(processId); err != nil {

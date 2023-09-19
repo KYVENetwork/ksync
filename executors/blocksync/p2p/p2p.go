@@ -111,7 +111,10 @@ func StartP2PExecutor(homeDir string, poolId int64, chainRest, storageRest strin
 		panic(fmt.Errorf("failed to load state and genDoc: %w", err))
 	}
 
-	poolResponse, startHeight, endHeight := db.GetBlockBoundaries(chainRest, poolId)
+	poolResponse, startHeight, endHeight, err := db.GetBlockBoundaries(chainRest, poolId)
+	if err != nil {
+		panic(fmt.Errorf("failed to get block boundaries: %w", err))
+	}
 
 	if genDoc.InitialHeight < startHeight {
 		logger.Error().Msg(fmt.Sprintf("initial height %d smaller than pool start height %d", genDoc.InitialHeight, startHeight))
@@ -123,13 +126,13 @@ func StartP2PExecutor(homeDir string, poolId int64, chainRest, storageRest strin
 		os.Exit(1)
 	}
 
-	block, err := retrieveBlock(&poolResponse, chainRest, storageRest, genDoc.InitialHeight)
+	block, err := retrieveBlock(poolResponse, chainRest, storageRest, genDoc.InitialHeight)
 	if err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to retrieve block %d from pool", genDoc.InitialHeight))
 		os.Exit(1)
 	}
 
-	nextBlock, err := retrieveBlock(&poolResponse, chainRest, storageRest, genDoc.InitialHeight+1)
+	nextBlock, err := retrieveBlock(poolResponse, chainRest, storageRest, genDoc.InitialHeight+1)
 	if err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to retrieve block %d from pool", genDoc.InitialHeight+1))
 		os.Exit(1)
