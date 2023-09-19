@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"fmt"
 	"github.com/KYVENetwork/ksync/bootstrap/helpers"
 	cfg "github.com/KYVENetwork/ksync/config"
 	"github.com/KYVENetwork/ksync/executors/blocksync/p2p"
@@ -15,7 +16,7 @@ var (
 	logger = log.KsyncLogger("bootstrap")
 )
 
-func StartBootstrap(binaryPath, homePath, chainRest, storageRest string, poolId int64) error {
+func StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest string, poolId int64) error {
 	logger.Info().Msg("starting bootstrap")
 
 	config, err := cfg.LoadConfig(homePath)
@@ -75,7 +76,15 @@ func StartBootstrap(binaryPath, homePath, chainRest, storageRest string, poolId 
 	logger.Info().Msg("loaded genesis file and completed ABCI handshake between app and tendermint")
 
 	// start p2p executors and try to execute the first block on the app
-	sw := p2p.StartP2PExecutor(homePath, poolId, chainRest, storageRest)
+	sw, err := p2p.StartP2PExecutor(homePath, poolId, chainRest, storageRest)
+	if err != nil {
+		// stop binary process thread
+		if err := supervisor.StopProcessByProcessId(processId); err != nil {
+			panic(err)
+		}
+
+		return fmt.Errorf("failed to start p2p executor: %w", err)
+	}
 
 	// wait until block was properly executed by testing if the /abci
 	// endpoint returns the correct block height

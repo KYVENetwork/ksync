@@ -21,7 +21,7 @@ func StartBlockSync(homePath, chainRest, storageRest string, poolId, targetHeigh
 func StartBlockSyncWithBinary(binaryPath, homePath, chainRest, storageRest string, poolId, targetHeight int64, metrics bool, port int64) {
 	logger.Info().Msg("starting block-sync")
 
-	if err := bootstrap.StartBootstrap(binaryPath, homePath, chainRest, storageRest, poolId); err != nil {
+	if err := bootstrap.StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest, poolId); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
 		os.Exit(1)
 	}

@@ -14,7 +14,6 @@ import (
 	nm "github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"net/url"
-	"os"
 	"strconv"
 )
 
@@ -56,7 +55,7 @@ func retrieveBlock(pool *types.PoolResponse, chainRest, storageRest string, heig
 				var bundle types.TendermintBundle
 
 				if err := json.Unmarshal(deflated, &bundle); err != nil {
-					panic(fmt.Errorf("failed to unmarshal tendermint bundle: %w", err))
+					return nil, fmt.Errorf("failed to unmarshal tendermint bundle: %w", err)
 				}
 
 				for _, dataItem := range bundle {
@@ -72,7 +71,7 @@ func retrieveBlock(pool *types.PoolResponse, chainRest, storageRest string, heig
 				var bundle types.TendermintBsyncBundle
 
 				if err := json.Unmarshal(deflated, &bundle); err != nil {
-					panic(fmt.Errorf("failed to unmarshal tendermint bsync bundle: %w", err))
+					return nil, fmt.Errorf("failed to unmarshal tendermint bsync bundle: %w", err)
 				}
 
 				for _, dataItem := range bundle {
@@ -97,56 +96,52 @@ func retrieveBlock(pool *types.PoolResponse, chainRest, storageRest string, heig
 	return nil, fmt.Errorf("failed to find bundle with block height %d", height)
 }
 
-func StartP2PExecutor(homeDir string, poolId int64, chainRest, storageRest string) *p2p.Switch {
+func StartP2PExecutor(homeDir string, poolId int64, chainRest, storageRest string) (*p2p.Switch, error) {
 	logger.Info().Msg("starting p2p sync")
 
 	// load config
 	config, err := cfg.LoadConfig(homeDir)
 	if err != nil {
-		panic(fmt.Errorf("failed to load config: %w", err))
+		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
 	genDoc, err := nm.DefaultGenesisDocProviderFunc(config)()
 	if err != nil {
-		panic(fmt.Errorf("failed to load state and genDoc: %w", err))
+		return nil, fmt.Errorf("failed to load state and genDoc: %w", err)
 	}
 
 	poolResponse, startHeight, endHeight, err := db.GetBlockBoundaries(chainRest, poolId)
 	if err != nil {
-		panic(fmt.Errorf("failed to get block boundaries: %w", err))
+		return nil, fmt.Errorf("failed to get block boundaries: %w", err)
 	}
 
 	if genDoc.InitialHeight < startHeight {
-		logger.Error().Msg(fmt.Sprintf("initial height %d smaller than pool start height %d", genDoc.InitialHeight, startHeight))
-		os.Exit(1)
+		return nil, fmt.Errorf(fmt.Sprintf("initial height %d smaller than pool start height %d", genDoc.InitialHeight, startHeight))
 	}
 
 	if genDoc.InitialHeight+1 > endHeight {
-		logger.Error().Msg(fmt.Sprintf("initial height %d bigger than latest pool height %d", genDoc.InitialHeight+1, endHeight))
-		os.Exit(1)
+		return nil, fmt.Errorf(fmt.Sprintf("initial height %d bigger than latest pool height %d", genDoc.InitialHeight+1, endHeight))
 	}
 
 	block, err := retrieveBlock(poolResponse, chainRest, storageRest, genDoc.InitialHeight)
 	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("failed to retrieve block %d from pool", genDoc.InitialHeight))
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to retrieve block %d from pool", genDoc.InitialHeight)
 	}
 
 	nextBlock, err := retrieveBlock(poolResponse, chainRest, storageRest, genDoc.InitialHeight+1)
 	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("failed to retrieve block %d from pool", genDoc.InitialHeight+1))
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to retrieve block %d from pool", genDoc.InitialHeight+1)
 	}
 
 	peerAddress := config.P2P.ListenAddress
 	peerHost, err := url.Parse(peerAddress)
 	if err != nil {
-		panic(fmt.Errorf("invalid peer address: %w", err))
+		return nil, fmt.Errorf("invalid peer address: %w", err)
 	}
 
 	port, err := strconv.ParseInt(peerHost.Port(), 10, 64)
 	if err != nil {
-		panic(fmt.Errorf("invalid peer port: %w", err))
+		return nil, fmt.Errorf("invalid peer port: %w", err)
 	}
 
 	// this peer should listen to different port to avoid port collision
@@ -156,7 +151,7 @@ func StartP2PExecutor(homeDir string, poolId int64, chainRest, storageRest strin
 
 	nodeKey, err := p2p.LoadNodeKey(config.NodeKeyFile())
 	if err != nil {
-		panic(fmt.Errorf("failed to load node key file: %w", err))
+		return nil, fmt.Errorf("failed to load node key file: %w", err)
 	}
 
 	// generate new node key for this peer
@@ -180,10 +175,10 @@ func StartP2PExecutor(homeDir string, poolId int64, chainRest, storageRest strin
 	// start the transport
 	addr, err := p2p.NewNetAddressString(p2p.IDAddressString(ksyncNodeKey.ID(), config.P2P.ListenAddress))
 	if err != nil {
-		panic(fmt.Errorf("failed to start transport: %w", err))
+		return nil, fmt.Errorf("failed to start transport: %w", err)
 	}
 	if err := transport.Listen(*addr); err != nil {
-		panic(fmt.Errorf("failed to start transport: %w", err))
+		return nil, fmt.Errorf("failed to start transport: %w", err)
 	}
 
 	persistentPeers := make([]string, 0)
@@ -191,24 +186,23 @@ func StartP2PExecutor(homeDir string, poolId int64, chainRest, storageRest strin
 	persistentPeers = append(persistentPeers, peerString)
 
 	if err := sw.AddPersistentPeers(persistentPeers); err != nil {
-		panic("could not add persistent peers")
+		return nil, fmt.Errorf("could not add persistent peers: %w", err)
 	}
 
 	// start switch
-	err = sw.Start()
-	if err != nil {
-		panic(fmt.Errorf("failed to start switch: %w", err))
+	if err := sw.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start switch: %w", err)
 	}
 
 	// get peer
 	peer, err := p2p.NewNetAddressString(peerString)
 	if err != nil {
-		panic(fmt.Errorf("invalid peer address: %w", err))
+		return nil, fmt.Errorf("invalid peer address: %w", err)
 	}
 
 	if err := sw.DialPeerWithAddress(peer); err != nil {
-		logger.Error().Msg(fmt.Sprintf("Failed to dial peer %v", err.Error()))
+		return nil, fmt.Errorf("failed to dial peer: %w", err)
 	}
 
-	return sw
+	return sw, nil
 }
