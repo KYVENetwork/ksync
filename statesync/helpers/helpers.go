@@ -14,13 +14,10 @@ var (
 )
 
 func GetSnapshotPoolHeight(restEndpoint string, poolId int64) int64 {
-	fmt.Println(fmt.Sprintf("fetching snapshot height from pool %d", poolId))
 	snapshotPool, err := pool.GetPoolInfo(0, restEndpoint, poolId)
 	if err != nil {
 		panic(fmt.Errorf("could not get snapshot pool: %w", err))
 	}
-
-	fmt.Println(fmt.Sprintf("current key: %s", snapshotPool.Pool.Data.CurrentKey))
 
 	snapshotHeight, _, err := utils.ParseSnapshotFromKey(snapshotPool.Pool.Data.CurrentKey)
 	if err != nil {
