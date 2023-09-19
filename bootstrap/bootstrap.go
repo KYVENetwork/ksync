@@ -15,7 +15,7 @@ var (
 	logger = log.KsyncLogger("bootstrap")
 )
 
-func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poolId int64) (err error) {
+func StartBootstrap(binaryPath, homePath, chainRest, storageRest string, poolId int64) (err error) {
 	logger.Info().Msg("starting bootstrap")
 
 	config, err := cfg.LoadConfig(homePath)
@@ -75,7 +75,7 @@ func StartBootstrap(binaryPath string, homePath string, restEndpoint string, poo
 	logger.Info().Msg("loaded genesis file and completed ABCI handshake between app and tendermint")
 
 	// start p2p executors and try to execute the first block on the app
-	sw := p2p.StartP2PExecutor(homePath, poolId, restEndpoint)
+	sw := p2p.StartP2PExecutor(homePath, poolId, chainRest, storageRest)
 
 	// wait until block was properly executed by testing if the /abci
 	// endpoint returns the correct block height

@@ -5,6 +5,7 @@ import (
 	"github.com/KYVENetwork/ksync/servesnapshots"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
+	"strings"
 )
 
 func init() {
@@ -20,7 +21,8 @@ func init() {
 
 	serveCmd.Flags().StringVar(&chainId, "chain-id", utils.DefaultChainId, fmt.Sprintf("kyve chain id (\"kyve-1\",\"kaon-1\",\"korellia\"), [default = %s]", utils.DefaultChainId))
 
-	serveCmd.Flags().StringVar(&restEndpoint, "rest-endpoint", "", "Overwrite default rest endpoint from chain")
+	serveCmd.Flags().StringVar(&chainRest, "chain-rest", "", "rest endpoint for KYVE chain")
+	serveCmd.Flags().StringVar(&storageRest, "storage-rest", "", "storage endpoint for requesting bundle data")
 
 	serveCmd.Flags().Int64Var(&blockPoolId, "block-pool-id", 0, "pool id of the block-sync pool")
 	if err := serveCmd.MarkFlagRequired("block-pool-id"); err != nil {
@@ -46,7 +48,8 @@ var serveCmd = &cobra.Command{
 	Use:   "serve-snapshots",
 	Short: "Serve snapshots for running KYVE state-sync pools",
 	Run: func(cmd *cobra.Command, args []string) {
-		restEndpoint = utils.GetRestEndpoint(chainId, restEndpoint)
-		servesnapshots.StartServeSnapshotsWithBinary(binaryPath, homePath, restEndpoint, blockPoolId, metrics, metricsPort, snapshotPoolId, snapshotPort, pruning)
+		chainRest = utils.GetChainRest(chainId, chainRest)
+		storageRest = strings.TrimSuffix(storageRest, "/")
+		servesnapshots.StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest, blockPoolId, metrics, metricsPort, snapshotPoolId, snapshotPort, pruning)
 	},
 }

@@ -9,7 +9,8 @@ var (
 	binaryPath     string
 	homePath       string
 	chainId        string
-	restEndpoint   string
+	chainRest      string
+	storageRest    string
 	snapshotPoolId int64
 	blockPoolId    int64
 	targetHeight   int64

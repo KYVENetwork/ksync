@@ -53,7 +53,7 @@ func GetBlockBoundaries(restEndpoint string, poolId int64) (types.PoolResponse, 
 	return *poolResponse, startHeight, endHeight
 }
 
-func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort int64, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool) {
+func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort int64, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool) {
 	// load tendermint config
 	config, err := cfg.LoadConfig(homePath)
 	if err != nil {
@@ -91,7 +91,7 @@ func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight in
 	}
 
 	// perform boundary checks
-	poolResponse, startHeight, endHeight := GetBlockBoundaries(restEndpoint, blockPoolId)
+	poolResponse, startHeight, endHeight := GetBlockBoundaries(chainRest, blockPoolId)
 
 	if continuationHeight < startHeight {
 		logger.Error().Msg(fmt.Sprintf("app is currently at height %d but first available block on pool is %d", continuationHeight, startHeight))
@@ -125,9 +125,9 @@ func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight in
 
 	// start block collector
 	if snapshotInterval > 0 {
-		go blocks.StartIncrementalBlockCollector(blockCh, restEndpoint, poolResponse, continuationHeight)
+		go blocks.StartIncrementalBlockCollector(blockCh, chainRest, storageRest, poolResponse, continuationHeight)
 	} else {
-		go blocks.StartContinuousBlockCollector(blockCh, restEndpoint, poolResponse, continuationHeight, targetHeight)
+		go blocks.StartContinuousBlockCollector(blockCh, chainRest, storageRest, poolResponse, continuationHeight, targetHeight)
 	}
 
 	logger.Info().Msg(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
@@ -173,7 +173,7 @@ func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight in
 	// if KSYNC has already fetched 2 * snapshot_interval ahead of the snapshot pool we wait
 	// in order to not bloat the KSYNC process
 	if snapshotInterval > 0 {
-		snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(restEndpoint, snapshotPoolId)
+		snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(chainRest, snapshotPoolId)
 
 		if continuationHeight > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
 			logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to produce new bundles")
@@ -185,7 +185,7 @@ func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight in
 				time.Sleep(10 * time.Second)
 
 				// refresh snapshot pool height
-				snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(restEndpoint, snapshotPoolId)
+				snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(chainRest, snapshotPoolId)
 				continue
 			}
 
@@ -250,7 +250,7 @@ func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight in
 			}
 
 			// refresh snapshot pool height here, because we don't want to fetch this on every block
-			snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(restEndpoint, snapshotPoolId)
+			snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(chainRest, snapshotPoolId)
 		}
 
 		if pruning && prevBlock.Height%utils.PruningInterval == 0 {
@@ -296,7 +296,7 @@ func StartDBExecutor(homePath, restEndpoint string, blockPoolId, targetHeight in
 					time.Sleep(10 * time.Second)
 
 					// refresh snapshot pool height
-					snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(restEndpoint, snapshotPoolId)
+					snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(chainRest, snapshotPoolId)
 					continue
 				}
 

@@ -5,6 +5,7 @@ import (
 	"github.com/KYVENetwork/ksync/blocksync"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
+	"strings"
 )
 
 func init() {
@@ -20,7 +21,8 @@ func init() {
 
 	blockSyncCmd.Flags().StringVar(&chainId, "chain-id", utils.DefaultChainId, fmt.Sprintf("kyve chain id (\"kyve-1\",\"kaon-1\",\"korellia\"), [default = %s]", utils.DefaultChainId))
 
-	blockSyncCmd.Flags().StringVar(&restEndpoint, "rest-endpoint", "", "Overwrite default rest endpoint from chain")
+	blockSyncCmd.Flags().StringVar(&chainRest, "chain-rest", "", "rest endpoint for KYVE chain")
+	blockSyncCmd.Flags().StringVar(&storageRest, "storage-rest", "", "storage endpoint for requesting bundle data")
 
 	blockSyncCmd.Flags().Int64Var(&blockPoolId, "block-pool-id", 0, "pool id")
 	if err := blockSyncCmd.MarkFlagRequired("block-pool-id"); err != nil {
@@ -39,7 +41,8 @@ var blockSyncCmd = &cobra.Command{
 	Use:   "block-sync",
 	Short: "Start fast syncing blocks with KSYNC",
 	Run: func(cmd *cobra.Command, args []string) {
-		restEndpoint = utils.GetRestEndpoint(chainId, restEndpoint)
-		blocksync.StartBlockSyncWithBinary(binaryPath, homePath, restEndpoint, blockPoolId, targetHeight, metrics, metricsPort)
+		chainRest = utils.GetChainRest(chainId, chainRest)
+		storageRest = strings.TrimSuffix(storageRest, "/")
+		blocksync.StartBlockSyncWithBinary(binaryPath, homePath, chainRest, storageRest, blockPoolId, targetHeight, metrics, metricsPort)
 	},
 }

@@ -5,6 +5,7 @@ import (
 	"github.com/KYVENetwork/ksync/heightsync"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
+	"strings"
 )
 
 func init() {
@@ -20,7 +21,8 @@ func init() {
 
 	heightSyncCmd.Flags().StringVar(&chainId, "chain-id", utils.DefaultChainId, fmt.Sprintf("kyve chain id (\"kyve-1\",\"kaon-1\",\"korellia\"), [default = %s]", utils.DefaultChainId))
 
-	heightSyncCmd.Flags().StringVar(&restEndpoint, "rest-endpoint", "", "Overwrite default rest endpoint from chain")
+	heightSyncCmd.Flags().StringVar(&chainRest, "chain-rest", "", "rest endpoint for KYVE chain")
+	heightSyncCmd.Flags().StringVar(&storageRest, "storage-rest", "", "storage endpoint for requesting bundle data")
 
 	heightSyncCmd.Flags().Int64Var(&snapshotPoolId, "snapshot-pool-id", 0, "pool id of the state-sync pool")
 	if err := heightSyncCmd.MarkFlagRequired("snapshot-pool-id"); err != nil {
@@ -44,7 +46,8 @@ var heightSyncCmd = &cobra.Command{
 	Use:   "height-sync",
 	Short: "Sync fast to any height with state- and block-sync",
 	Run: func(cmd *cobra.Command, args []string) {
-		restEndpoint := utils.GetRestEndpoint(chainId, restEndpoint)
-		heightsync.StartHeightSyncWithBinary(binaryPath, homePath, restEndpoint, snapshotPoolId, blockPoolId, targetHeight)
+		chainRest = utils.GetChainRest(chainId, chainRest)
+		storageRest = strings.TrimSuffix(storageRest, "/")
+		heightsync.StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest, snapshotPoolId, blockPoolId, targetHeight)
 	},
 }

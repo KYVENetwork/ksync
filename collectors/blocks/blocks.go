@@ -14,7 +14,7 @@ var (
 	logger = log.KsyncLogger("collector")
 )
 
-func StartContinuousBlockCollector(blockCh chan<- *types.Block, restEndpoint string, blockPool types.PoolResponse, continuationHeight, targetHeight int64) {
+func StartContinuousBlockCollector(blockCh chan<- *types.Block, chainRest, storageRest string, blockPool types.PoolResponse, continuationHeight, targetHeight int64) {
 	paginationKey := ""
 
 BundleCollector:
@@ -24,11 +24,11 @@ BundleCollector:
 		var err error
 
 		for {
-			bundles, nextKey, err = utils.GetFinalizedBundlesPage(restEndpoint, blockPool.Pool.Id, utils.BundlesPageLimit, paginationKey)
+			bundles, nextKey, err = utils.GetFinalizedBundlesPage(chainRest, blockPool.Pool.Id, utils.BundlesPageLimit, paginationKey)
 			if err != nil {
 				logger.Error().Msg(fmt.Sprintf(
 					"failed to get finalized bundles page from: %s/kyve/v1/bundles/%d?pagination.limit=%d&pagination.key=%s, err = %s",
-					restEndpoint,
+					chainRest,
 					blockPool.Pool.Id,
 					utils.BundlesPageLimit,
 					paginationKey,
@@ -53,7 +53,7 @@ BundleCollector:
 				logger.Info().Msg(fmt.Sprintf("downloading bundle with storage id %s", bundle.StorageId))
 			}
 
-			deflated, err := utils.GetDataFromFinalizedBundle(bundle)
+			deflated, err := utils.GetDataFromFinalizedBundle(bundle, storageRest)
 			if err != nil {
 				panic(fmt.Errorf("failed to get data from finalized bundle: %w", err))
 			}
@@ -116,7 +116,7 @@ BundleCollector:
 	}
 }
 
-func StartIncrementalBlockCollector(blockCh chan<- *types.Block, restEndpoint string, blockPool types.PoolResponse, continuationHeight int64) {
+func StartIncrementalBlockCollector(blockCh chan<- *types.Block, chainRest, storageRest string, blockPool types.PoolResponse, continuationHeight int64) {
 	paginationKey := ""
 
 	for {
@@ -125,11 +125,11 @@ func StartIncrementalBlockCollector(blockCh chan<- *types.Block, restEndpoint st
 		var err error
 
 		for {
-			bundles, nextKey, err = utils.GetFinalizedBundlesPage(restEndpoint, blockPool.Pool.Id, utils.BundlesPageLimit, paginationKey)
+			bundles, nextKey, err = utils.GetFinalizedBundlesPage(chainRest, blockPool.Pool.Id, utils.BundlesPageLimit, paginationKey)
 			if err != nil {
 				logger.Error().Msg(fmt.Sprintf(
 					"failed to get finalized bundles page from: %s/kyve/v1/bundles/%d?pagination.limit=%d&pagination.key=%s, err = %s",
-					restEndpoint,
+					chainRest,
 					blockPool.Pool.Id,
 					utils.BundlesPageLimit,
 					paginationKey,
@@ -154,7 +154,7 @@ func StartIncrementalBlockCollector(blockCh chan<- *types.Block, restEndpoint st
 				logger.Info().Msg(fmt.Sprintf("downloading bundle with storage id %s", bundle.StorageId))
 			}
 
-			deflated, err := utils.GetDataFromFinalizedBundle(bundle)
+			deflated, err := utils.GetDataFromFinalizedBundle(bundle, storageRest)
 			if err != nil {
 				panic(fmt.Errorf("failed to get data from finalized bundle: %w", err))
 			}

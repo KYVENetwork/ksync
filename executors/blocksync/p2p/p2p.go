@@ -23,11 +23,11 @@ var (
 	logger  = log.KsyncLogger("p2p")
 )
 
-func retrieveBlock(pool *types.PoolResponse, restEndpoint string, height int64) (*types.Block, error) {
+func retrieveBlock(pool *types.PoolResponse, chainRest, storageRest string, height int64) (*types.Block, error) {
 	paginationKey := ""
 
 	for {
-		bundles, nextKey, err := utils.GetFinalizedBundlesPage(restEndpoint, pool.Pool.Id, utils.BundlesPageLimit, paginationKey)
+		bundles, nextKey, err := utils.GetFinalizedBundlesPage(chainRest, pool.Pool.Id, utils.BundlesPageLimit, paginationKey)
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve finalized bundles: %w", err)
 		}
@@ -45,7 +45,7 @@ func retrieveBlock(pool *types.PoolResponse, restEndpoint string, height int64) 
 				logger.Info().Msg(fmt.Sprintf("downloading bundle with storage id %s", bundle.StorageId))
 			}
 
-			deflated, err := utils.GetDataFromFinalizedBundle(bundle)
+			deflated, err := utils.GetDataFromFinalizedBundle(bundle, storageRest)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get data from finalized bundle: %w", err)
 			}
@@ -97,7 +97,7 @@ func retrieveBlock(pool *types.PoolResponse, restEndpoint string, height int64) 
 	return nil, fmt.Errorf("failed to find bundle with block height %d", height)
 }
 
-func StartP2PExecutor(homeDir string, poolId int64, restEndpoint string) *p2p.Switch {
+func StartP2PExecutor(homeDir string, poolId int64, chainRest, storageRest string) *p2p.Switch {
 	logger.Info().Msg("starting p2p sync")
 
 	// load config
@@ -111,7 +111,7 @@ func StartP2PExecutor(homeDir string, poolId int64, restEndpoint string) *p2p.Sw
 		panic(fmt.Errorf("failed to load state and genDoc: %w", err))
 	}
 
-	poolResponse, startHeight, endHeight := db.GetBlockBoundaries(restEndpoint, poolId)
+	poolResponse, startHeight, endHeight := db.GetBlockBoundaries(chainRest, poolId)
 
 	if genDoc.InitialHeight < startHeight {
 		logger.Error().Msg(fmt.Sprintf("initial height %d smaller than pool start height %d", genDoc.InitialHeight, startHeight))
@@ -123,13 +123,13 @@ func StartP2PExecutor(homeDir string, poolId int64, restEndpoint string) *p2p.Sw
 		os.Exit(1)
 	}
 
-	block, err := retrieveBlock(&poolResponse, restEndpoint, genDoc.InitialHeight)
+	block, err := retrieveBlock(&poolResponse, chainRest, storageRest, genDoc.InitialHeight)
 	if err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to retrieve block %d from pool", genDoc.InitialHeight))
 		os.Exit(1)
 	}
 
-	nextBlock, err := retrieveBlock(&poolResponse, restEndpoint, genDoc.InitialHeight+1)
+	nextBlock, err := retrieveBlock(&poolResponse, chainRest, storageRest, genDoc.InitialHeight+1)
 	if err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to retrieve block %d from pool", genDoc.InitialHeight+1))
 		os.Exit(1)

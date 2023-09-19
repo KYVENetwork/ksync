@@ -21,7 +21,7 @@ var (
 	logger = log.KsyncLogger("serve-snapshots")
 )
 
-func StartServeSnapshotsWithBinary(binaryPath, homePath, restEndpoint string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort int64, pruning bool) {
+func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort int64, pruning bool) {
 	logger.Info().Msg("starting serve-snapshots")
 
 	height, err := bootstrapHelpers.GetNodeHeightFromDB(homePath)
@@ -32,7 +32,7 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, restEndpoint string, bl
 
 	// get snapshot interval from pool
 	var config types.TendermintSSyncConfig
-	snapshotPool, err := pool.GetPoolInfo(0, restEndpoint, snapshotPoolId)
+	snapshotPool, err := pool.GetPoolInfo(0, chainRest, snapshotPoolId)
 
 	if err := json.Unmarshal([]byte(snapshotPool.Pool.Data.Config), &config); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to read pool config: %s", err))
@@ -58,7 +58,7 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, restEndpoint string, bl
 
 	// state-sync to latest snapshot so we skip the block-syncing process.
 	// if no snapshot is available we block-sync from genesis
-	_, _, latestSnapshotHeight := helpers.GetSnapshotBoundaries(restEndpoint, snapshotPoolId)
+	_, _, latestSnapshotHeight := helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
 
 	processId := 0
 
@@ -70,7 +70,7 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, restEndpoint string, bl
 		}
 
 		// found snapshot, applying it and continuing block-sync from here
-		if statesync.StartStateSync(homePath, restEndpoint, snapshotPoolId, latestSnapshotHeight) != nil {
+		if statesync.StartStateSync(homePath, chainRest, storageRest, snapshotPoolId, latestSnapshotHeight) != nil {
 			// stop binary process thread
 			if err := supervisor.StopProcessByProcessId(processId); err != nil {
 				panic(err)
@@ -79,7 +79,7 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, restEndpoint string, bl
 		}
 	} else {
 		// if we have to sync from genesis we first bootstrap the node
-		if err := bootstrap.StartBootstrap(binaryPath, homePath, restEndpoint, blockPoolId); err != nil {
+		if err := bootstrap.StartBootstrap(binaryPath, homePath, chainRest, storageRest, blockPoolId); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
 			os.Exit(1)
 		}
@@ -93,7 +93,7 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, restEndpoint string, bl
 
 	// db executes blocks against app indefinitely
 	// TODO: instead of throwing panics return all errors here
-	db.StartDBExecutor(homePath, restEndpoint, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning)
+	db.StartDBExecutor(homePath, chainRest, storageRest, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning)
 
 	// stop binary process thread
 	if err := supervisor.StopProcessByProcessId(processId); err != nil {

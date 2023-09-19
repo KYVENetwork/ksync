@@ -18,7 +18,7 @@ var (
 	logger = log.KsyncLogger("state-sync")
 )
 
-func StartStateSyncExecutor(config *tmCfg.Config, restEndpoint string, poolId int64, bundleId int64) error {
+func StartStateSyncExecutor(config *tmCfg.Config, chainRest, storageRest string, poolId int64, bundleId int64) error {
 	logger.Info().Msg(fmt.Sprintf("applying state-sync snapshot"))
 
 	stateDB, stateStore, err := store.GetStateDBs(config)
@@ -68,12 +68,12 @@ func StartStateSyncExecutor(config *tmCfg.Config, restEndpoint string, poolId in
 		return fmt.Errorf("app height %d is not zero, please reset with \"ksync unsafe-reset-all\"", info.LastBlockHeight)
 	}
 
-	finalizedBundle, err := utils.GetFinalizedBundle(restEndpoint, poolId, bundleId)
+	finalizedBundle, err := utils.GetFinalizedBundle(chainRest, poolId, bundleId)
 	if err != nil {
 		return err
 	}
 
-	deflated, err := utils.GetDataFromFinalizedBundle(*finalizedBundle)
+	deflated, err := utils.GetDataFromFinalizedBundle(*finalizedBundle, storageRest)
 	if err != nil {
 		return err
 	}
@@ -121,12 +121,12 @@ func StartStateSyncExecutor(config *tmCfg.Config, restEndpoint string, poolId in
 	}
 
 	for chunkIndex := uint32(0); chunkIndex < chunks; chunkIndex++ {
-		chunkBundleFinalized, err := utils.GetFinalizedBundle(restEndpoint, poolId, bundleId+int64(chunkIndex))
+		chunkBundleFinalized, err := utils.GetFinalizedBundle(chainRest, poolId, bundleId+int64(chunkIndex))
 		if err != nil {
 			return err
 		}
 
-		chunkBundleDeflated, err := utils.GetDataFromFinalizedBundle(*chunkBundleFinalized)
+		chunkBundleDeflated, err := utils.GetDataFromFinalizedBundle(*chunkBundleFinalized, storageRest)
 		if err != nil {
 			return err
 		}

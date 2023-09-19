@@ -16,7 +16,7 @@ var (
 	logger = log.KsyncLogger("state-sync")
 )
 
-func StartStateSync(homePath, restEndpoint string, poolId, snapshotHeight int64) error {
+func StartStateSync(homePath, chainRest, storageRest string, poolId, snapshotHeight int64) error {
 	// load config
 	config, err := cfg.LoadConfig(homePath)
 	if err != nil {
@@ -25,7 +25,7 @@ func StartStateSync(homePath, restEndpoint string, poolId, snapshotHeight int64)
 	}
 
 	// perform boundary checks
-	_, startHeight, endHeight := helpers.GetSnapshotBoundaries(restEndpoint, poolId)
+	_, startHeight, endHeight := helpers.GetSnapshotBoundaries(chainRest, poolId)
 
 	if snapshotHeight < startHeight {
 		logger.Error().Msg(fmt.Sprintf("requested snapshot height %d but first available snapshot on pool is %d", snapshotHeight, startHeight))
@@ -37,7 +37,7 @@ func StartStateSync(homePath, restEndpoint string, poolId, snapshotHeight int64)
 		return errors.New("")
 	}
 
-	bundleId, err := snapshots.FindBundleIdBySnapshot(restEndpoint, poolId, snapshotHeight)
+	bundleId, err := snapshots.FindBundleIdBySnapshot(chainRest, poolId, snapshotHeight)
 	if err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to find bundle with requested snapshot height %d: %s", snapshotHeight, err))
 		return errors.New("")
@@ -45,7 +45,7 @@ func StartStateSync(homePath, restEndpoint string, poolId, snapshotHeight int64)
 
 	logger.Info().Msg(fmt.Sprintf("found snapshot with height %d in bundle with id %d", snapshotHeight, bundleId))
 
-	if err := db.StartStateSyncExecutor(config, restEndpoint, poolId, bundleId); err != nil {
+	if err := db.StartStateSyncExecutor(config, chainRest, storageRest, poolId, bundleId); err != nil {
 		logger.Error().Msg(fmt.Sprintf("snapshot could not be applied: %s", err))
 		return errors.New("")
 	}
@@ -53,7 +53,7 @@ func StartStateSync(homePath, restEndpoint string, poolId, snapshotHeight int64)
 	return nil
 }
 
-func StartStateSyncWithBinary(binaryPath, homePath, restEndpoint string, poolId, snapshotHeight int64) {
+func StartStateSyncWithBinary(binaryPath, homePath, chainRest, storageRest string, poolId, snapshotHeight int64) {
 	logger.Info().Msg("starting state-sync")
 
 	// start binary process thread
@@ -62,7 +62,7 @@ func StartStateSyncWithBinary(binaryPath, homePath, restEndpoint string, poolId,
 		panic(err)
 	}
 
-	if StartStateSync(homePath, restEndpoint, poolId, snapshotHeight) != nil {
+	if StartStateSync(homePath, chainRest, storageRest, poolId, snapshotHeight) != nil {
 		// stop binary process thread
 		if err := supervisor.StopProcessByProcessId(processId); err != nil {
 			panic(err)

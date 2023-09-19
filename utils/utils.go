@@ -17,26 +17,27 @@ import (
 	"time"
 )
 
-func GetRestEndpoint(chainId, customEndpoint string) (restEndpoint string) {
-	restEndpoint = customEndpoint
+func GetChainRest(chainId, chainRest string) string {
+	if chainRest != "" {
+		// trim trailing slash
+		return strings.TrimSuffix(chainRest, "/")
+	}
 
 	// if no custom rest endpoint was given we take it from the chainId
-	if restEndpoint == "" {
+	if chainRest == "" {
 		switch chainId {
 		case "kyve-1":
-			restEndpoint = RestEndpointMainnet
+			return RestEndpointMainnet
 		case "kaon-1":
-			restEndpoint = RestEndpointKaon
+			return RestEndpointKaon
 		case "korellia":
-			restEndpoint = RestEndpointKorellia
+			return RestEndpointKorellia
 		default:
 			panic("flag --chain-id has to be either \"kyve-1\", \"kaon-1\" or \"korellia\"")
 		}
 	}
 
-	// trim trailing slash
-	restEndpoint = strings.TrimSuffix(restEndpoint, "/")
-	return
+	return ""
 }
 
 func GetFinalizedBundlesPage(restEndpoint string, poolId int64, paginationLimit int64, paginationKey string) ([]types.FinalizedBundle, string, error) {
@@ -95,14 +96,13 @@ func GetFinalizedBundle(restEndpoint string, poolId int64, bundleId int64) (*typ
 	return &bundleResponse.FinalizedBundle, nil
 }
 
-func GetDataFromFinalizedBundle(bundle types.FinalizedBundle) ([]byte, error) {
+func GetDataFromFinalizedBundle(bundle types.FinalizedBundle, storageRest string) ([]byte, error) {
 	// retrieve bundle from storage provider
-	data, err := RetrieveBundleFromStorageProvider(bundle)
+	data, err := RetrieveBundleFromStorageProvider(bundle, storageRest)
 	for err != nil {
-		fmt.Println(fmt.Sprintf("error RetrieveBundleFromStorageProvider: %s", err))
 		// sleep 10 seconds after an unsuccessful request
 		time.Sleep(10 * time.Second)
-		data, err = RetrieveBundleFromStorageProvider(bundle)
+		data, err = RetrieveBundleFromStorageProvider(bundle, storageRest)
 	}
 
 	// validate bundle with sha256 checksum
@@ -133,11 +133,15 @@ func DecompressBundleFromStorageProvider(bundle types.FinalizedBundle, data []by
 	}
 }
 
-func RetrieveBundleFromStorageProvider(bundle types.FinalizedBundle) ([]byte, error) {
+func RetrieveBundleFromStorageProvider(bundle types.FinalizedBundle, storageRest string) ([]byte, error) {
 	//id, err := strconv.ParseUint(bundle.StorageProviderId, 10, 64)
 	//if err != nil {
 	//	return nil, fmt.Errorf("could not parse uint from storage provider id: %w", err)
 	//}
+
+	if storageRest != "" {
+		return DownloadFromUrl(fmt.Sprintf("%s/%s", storageRest, bundle.StorageId))
+	}
 
 	switch bundle.StorageProviderId {
 	case 1:
