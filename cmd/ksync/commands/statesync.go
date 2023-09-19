@@ -22,9 +22,9 @@ func init() {
 
 	stateSyncCmd.Flags().StringVar(&restEndpoint, "rest-endpoint", "", "Overwrite default rest endpoint from chain")
 
-	stateSyncCmd.Flags().Int64Var(&poolId, "pool-id", 0, "pool id")
-	if err := stateSyncCmd.MarkFlagRequired("pool-id"); err != nil {
-		panic(fmt.Errorf("flag 'pool-id' should be required: %w", err))
+	stateSyncCmd.Flags().Int64Var(&snapshotPoolId, "snapshot-pool-id", 0, "pool id")
+	if err := stateSyncCmd.MarkFlagRequired("snapshot-pool-id"); err != nil {
+		panic(fmt.Errorf("flag 'snapshot-pool-id' should be required: %w", err))
 	}
 
 	stateSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target height")
@@ -40,6 +40,6 @@ var stateSyncCmd = &cobra.Command{
 	Short: "Apply a state-sync snapshot",
 	Run: func(cmd *cobra.Command, args []string) {
 		restEndpoint = utils.GetRestEndpoint(chainId, restEndpoint)
-		statesync.StartStateSyncWithBinary(binaryPath, homePath, restEndpoint, poolId, targetHeight)
+		statesync.StartStateSyncWithBinary(binaryPath, homePath, restEndpoint, snapshotPoolId, targetHeight)
 	},
 }

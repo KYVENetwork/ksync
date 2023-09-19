@@ -22,9 +22,9 @@ func init() {
 
 	blockSyncCmd.Flags().StringVar(&restEndpoint, "rest-endpoint", "", "Overwrite default rest endpoint from chain")
 
-	blockSyncCmd.Flags().Int64Var(&poolId, "pool-id", 0, "pool id")
-	if err := blockSyncCmd.MarkFlagRequired("pool-id"); err != nil {
-		panic(fmt.Errorf("flag 'pool-id' should be required: %w", err))
+	blockSyncCmd.Flags().Int64Var(&blockPoolId, "block-pool-id", 0, "pool id")
+	if err := blockSyncCmd.MarkFlagRequired("block-pool-id"); err != nil {
+		panic(fmt.Errorf("flag 'block-pool-id' should be required: %w", err))
 	}
 
 	blockSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target height (including)")
@@ -40,6 +40,6 @@ var blockSyncCmd = &cobra.Command{
 	Short: "Start fast syncing blocks with KSYNC",
 	Run: func(cmd *cobra.Command, args []string) {
 		restEndpoint = utils.GetRestEndpoint(chainId, restEndpoint)
-		blocksync.StartBlockSyncWithBinary(binaryPath, homePath, restEndpoint, poolId, targetHeight, metrics, metricsPort)
+		blocksync.StartBlockSyncWithBinary(binaryPath, homePath, restEndpoint, blockPoolId, targetHeight, metrics, metricsPort)
 	},
 }

@@ -23,7 +23,9 @@ func init() {
 		panic(fmt.Errorf("flag 'until-height' should be required: %w", err))
 	}
 
-	rootCmd.AddCommand(pruneCmd)
+	// Disable pruning for now until we find a way to properly prune
+	// blockstore.db, state.db and application.db
+	//rootCmd.AddCommand(pruneCmd)
 }
 
 var pruneCmd = &cobra.Command{

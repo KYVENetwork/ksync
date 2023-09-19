@@ -10,7 +10,6 @@ var (
 	homePath       string
 	chainId        string
 	restEndpoint   string
-	poolId         int64
 	snapshotPoolId int64
 	blockPoolId    int64
 	targetHeight   int64
