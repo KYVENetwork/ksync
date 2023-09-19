@@ -93,7 +93,7 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest 
 
 	// db executes blocks against app indefinitely
 	if err := db.StartDBExecutor(homePath, chainRest, storageRest, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning); err != nil {
-		logger.Error().Err(err)
+		logger.Error().Msg(fmt.Sprintf("failed to start db executor: %s", err))
 
 		// stop binary process thread
 		if err := supervisor.StopProcessByProcessId(processId); err != nil {

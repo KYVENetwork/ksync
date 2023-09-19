@@ -21,6 +21,7 @@ import (
 
 var (
 	blockCh = make(chan *types.Block, utils.BlockBuffer)
+	errorCh = make(chan error)
 	kLogger = log.KLogger()
 	logger  = log.KsyncLogger("db")
 )
@@ -120,9 +121,9 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 
 	// start block collector
 	if snapshotInterval > 0 {
-		go blocks.StartIncrementalBlockCollector(blockCh, chainRest, storageRest, *poolResponse, continuationHeight)
+		go blocks.StartIncrementalBlockCollector(blockCh, errorCh, chainRest, storageRest, *poolResponse, continuationHeight)
 	} else {
-		go blocks.StartContinuousBlockCollector(blockCh, chainRest, storageRest, *poolResponse, continuationHeight, targetHeight)
+		go blocks.StartContinuousBlockCollector(blockCh, errorCh, chainRest, storageRest, *poolResponse, continuationHeight, targetHeight)
 	}
 
 	logger.Info().Msg(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
@@ -189,124 +190,125 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 	}
 
 	for {
-		block := <-blockCh
-
-		// set previous block
-		if prevBlock == nil {
-			prevBlock = block
-			continue
-		}
-
-		// get block data
-		blockParts := prevBlock.MakePartSet(tmTypes.BlockPartSizeBytes)
-		blockId := tmTypes.BlockID{Hash: prevBlock.Hash(), PartSetHeader: blockParts.Header()}
-
-		// verify block
-		if err := blockExec.ValidateBlock(state, prevBlock); err != nil {
-			return fmt.Errorf("block validation failed at height %d: %w", prevBlock.Height, err)
-		}
-
-		// verify commits
-		if err := state.Validators.VerifyCommitLight(state.ChainID, blockId, prevBlock.Height, block.LastCommit); err != nil {
-			return fmt.Errorf("light commit verification failed at height %d: %w", prevBlock.Height, err)
-		}
-
-		// store block
-		blockStore.SaveBlock(prevBlock, blockParts, block.LastCommit)
-
-		// execute block against app
-		state, _, err = blockExec.ApplyBlock(state, blockId, prevBlock)
-		if err != nil {
-			return fmt.Errorf("failed to apply block at height %d: %w", prevBlock.Height, err)
-		}
-
-		// if we have reached a height where a snapshot should be created by the app
-		// we wait until it is created, else if KSYNC moves to fast the snapshot can
-		// not be properly written to disk.
-		if snapshotInterval > 0 && prevBlock.Height%snapshotInterval == 0 {
-			for {
-				logger.Info().Msg(fmt.Sprintf("waiting until snapshot at height %d is created by app", prevBlock.Height))
-
-				found, err := helpers.IsSnapshotAvailableAtHeight(config, prevBlock.Height)
-				if err != nil {
-					logger.Error().Msg(fmt.Sprintf("check snapshot availability failed at height %d", prevBlock.Height))
-					time.Sleep(10 * time.Second)
-					continue
-				}
-
-				if !found {
-					logger.Info().Msg(fmt.Sprintf("snapshot at height %d was not created yet. Waiting ...", prevBlock.Height))
-					time.Sleep(10 * time.Second)
-					continue
-				}
-
-				logger.Info().Msg(fmt.Sprintf("snapshot at height %d was created. Continuing ...", prevBlock.Height))
-				break
+		select {
+		case err := <-errorCh:
+			return fmt.Errorf("error in block collector: %w", err)
+		case block := <-blockCh:
+			// set previous block
+			if prevBlock == nil {
+				prevBlock = block
+				continue
 			}
 
-			// refresh snapshot pool height here, because we don't want to fetch this on every block
-			snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(chainRest, snapshotPoolId)
-		}
+			// get block data
+			blockParts := prevBlock.MakePartSet(tmTypes.BlockPartSizeBytes)
+			blockId := tmTypes.BlockID{Hash: prevBlock.Hash(), PartSetHeader: blockParts.Header()}
 
-		if pruning && prevBlock.Height%utils.PruningInterval == 0 {
-			// Because we sync 2 * snapshot_interval ahead we keep the latest
-			// 5 * snapshot_interval blocks and prune everything before that
-			height := blockStore.Height() - (utils.SnapshotPruningWindowFactor * snapshotInterval)
-
-			if height < blockStore.Base() {
-				height = blockStore.Base()
+			// verify block
+			if err := blockExec.ValidateBlock(state, prevBlock); err != nil {
+				return fmt.Errorf("block validation failed at height %d: %w", prevBlock.Height, err)
 			}
 
-			blocksPruned, err := blockStore.PruneBlocks(height)
+			// verify commits
+			if err := state.Validators.VerifyCommitLight(state.ChainID, blockId, prevBlock.Height, block.LastCommit); err != nil {
+				return fmt.Errorf("light commit verification failed at height %d: %w", prevBlock.Height, err)
+			}
+
+			// store block
+			blockStore.SaveBlock(prevBlock, blockParts, block.LastCommit)
+
+			// execute block against app
+			state, _, err = blockExec.ApplyBlock(state, blockId, prevBlock)
 			if err != nil {
-				logger.Error().Msg(fmt.Sprintf("failed to prune blocks up to %d: %s", height, err))
+				return fmt.Errorf("failed to apply block at height %d: %w", prevBlock.Height, err)
 			}
 
-			base := height - int64(blocksPruned)
+			// if we have reached a height where a snapshot should be created by the app
+			// we wait until it is created, else if KSYNC moves to fast the snapshot can
+			// not be properly written to disk.
+			if snapshotInterval > 0 && prevBlock.Height%snapshotInterval == 0 {
+				for {
+					logger.Info().Msg(fmt.Sprintf("waiting until snapshot at height %d is created by app", prevBlock.Height))
 
-			if blocksPruned > 0 {
-				logger.Info().Msg(fmt.Sprintf("pruned blockstore.db from height %d to %d", base, height))
-			}
+					found, err := helpers.IsSnapshotAvailableAtHeight(config, prevBlock.Height)
+					if err != nil {
+						logger.Error().Msg(fmt.Sprintf("check snapshot availability failed at height %d", prevBlock.Height))
+						time.Sleep(10 * time.Second)
+						continue
+					}
 
-			if height > base {
-				if err := stateStore.PruneStates(base, height); err != nil {
-					logger.Error().Msg(fmt.Sprintf("failed to prune state up to %d: %s", height, err))
+					if !found {
+						logger.Info().Msg(fmt.Sprintf("snapshot at height %d was not created yet. Waiting ...", prevBlock.Height))
+						time.Sleep(10 * time.Second)
+						continue
+					}
+
+					logger.Info().Msg(fmt.Sprintf("snapshot at height %d was created. Continuing ...", prevBlock.Height))
+					break
 				}
 
-				logger.Info().Msg(fmt.Sprintf("pruned state.db from height %d to %d", base, height))
-			}
-		}
-
-		// if KSYNC has already fetched 2 * snapshot_interval ahead of the snapshot pool we wait
-		// in order to not bloat the KSYNC process
-		if snapshotInterval > 0 {
-			// only log this message once
-			if block.Height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
-				logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to produce new bundles")
+				// refresh snapshot pool height here, because we don't want to fetch this on every block
+				snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(chainRest, snapshotPoolId)
 			}
 
-			for {
-				// if we are in that range we wait until the snapshot pool moved on
+			if pruning && prevBlock.Height%utils.PruningInterval == 0 {
+				// Because we sync 2 * snapshot_interval ahead we keep the latest
+				// 5 * snapshot_interval blocks and prune everything before that
+				height := blockStore.Height() - (utils.SnapshotPruningWindowFactor * snapshotInterval)
+
+				if height < blockStore.Base() {
+					height = blockStore.Base()
+				}
+
+				blocksPruned, err := blockStore.PruneBlocks(height)
+				if err != nil {
+					logger.Error().Msg(fmt.Sprintf("failed to prune blocks up to %d: %s", height, err))
+				}
+
+				base := height - int64(blocksPruned)
+
+				if blocksPruned > 0 {
+					logger.Info().Msg(fmt.Sprintf("pruned blockstore.db from height %d to %d", base, height))
+				}
+
+				if height > base {
+					if err := stateStore.PruneStates(base, height); err != nil {
+						logger.Error().Msg(fmt.Sprintf("failed to prune state up to %d: %s", height, err))
+					}
+
+					logger.Info().Msg(fmt.Sprintf("pruned state.db from height %d to %d", base, height))
+				}
+			}
+
+			// if KSYNC has already fetched 2 * snapshot_interval ahead of the snapshot pool we wait
+			// in order to not bloat the KSYNC process
+			if snapshotInterval > 0 {
+				// only log this message once
 				if block.Height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
-					time.Sleep(10 * time.Second)
-
-					// refresh snapshot pool height
-					snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(chainRest, snapshotPoolId)
-					continue
+					logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to produce new bundles")
 				}
 
-				break
-			}
-		}
+				for {
+					// if we are in that range we wait until the snapshot pool moved on
+					if block.Height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
+						time.Sleep(10 * time.Second)
 
-		// stop with block execution if we have reached our target height
-		if targetHeight > 0 && block.Height == targetHeight+1 {
-			break
-		} else {
-			prevBlock = block
+						// refresh snapshot pool height
+						snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(chainRest, snapshotPoolId)
+						continue
+					}
+
+					break
+				}
+			}
+
+			// stop with block execution if we have reached our target height
+			if targetHeight > 0 && block.Height == targetHeight+1 {
+				logger.Info().Msg(fmt.Sprintf("synced from height %d to target height %d", continuationHeight, targetHeight))
+				return nil
+			} else {
+				prevBlock = block
+			}
 		}
 	}
-
-	logger.Info().Msg(fmt.Sprintf("synced from height %d to target height %d", continuationHeight, targetHeight))
-	return nil
 }

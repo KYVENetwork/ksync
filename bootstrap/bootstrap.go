@@ -15,7 +15,7 @@ var (
 	logger = log.KsyncLogger("bootstrap")
 )
 
-func StartBootstrap(binaryPath, homePath, chainRest, storageRest string, poolId int64) (err error) {
+func StartBootstrap(binaryPath, homePath, chainRest, storageRest string, poolId int64) error {
 	logger.Info().Msg("starting bootstrap")
 
 	config, err := cfg.LoadConfig(homePath)
@@ -31,7 +31,7 @@ func StartBootstrap(binaryPath, homePath, chainRest, storageRest string, poolId 
 	// if genesis file is smaller than 100MB we can skip further bootstrapping
 	if !gt100 {
 		logger.Info().Msg("KSYNC is successfully bootstrapped!")
-		return
+		return nil
 	}
 
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
@@ -48,7 +48,7 @@ func StartBootstrap(binaryPath, homePath, chainRest, storageRest string, poolId 
 	// if the app already has mined at least one block we can skip further bootstrapping
 	if height > genDoc.InitialHeight {
 		logger.Info().Msg("KSYNC is successfully bootstrapped!")
-		return
+		return nil
 	}
 
 	// if we reached this point we have to sync over p2p
@@ -109,5 +109,5 @@ func StartBootstrap(binaryPath, homePath, chainRest, storageRest string, poolId 
 	time.Sleep(10 * time.Second)
 
 	logger.Info().Msg("successfully bootstrapped node. Continuing with syncing blocks over DB")
-	return
+	return nil
 }

@@ -145,7 +145,7 @@ func StartStateSyncExecutor(config *tmCfg.Config, chainRest, storageRest string,
 		})
 
 		if err != nil {
-			logger.Error().Err(fmt.Errorf("applying snapshot chunk %d/%d failed: %w", chunkIndex+1, chunks, err))
+			logger.Error().Msg(fmt.Sprintf("applying snapshot chunk %d/%d failed: %s", chunkIndex+1, chunks, err))
 			return err
 		}
 

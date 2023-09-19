@@ -34,7 +34,7 @@ func StartBlockSyncWithBinary(binaryPath, homePath, chainRest, storageRest strin
 
 	// db executes blocks against app until target height is reached
 	if err := StartBlockSync(homePath, chainRest, storageRest, poolId, targetHeight, metrics, port); err != nil {
-		logger.Error().Err(err)
+		logger.Error().Msg(fmt.Sprintf("%s", err))
 
 		// stop binary process thread
 		if err := supervisor.StopProcessByProcessId(processId); err != nil {

@@ -57,7 +57,7 @@ func StartStateSyncWithBinary(binaryPath, homePath, chainRest, storageRest strin
 	}
 
 	if err := StartStateSync(homePath, chainRest, storageRest, poolId, snapshotHeight); err != nil {
-		logger.Error().Err(err)
+		logger.Error().Msg(fmt.Sprintf("failed to start state sync: %s", err))
 
 		// stop binary process thread
 		if err := supervisor.StopProcessByProcessId(processId); err != nil {

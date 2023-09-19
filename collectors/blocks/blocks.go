@@ -14,7 +14,7 @@ var (
 	logger = log.KsyncLogger("collector")
 )
 
-func StartContinuousBlockCollector(blockCh chan<- *types.Block, chainRest, storageRest string, blockPool types.PoolResponse, continuationHeight, targetHeight int64) {
+func StartContinuousBlockCollector(blockCh chan<- *types.Block, errorCh chan<- error, chainRest, storageRest string, blockPool types.PoolResponse, continuationHeight, targetHeight int64) {
 	paginationKey := ""
 
 BundleCollector:
@@ -44,7 +44,8 @@ BundleCollector:
 		for _, bundle := range bundles {
 			height, err := strconv.ParseInt(bundle.ToKey, 10, 64)
 			if err != nil {
-				panic(fmt.Errorf("failed to parse bundle to key to int64: %w", err))
+				errorCh <- fmt.Errorf("failed to parse bundle to key to int64: %w", err)
+				return
 			}
 
 			if height < continuationHeight {
@@ -55,7 +56,8 @@ BundleCollector:
 
 			deflated, err := utils.GetDataFromFinalizedBundle(bundle, storageRest)
 			if err != nil {
-				panic(fmt.Errorf("failed to get data from finalized bundle: %w", err))
+				errorCh <- fmt.Errorf("failed to get data from finalized bundle: %w", err)
+				return
 			}
 
 			// depending on runtime the data items can look differently
@@ -64,7 +66,8 @@ BundleCollector:
 				var bundle types.TendermintBundle
 
 				if err := json.Unmarshal(deflated, &bundle); err != nil {
-					panic(fmt.Errorf("failed to unmarshal tendermint bundle: %w", err))
+					errorCh <- fmt.Errorf("failed to unmarshal tendermint bundle: %w", err)
+					return
 				}
 
 				for _, dataItem := range bundle {
@@ -86,7 +89,8 @@ BundleCollector:
 				var bundle types.TendermintBsyncBundle
 
 				if err := json.Unmarshal(deflated, &bundle); err != nil {
-					panic(fmt.Errorf("failed to unmarshal tendermint bsync bundle: %w", err))
+					errorCh <- fmt.Errorf("failed to unmarshal tendermint bsync bundle: %w", err)
+					return
 				}
 
 				for _, dataItem := range bundle {
@@ -116,7 +120,7 @@ BundleCollector:
 	}
 }
 
-func StartIncrementalBlockCollector(blockCh chan<- *types.Block, chainRest, storageRest string, blockPool types.PoolResponse, continuationHeight int64) {
+func StartIncrementalBlockCollector(blockCh chan<- *types.Block, errorCh chan<- error, chainRest, storageRest string, blockPool types.PoolResponse, continuationHeight int64) {
 	paginationKey := ""
 
 	for {
@@ -145,7 +149,8 @@ func StartIncrementalBlockCollector(blockCh chan<- *types.Block, chainRest, stor
 		for _, bundle := range bundles {
 			height, err := strconv.ParseInt(bundle.ToKey, 10, 64)
 			if err != nil {
-				panic(fmt.Errorf("failed to parse bundle to key to int64: %w", err))
+				errorCh <- fmt.Errorf("failed to parse bundle to key to int64: %w", err)
+				return
 			}
 
 			if height < continuationHeight {
@@ -156,7 +161,8 @@ func StartIncrementalBlockCollector(blockCh chan<- *types.Block, chainRest, stor
 
 			deflated, err := utils.GetDataFromFinalizedBundle(bundle, storageRest)
 			if err != nil {
-				panic(fmt.Errorf("failed to get data from finalized bundle: %w", err))
+				errorCh <- fmt.Errorf("failed to get data from finalized bundle: %w", err)
+				return
 			}
 
 			// depending on runtime the data items can look differently
@@ -165,7 +171,8 @@ func StartIncrementalBlockCollector(blockCh chan<- *types.Block, chainRest, stor
 				var bundle types.TendermintBundle
 
 				if err := json.Unmarshal(deflated, &bundle); err != nil {
-					panic(fmt.Errorf("failed to unmarshal tendermint bundle: %w", err))
+					errorCh <- fmt.Errorf("failed to unmarshal tendermint bundle: %w", err)
+					return
 				}
 
 				for _, dataItem := range bundle {
@@ -184,7 +191,8 @@ func StartIncrementalBlockCollector(blockCh chan<- *types.Block, chainRest, stor
 				var bundle types.TendermintBsyncBundle
 
 				if err := json.Unmarshal(deflated, &bundle); err != nil {
-					panic(fmt.Errorf("failed to unmarshal tendermint bsync bundle: %w", err))
+					errorCh <- fmt.Errorf("failed to unmarshal tendermint bsync bundle: %w", err)
+					return
 				}
 
 				for _, dataItem := range bundle {
