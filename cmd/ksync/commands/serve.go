@@ -47,6 +47,6 @@ var serveCmd = &cobra.Command{
 	Short: "Serve snapshots for running KYVE state-sync pools",
 	Run: func(cmd *cobra.Command, args []string) {
 		restEndpoint = utils.GetRestEndpoint(chainId, restEndpoint)
-		servesnapshots.StartServeSnapshots(binaryPath, homePath, restEndpoint, blockPoolId, metrics, metricsPort, snapshotPoolId, snapshotPort, pruning)
+		servesnapshots.StartServeSnapshotsWithBinary(binaryPath, homePath, restEndpoint, blockPoolId, metrics, metricsPort, snapshotPoolId, snapshotPort, pruning)
 	},
 }

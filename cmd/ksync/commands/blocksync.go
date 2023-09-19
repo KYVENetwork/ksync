@@ -40,6 +40,6 @@ var blockSyncCmd = &cobra.Command{
 	Short: "Start fast syncing blocks with KSYNC",
 	Run: func(cmd *cobra.Command, args []string) {
 		restEndpoint = utils.GetRestEndpoint(chainId, restEndpoint)
-		blocksync.StartBlockSync(binaryPath, homePath, restEndpoint, poolId, targetHeight, metrics, metricsPort)
+		blocksync.StartBlockSyncWithBinary(binaryPath, homePath, restEndpoint, poolId, targetHeight, metrics, metricsPort)
 	},
 }

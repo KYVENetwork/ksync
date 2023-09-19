@@ -15,37 +15,18 @@ import (
 	"github.com/KYVENetwork/ksync/utils"
 	"os"
 	"strconv"
-	"time"
 )
 
 var (
 	logger = log.KsyncLogger("serve-snapshots")
 )
 
-func StartServeSnapshots(binaryPath, homePath, restEndpoint string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort int64, pruning bool) {
+func StartServeSnapshotsWithBinary(binaryPath, homePath, restEndpoint string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort int64, pruning bool) {
 	logger.Info().Msg("starting serve-snapshots")
 
 	height, err := bootstrapHelpers.GetNodeHeightFromDB(homePath)
 	if err != nil {
 		logger.Error().Msg(fmt.Sprintf("could not get node height: %s", err))
-		os.Exit(1)
-	}
-
-	// state-sync to latest snapshot so we skip the block-syncing process.
-	// if no snapshot is available we block-sync from genesis
-	_, _, latestSnapshotHeight := helpers.GetSnapshotBoundaries(restEndpoint, snapshotPoolId)
-
-	if height == 0 && latestSnapshotHeight > 0 {
-		// found snapshot, applying it and continuing block-sync from here
-		statesync.StartStateSync(binaryPath, homePath, restEndpoint, snapshotPoolId, latestSnapshotHeight)
-
-		// wait after state-sync to give binary process some time to properly exit
-		time.Sleep(10 * time.Second)
-	}
-
-	// continue with block-sync
-	if err := bootstrap.StartBootstrap(binaryPath, homePath, restEndpoint, blockPoolId); err != nil {
-		logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
 		os.Exit(1)
 	}
 
@@ -75,13 +56,49 @@ func StartServeSnapshots(binaryPath, homePath, restEndpoint string, blockPoolId 
 		)
 	}
 
-	// start binary process thread
-	_, err = supervisor.StartBinaryProcessForDB(binaryPath, homePath, snapshotArgs)
-	if err != nil {
+	// state-sync to latest snapshot so we skip the block-syncing process.
+	// if no snapshot is available we block-sync from genesis
+	_, _, latestSnapshotHeight := helpers.GetSnapshotBoundaries(restEndpoint, snapshotPoolId)
+
+	processId := 0
+
+	if height == 0 && latestSnapshotHeight > 0 {
+		// start binary process thread
+		processId, err = supervisor.StartBinaryProcessForDB(binaryPath, homePath, snapshotArgs)
+		if err != nil {
+			panic(err)
+		}
+
+		// found snapshot, applying it and continuing block-sync from here
+		if statesync.StartStateSync(homePath, restEndpoint, snapshotPoolId, latestSnapshotHeight) != nil {
+			// stop binary process thread
+			if err := supervisor.StopProcessByProcessId(processId); err != nil {
+				panic(err)
+			}
+			os.Exit(1)
+		}
+	} else {
+		// if we have to sync from genesis we first bootstrap the node
+		if err := bootstrap.StartBootstrap(binaryPath, homePath, restEndpoint, blockPoolId); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
+			os.Exit(1)
+		}
+
+		// after the node is bootstrapped we start the binary process thread
+		processId, err = supervisor.StartBinaryProcessForDB(binaryPath, homePath, snapshotArgs)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	// db executes blocks against app indefinitely
+	// TODO: instead of throwing panics return all errors here
+	db.StartDBExecutor(homePath, restEndpoint, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning)
+
+	// stop binary process thread
+	if err := supervisor.StopProcessByProcessId(processId); err != nil {
 		panic(err)
 	}
 
-	// db executes blocks against app until target height is reached
-	// TODO: instead of throwing panics return all errors here
-	db.StartDBExecutor(homePath, restEndpoint, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning)
+	logger.Info().Msg(fmt.Sprintf("finished serve-snapshots"))
 }

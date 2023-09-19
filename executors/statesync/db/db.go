@@ -12,7 +12,6 @@ import (
 	"github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/p2p"
 	tmTypes "github.com/tendermint/tendermint/types"
-	"os"
 )
 
 var (
@@ -26,18 +25,17 @@ func StartStateSyncExecutor(config *tmCfg.Config, restEndpoint string, poolId in
 	defer stateDB.Close()
 
 	if err != nil {
-		panic(fmt.Errorf("failed to load state db: %w", err))
+		return fmt.Errorf("failed to load state db: %w", err)
 	}
 
 	// check if state height is zero
 	s, err := stateStore.Load()
 	if err != nil {
-		panic(fmt.Errorf("failed to load latest state: %w", err))
+		return fmt.Errorf("failed to load latest state: %w", err)
 	}
 
 	if s.LastBlockHeight > 0 {
-		logger.Error().Msg(fmt.Sprintf("state height %d is not zero, please reset with \"ksync unsafe-reset-all\"", s.LastBlockHeight))
-		os.Exit(1)
+		return fmt.Errorf("state height %d is not zero, please reset with \"ksync unsafe-reset-all\"", s.LastBlockHeight)
 	}
 
 	blockDB, blockStore, err := store.GetBlockstoreDBs(config)
@@ -50,8 +48,7 @@ func StartStateSyncExecutor(config *tmCfg.Config, restEndpoint string, poolId in
 
 	// check if store height is zero
 	if blockStore.Height() > 0 {
-		logger.Error().Msg(fmt.Sprintf("store height %d is not zero, please reset with \"ksync unsafe-reset-all\"", blockStore.Height()))
-		os.Exit(1)
+		return fmt.Errorf("store height %d is not zero, please reset with \"ksync unsafe-reset-all\"", blockStore.Height())
 	}
 
 	socketClient := abciClient.NewSocketClient(config.ProxyApp, false)
@@ -68,8 +65,7 @@ func StartStateSyncExecutor(config *tmCfg.Config, restEndpoint string, poolId in
 	}
 
 	if info.LastBlockHeight > 0 {
-		logger.Error().Msg(fmt.Sprintf("app height %d is not zero, please reset with \"ksync unsafe-reset-all\"", info.LastBlockHeight))
-		os.Exit(1)
+		return fmt.Errorf("app height %d is not zero, please reset with \"ksync unsafe-reset-all\"", info.LastBlockHeight)
 	}
 
 	finalizedBundle, err := utils.GetFinalizedBundle(restEndpoint, poolId, bundleId)
@@ -85,7 +81,7 @@ func StartStateSyncExecutor(config *tmCfg.Config, restEndpoint string, poolId in
 	var bundle types.TendermintSsyncBundle
 
 	if err := json.Unmarshal(deflated, &bundle); err != nil {
-		panic(fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err))
+		return fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
 	}
 
 	snapshot := bundle[0].Value.Snapshot
@@ -138,7 +134,7 @@ func StartStateSyncExecutor(config *tmCfg.Config, restEndpoint string, poolId in
 		var chunkBundle types.TendermintSsyncBundle
 
 		if err := json.Unmarshal(chunkBundleDeflated, &chunkBundle); err != nil {
-			panic(fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err))
+			return fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
 		}
 
 		chunk := chunkBundle[0].Value.Chunk

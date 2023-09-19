@@ -45,6 +45,6 @@ var heightSyncCmd = &cobra.Command{
 	Short: "Sync fast to any height with state- and block-sync",
 	Run: func(cmd *cobra.Command, args []string) {
 		restEndpoint := utils.GetRestEndpoint(chainId, restEndpoint)
-		heightsync.StartHeightSync(binaryPath, homePath, restEndpoint, snapshotPoolId, blockPoolId, targetHeight)
+		heightsync.StartHeightSyncWithBinary(binaryPath, homePath, restEndpoint, snapshotPoolId, blockPoolId, targetHeight)
 	},
 }

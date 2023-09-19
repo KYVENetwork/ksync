@@ -16,7 +16,7 @@ var (
 	logger = log.KsyncLogger("state-sync")
 )
 
-func runStateSync(homePath, restEndpoint string, poolId, snapshotHeight int64) error {
+func StartStateSync(homePath, restEndpoint string, poolId, snapshotHeight int64) error {
 	// load config
 	config, err := cfg.LoadConfig(homePath)
 	if err != nil {
@@ -53,7 +53,7 @@ func runStateSync(homePath, restEndpoint string, poolId, snapshotHeight int64) e
 	return nil
 }
 
-func StartStateSync(binaryPath, homePath, restEndpoint string, poolId, snapshotHeight int64) {
+func StartStateSyncWithBinary(binaryPath, homePath, restEndpoint string, poolId, snapshotHeight int64) {
 	logger.Info().Msg("starting state-sync")
 
 	// start binary process thread
@@ -62,7 +62,7 @@ func StartStateSync(binaryPath, homePath, restEndpoint string, poolId, snapshotH
 		panic(err)
 	}
 
-	if runStateSync(homePath, restEndpoint, poolId, snapshotHeight) != nil {
+	if StartStateSync(homePath, restEndpoint, poolId, snapshotHeight) != nil {
 		// stop binary process thread
 		if err := supervisor.StopProcessByProcessId(processId); err != nil {
 			panic(err)

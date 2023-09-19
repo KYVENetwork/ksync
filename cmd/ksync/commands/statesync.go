@@ -40,6 +40,6 @@ var stateSyncCmd = &cobra.Command{
 	Short: "Apply a state-sync snapshot",
 	Run: func(cmd *cobra.Command, args []string) {
 		restEndpoint = utils.GetRestEndpoint(chainId, restEndpoint)
-		statesync.StartStateSync(binaryPath, homePath, restEndpoint, poolId, targetHeight)
+		statesync.StartStateSyncWithBinary(binaryPath, homePath, restEndpoint, poolId, targetHeight)
 	},
 }
