@@ -11,13 +11,14 @@ import (
 	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/supervisor"
 	"os"
+	"strings"
 )
 
 var (
 	logger = log.KsyncLogger("height-sync")
 )
 
-func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest string, snapshotPoolId, blockPoolId, targetHeight int64) {
+func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest string, snapshotPoolId, blockPoolId, targetHeight int64, userInput bool) {
 	logger.Info().Msg("starting height-sync")
 
 	_, blockStartHeight, blockEndHeight, err := db.GetBlockBoundaries(chainRest, blockPoolId)
@@ -29,6 +30,7 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 	// if target height was not specified we sync to the latest available height
 	if targetHeight == 0 {
 		targetHeight = blockEndHeight
+		logger.Info().Msg(fmt.Sprintf("target height not specified, searching for latest available block height"))
 	}
 
 	if targetHeight < blockStartHeight {
@@ -46,6 +48,8 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 		logger.Error().Msg(fmt.Sprintf("failed to get snapshot boundaries: %s", err))
 		os.Exit(1)
 	}
+
+	logger.Info().Msg(fmt.Sprintf("requested target height of %d lies between block boundaries of %d to %d", targetHeight, blockStartHeight, blockEndHeight))
 
 	var bundleId, snapshotHeight = int64(0), int64(0)
 
@@ -75,13 +79,36 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 		}
 	}
 
+	if snapshotHeight > 0 {
+		logger.Info().Msg(fmt.Sprintf("found nearby snapshot with height %d in bundle with id %d", snapshotHeight, bundleId))
+	} else {
+		logger.Info().Msg(fmt.Sprintf("found no nearby snapshot, will block-sync from genesis"))
+	}
+
+	if userInput {
+		answer := ""
+		if snapshotHeight > 0 {
+			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by applying snapshot at height %d and syncing the remaining %d blocks [y/N]: ", targetHeight, snapshotHeight, targetHeight-snapshotHeight)
+		} else {
+			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by syncing from initial height [y/N]: ", targetHeight)
+		}
+
+		if _, err := fmt.Scan(&answer); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to read in user input: %s", err))
+			os.Exit(1)
+		}
+
+		if strings.ToLower(answer) != "y" {
+			logger.Error().Msg("aborted state-sync")
+			os.Exit(0)
+		}
+	}
+
 	continuationHeight := int64(0)
 	processId := 0
 
 	// if there are snapshots available before the requested height we apply the nearest
 	if snapshotHeight > 0 {
-		logger.Info().Msg(fmt.Sprintf("found snapshot with height %d in bundle with id %d", snapshotHeight, bundleId))
-
 		// start binary process thread
 		processId, err = supervisor.StartBinaryProcessForDB(binaryPath, homePath, []string{})
 		if err != nil {
@@ -89,7 +116,7 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 		}
 
 		// apply state sync snapshot
-		if err := statesync.StartStateSync(homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight); err != nil {
+		if err := statesync.StartStateSync(homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight, false); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to apply state-sync: %s", err))
 
 			// stop binary process thread
@@ -117,7 +144,7 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 	// if we have not reached our target height yet we block-sync the remaining ones
 	if remaining := targetHeight - continuationHeight; remaining > 0 {
 		logger.Info().Msg(fmt.Sprintf("block-syncing remaining %d blocks", remaining))
-		if err := blocksync.StartBlockSync(homePath, chainRest, storageRest, blockPoolId, targetHeight, false, 0); err != nil {
+		if err := blocksync.StartBlockSync(homePath, chainRest, storageRest, blockPoolId, targetHeight, false, 0, false); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to apply block-sync: %s", err))
 
 			// stop binary process thread

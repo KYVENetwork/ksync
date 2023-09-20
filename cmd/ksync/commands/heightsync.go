@@ -36,6 +36,8 @@ func init() {
 
 	heightSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target height (including), if not specified it will sync to the latest available block height")
 
+	heightSyncCmd.Flags().BoolVarP(&y, "assumeyes", "y", false, "automatically answer yes for all questions")
+
 	rootCmd.AddCommand(heightSyncCmd)
 }
 
@@ -45,6 +47,6 @@ var heightSyncCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
-		heightsync.StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest, snapshotPoolId, blockPoolId, targetHeight)
+		heightsync.StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest, snapshotPoolId, blockPoolId, targetHeight, !y)
 	},
 }

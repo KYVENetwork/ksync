@@ -74,7 +74,7 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest 
 		}
 
 		// found snapshot, applying it and continuing block-sync from here
-		if statesync.StartStateSync(homePath, chainRest, storageRest, snapshotPoolId, latestSnapshotHeight) != nil {
+		if statesync.StartStateSync(homePath, chainRest, storageRest, snapshotPoolId, latestSnapshotHeight, false) != nil {
 			// stop binary process thread
 			if err := supervisor.StopProcessByProcessId(processId); err != nil {
 				panic(err)
@@ -96,7 +96,7 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest 
 	}
 
 	// db executes blocks against app indefinitely
-	if err := db.StartDBExecutor(homePath, chainRest, storageRest, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning); err != nil {
+	if err := db.StartDBExecutor(homePath, chainRest, storageRest, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning, false); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to start db executor: %s", err))
 
 		// stop binary process thread

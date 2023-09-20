@@ -34,6 +34,8 @@ func init() {
 	blockSyncCmd.Flags().BoolVar(&metrics, "metrics", false, "metrics server exposing sync status")
 	blockSyncCmd.Flags().Int64Var(&metricsPort, "metrics-port", utils.DefaultMetricsServerPort, fmt.Sprintf("port for metrics server [default = %d]", utils.DefaultMetricsServerPort))
 
+	blockSyncCmd.Flags().BoolVarP(&y, "assumeyes", "y", false, "automatically answer yes for all questions")
+
 	rootCmd.AddCommand(blockSyncCmd)
 }
 
@@ -43,6 +45,6 @@ var blockSyncCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
-		blocksync.StartBlockSyncWithBinary(binaryPath, homePath, chainRest, storageRest, blockPoolId, targetHeight, metrics, metricsPort)
+		blocksync.StartBlockSyncWithBinary(binaryPath, homePath, chainRest, storageRest, blockPoolId, targetHeight, metrics, metricsPort, !y)
 	},
 }

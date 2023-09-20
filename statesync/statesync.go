@@ -1,6 +1,7 @@
 package statesync
 
 import (
+	"errors"
 	"fmt"
 	"github.com/KYVENetwork/ksync/collectors/snapshots"
 	cfg "github.com/KYVENetwork/ksync/config"
@@ -9,13 +10,15 @@ import (
 	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/supervisor"
 	"os"
+	"strings"
 )
 
 var (
 	logger = log.KsyncLogger("state-sync")
 )
 
-func StartStateSync(homePath, chainRest, storageRest string, poolId, snapshotHeight int64) error {
+// TODO: implement method in utils to check if node is at initial height
+func StartStateSync(homePath, chainRest, storageRest string, poolId, snapshotHeight int64, userInput bool) error {
 	// load config
 	config, err := cfg.LoadConfig(homePath)
 	if err != nil {
@@ -28,10 +31,12 @@ func StartStateSync(homePath, chainRest, storageRest string, poolId, snapshotHei
 		return fmt.Errorf("failed get snapshot boundaries: %w", err)
 	}
 
+	logger.Info().Msg(fmt.Sprintf("retrieved snapshot boundaries, earliest snapshot height = %d, latest snapshot height %d", startHeight, endHeight))
+
 	// if no snapshot height was specified we use the latest available snapshot from the pool
 	if snapshotHeight == 0 {
-		logger.Info().Msg(fmt.Sprintf("no snapshot height given, using latest available snapshot height %d", endHeight))
 		snapshotHeight = endHeight
+		logger.Info().Msg(fmt.Sprintf("target height not specified, searching for latest available snapshot"))
 	}
 
 	if snapshotHeight < startHeight {
@@ -55,7 +60,20 @@ func StartStateSync(homePath, chainRest, storageRest string, poolId, snapshotHei
 		return fmt.Errorf("found nearest available snapshot at height %d. Please retry with that height", nearestHeight)
 	}
 
-	logger.Info().Msg(fmt.Sprintf("found snapshot with height %d in bundle with id %d", snapshotHeight, bundleId))
+	logger.Info().Msg(fmt.Sprintf("found bundle with snapshot with height %d", snapshotHeight))
+
+	if userInput {
+		answer := ""
+		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should snapshot with height %d be applied with state-sync [y/N]: ", snapshotHeight)
+
+		if _, err := fmt.Scan(&answer); err != nil {
+			return fmt.Errorf("failed to read in user input: %s", err)
+		}
+
+		if strings.ToLower(answer) != "y" {
+			return errors.New("aborted state-sync")
+		}
+	}
 
 	if err := db.StartStateSyncExecutor(config, chainRest, storageRest, poolId, bundleId); err != nil {
 		return fmt.Errorf("snapshot could not be applied: %w", err)
@@ -64,7 +82,7 @@ func StartStateSync(homePath, chainRest, storageRest string, poolId, snapshotHei
 	return nil
 }
 
-func StartStateSyncWithBinary(binaryPath, homePath, chainRest, storageRest string, poolId, snapshotHeight int64) {
+func StartStateSyncWithBinary(binaryPath, homePath, chainRest, storageRest string, poolId, snapshotHeight int64, userInput bool) {
 	logger.Info().Msg("starting state-sync")
 
 	// start binary process thread
@@ -73,7 +91,7 @@ func StartStateSyncWithBinary(binaryPath, homePath, chainRest, storageRest strin
 		panic(err)
 	}
 
-	if err := StartStateSync(homePath, chainRest, storageRest, poolId, snapshotHeight); err != nil {
+	if err := StartStateSync(homePath, chainRest, storageRest, poolId, snapshotHeight, userInput); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to start state sync: %s", err))
 
 		// stop binary process thread

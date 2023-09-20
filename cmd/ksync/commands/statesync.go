@@ -31,6 +31,8 @@ func init() {
 
 	stateSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "snapshot height, if not specified it will use the latest available snapshot height")
 
+	stateSyncCmd.Flags().BoolVarP(&y, "assumeyes", "y", false, "automatically answer yes for all questions")
+
 	rootCmd.AddCommand(stateSyncCmd)
 }
 
@@ -40,6 +42,6 @@ var stateSyncCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
-		statesync.StartStateSyncWithBinary(binaryPath, homePath, chainRest, storageRest, snapshotPoolId, targetHeight)
+		statesync.StartStateSyncWithBinary(binaryPath, homePath, chainRest, storageRest, snapshotPoolId, targetHeight, !y)
 	},
 }

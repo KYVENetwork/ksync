@@ -14,11 +14,11 @@ var (
 	logger = log.KsyncLogger("block-sync")
 )
 
-func StartBlockSync(homePath, chainRest, storageRest string, poolId, targetHeight int64, metrics bool, port int64) error {
-	return db.StartDBExecutor(homePath, chainRest, storageRest, poolId, targetHeight, metrics, port, 0, 0, utils.DefaultSnapshotServerPort, false)
+func StartBlockSync(homePath, chainRest, storageRest string, poolId, targetHeight int64, metrics bool, port int64, userInput bool) error {
+	return db.StartDBExecutor(homePath, chainRest, storageRest, poolId, targetHeight, metrics, port, 0, 0, utils.DefaultSnapshotServerPort, false, userInput)
 }
 
-func StartBlockSyncWithBinary(binaryPath, homePath, chainRest, storageRest string, poolId, targetHeight int64, metrics bool, port int64) {
+func StartBlockSyncWithBinary(binaryPath, homePath, chainRest, storageRest string, poolId, targetHeight int64, metrics bool, port int64, userInput bool) {
 	logger.Info().Msg("starting block-sync")
 
 	if err := bootstrap.StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest, poolId); err != nil {
@@ -33,7 +33,7 @@ func StartBlockSyncWithBinary(binaryPath, homePath, chainRest, storageRest strin
 	}
 
 	// db executes blocks against app until target height is reached
-	if err := StartBlockSync(homePath, chainRest, storageRest, poolId, targetHeight, metrics, port); err != nil {
+	if err := StartBlockSync(homePath, chainRest, storageRest, poolId, targetHeight, metrics, port, userInput); err != nil {
 		logger.Error().Msg(fmt.Sprintf("%s", err))
 
 		// stop binary process thread
