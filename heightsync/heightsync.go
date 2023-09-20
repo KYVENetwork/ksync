@@ -20,33 +20,59 @@ var (
 func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest string, snapshotPoolId, blockPoolId, targetHeight int64) {
 	logger.Info().Msg("starting height-sync")
 
-	_, _, snapshotEndHeight := helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
-
-	if targetHeight > snapshotEndHeight {
-		logger.Error().Msg(fmt.Sprintf("latest available snapshot height is %d", snapshotEndHeight))
-		os.Exit(1)
-	}
-
-	bundleId, snapshotHeight, err := snapshots.FindNearestSnapshotBundleIdByHeight(chainRest, snapshotPoolId, targetHeight)
-	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("failed to find bundle with nearest snapshot height %d: %s", targetHeight, err))
-		os.Exit(1)
-	}
-
 	_, blockStartHeight, blockEndHeight, err := db.GetBlockBoundaries(chainRest, blockPoolId)
 	if err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to get block boundaries: %s", err))
 		os.Exit(1)
 	}
 
-	if snapshotHeight > 0 && snapshotHeight < blockStartHeight {
-		logger.Error().Msg(fmt.Sprintf("snapshot is at height %d but first available block on pool is %d", snapshotHeight, blockStartHeight))
+	// if target height was not specified we sync to the latest available height
+	if targetHeight == 0 {
+		targetHeight = blockEndHeight
+	}
+
+	if targetHeight < blockStartHeight {
+		logger.Error().Msg(fmt.Sprintf("specified target height of %d is smaller than earliest available block height %d", targetHeight, blockStartHeight))
 		os.Exit(1)
 	}
 
-	if snapshotHeight > blockEndHeight {
-		logger.Error().Msg(fmt.Sprintf("snapshot is at height %d but last available block on pool is %d", snapshotHeight, blockEndHeight))
+	if targetHeight > blockEndHeight {
+		logger.Error().Msg(fmt.Sprintf("specified target height of %d is bigger than latest available block height %d", targetHeight, blockEndHeight))
 		os.Exit(1)
+	}
+
+	_, _, snapshotEndHeight, err := helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
+	if err != nil {
+		logger.Error().Msg(fmt.Sprintf("failed to get snapshot boundaries: %s", err))
+		os.Exit(1)
+	}
+
+	var bundleId, snapshotHeight = int64(0), int64(0)
+
+	// if snapshot is available to skip part of the block-syncing process we search for the nearest one
+	// before our target height
+	if snapshotEndHeight > 0 {
+		bundleId, snapshotHeight, err = snapshots.FindNearestSnapshotBundleIdByHeight(chainRest, snapshotPoolId, targetHeight)
+		if err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to find bundle with nearest snapshot height %d: %s", targetHeight, err))
+			os.Exit(1)
+		}
+
+		// limit snapshot height to snapshot end height
+		// TODO: do this in snapshots.FindNearestSnapshotBundleIdByHeight
+		if snapshotHeight > snapshotEndHeight {
+			snapshotHeight = snapshotEndHeight
+		}
+
+		if snapshotHeight > 0 && snapshotHeight < blockStartHeight {
+			logger.Error().Msg(fmt.Sprintf("snapshot is at height %d but first available block on pool is %d", snapshotHeight, blockStartHeight))
+			os.Exit(1)
+		}
+
+		if snapshotHeight > blockEndHeight {
+			logger.Error().Msg(fmt.Sprintf("snapshot is at height %d but last available block on pool is %d", snapshotHeight, blockEndHeight))
+			os.Exit(1)
+		}
 	}
 
 	continuationHeight := int64(0)

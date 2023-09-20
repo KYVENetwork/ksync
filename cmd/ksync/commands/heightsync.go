@@ -34,10 +34,7 @@ func init() {
 		panic(fmt.Errorf("flag 'block-pool-id' should be required: %w", err))
 	}
 
-	heightSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target height (including)")
-	if err := heightSyncCmd.MarkFlagRequired("target-height"); err != nil {
-		panic(fmt.Errorf("flag 'target-height' should be required: %w", err))
-	}
+	heightSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target height (including), if not specified it will sync to the latest available block height")
 
 	rootCmd.AddCommand(heightSyncCmd)
 }

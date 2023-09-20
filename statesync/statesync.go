@@ -15,8 +15,6 @@ var (
 	logger = log.KsyncLogger("state-sync")
 )
 
-// TODO: if snapshot height was not found print nearest snapshot height in error log
-// TODO: if no snapshot height was specified use latest available snapshot height
 func StartStateSync(homePath, chainRest, storageRest string, poolId, snapshotHeight int64) error {
 	// load config
 	config, err := cfg.LoadConfig(homePath)
@@ -25,7 +23,10 @@ func StartStateSync(homePath, chainRest, storageRest string, poolId, snapshotHei
 	}
 
 	// perform boundary checks
-	_, startHeight, endHeight := helpers.GetSnapshotBoundaries(chainRest, poolId)
+	_, startHeight, endHeight, err := helpers.GetSnapshotBoundaries(chainRest, poolId)
+	if err != nil {
+		return fmt.Errorf("failed get snapshot boundaries: %w", err)
+	}
 
 	// if no snapshot height was specified we use the latest available snapshot from the pool
 	if snapshotHeight == 0 {

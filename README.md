@@ -157,6 +157,16 @@ ksync state-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --snaps
 
 ### HEIGHT-SYNC
 
+#### Syncing to latest available block height
+
+You can height-sync a node if it has no height (either node has to be just initialized or reset with `ksync unsafe-reset-all`)
+to the latest available height. This is especially useful for joining a new network if the user wants to join as quick as
+possible.
+
+```bash
+ksync height-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --snapshot-pool-id=<pool-id> --block-pool-id=<pool-id>
+```
+
 #### Syncing to specified target height
 
 You can height-sync a node if it has no height (either node has to be just initialized or reset with `ksync unsafe-reset-all`)

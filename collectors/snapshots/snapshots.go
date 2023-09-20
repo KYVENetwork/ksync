@@ -80,5 +80,5 @@ func FindNearestSnapshotBundleIdByHeight(restEndpoint string, poolId int64, targ
 		paginationKey = nextKey
 	}
 
-	return bundleId, snapshotHeight, fmt.Errorf("unable to find nearest snapshot below heigth %d", targetHeight)
+	return bundleId, snapshotHeight, nil
 }
