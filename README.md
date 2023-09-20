@@ -121,7 +121,7 @@ Depending on your current node height (can be also 0  if you start syncing from 
 height available by the storage pool. KSYNC will automatically exit once that height is reached.
 
 ```bash
-ksync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --block-pool-id=<pool-id>
+ksync height-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --block-pool-id=<pool-id>
 ```
 
 #### Syncing to specified target height
@@ -130,7 +130,7 @@ Depending on your current node height (can be also 0  if you start syncing from 
 target height. KSYNC will automatically exit once that height is reached.
 
 ```bash
-ksync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --block-pool-id=<pool-id> --target-height=<height>
+ksync height-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --block-pool-id=<pool-id> --target-height=<height>
 ```
 
 ### STATE-SYNC
@@ -142,7 +142,7 @@ to the latest available snapshot archived by the pool with the following command
 height this can be used to rapidly join this network.
 
 ```bash
-ksync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --snapshot-pool-id=<pool-id>
+ksync state-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --snapshot-pool-id=<pool-id>
 ```
 
 #### Syncing to specified snapshot height
@@ -152,11 +152,21 @@ to your desired target height. The target height has to be the exact height of t
 height can not be found it prints out the nearest available snapshot height you can use.
 
 ```bash
-ksync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --snapshot-pool-id=<pool-id> --target-height=<height>
+ksync state-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --snapshot-pool-id=<pool-id> --target-height=<height>
 ```
 
 ### HEIGHT-SYNC
 
-height-sync
+#### Syncing to specified target height
+
+You can height-sync a node if it has no height (either node has to be just initialized or reset with `ksync unsafe-reset-all`)
+to your desired target height. The target height can be any height (but the block data pool must have archived it), then
+it will use available state-sync snapshots and block-sync to get to the target height as quickly as possible
+
+```bash
+ksync height-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --snapshot-pool-id=<pool-id> --block-pool-id=<pool-id> --target-height=<height>
+```
 
 ## Examples
+
+Coming soon
