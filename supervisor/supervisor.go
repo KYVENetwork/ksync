@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 )
 
@@ -13,19 +14,23 @@ func StartBinaryProcessForDB(binaryPath string, homePath string, args []string) 
 		return processId, fmt.Errorf("failed to lookup binary path: %w", err)
 	}
 
-	cmd := exec.Command(cmdPath, append([]string{
+	startArgs := make([]string, 0)
+
+	// if we run with cosmovisor we start with the cosmovisor run command
+	if strings.HasSuffix(binaryPath, "cosmovisor") {
+		startArgs = append(startArgs, "run")
+	}
+
+	baseArgs := append([]string{
 		"start",
 		"--home",
 		homePath,
 		"--with-tendermint=false",
-	}, args...)...)
+	}, args...)
 
-	// TODO: make logs prettier
-	//cmd.Stdout = os.Stdout
-	//cmd.Stderr = os.Stderr
+	cmd := exec.Command(cmdPath, append(startArgs, baseArgs...)...)
 
-	err = cmd.Start()
-	if err != nil {
+	if err := cmd.Start(); err != nil {
 		return processId, fmt.Errorf("failed to start binary process: %w", err)
 	}
 
@@ -39,7 +44,14 @@ func StartBinaryProcessForP2P(binaryPath string, homePath string, args []string)
 		return processId, fmt.Errorf("failed to lookup binary path: %w", err)
 	}
 
-	cmd := exec.Command(cmdPath, append([]string{
+	startArgs := make([]string, 0)
+
+	// if we run with cosmovisor we start with the cosmovisor run command
+	if strings.HasSuffix(binaryPath, "cosmovisor") {
+		startArgs = append(startArgs, "run")
+	}
+
+	baseArgs := append([]string{
 		"start",
 		"--home",
 		homePath,
@@ -50,14 +62,11 @@ func StartBinaryProcessForP2P(binaryPath string, homePath string, args []string)
 		"",
 		"--p2p.unconditional_peer_ids",
 		"",
-	}, args...)...)
+	}, args...)
 
-	// TODO: make logs prettier
-	//cmd.Stdout = os.Stdout
-	//cmd.Stderr = os.Stderr
+	cmd := exec.Command(cmdPath, append(startArgs, baseArgs...)...)
 
-	err = cmd.Start()
-	if err != nil {
+	if err := cmd.Start(); err != nil {
 		return processId, fmt.Errorf("failed to start binary process: %w", err)
 	}
 
