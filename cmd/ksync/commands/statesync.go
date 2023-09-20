@@ -24,15 +24,12 @@ func init() {
 	stateSyncCmd.Flags().StringVar(&chainRest, "chain-rest", "", "rest endpoint for KYVE chain")
 	stateSyncCmd.Flags().StringVar(&storageRest, "storage-rest", "", "storage endpoint for requesting bundle data")
 
-	stateSyncCmd.Flags().Int64Var(&snapshotPoolId, "snapshot-pool-id", 0, "pool id")
+	stateSyncCmd.Flags().Int64Var(&snapshotPoolId, "snapshot-pool-id", 0, "id of snapshot pool")
 	if err := stateSyncCmd.MarkFlagRequired("snapshot-pool-id"); err != nil {
 		panic(fmt.Errorf("flag 'snapshot-pool-id' should be required: %w", err))
 	}
 
-	stateSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target height")
-	if err := stateSyncCmd.MarkFlagRequired("target-height"); err != nil {
-		panic(fmt.Errorf("flag 'target-height' should be required: %w", err))
-	}
+	stateSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "snapshot height, if not specified it will use the latest available snapshot height")
 
 	rootCmd.AddCommand(stateSyncCmd)
 }

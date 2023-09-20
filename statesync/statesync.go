@@ -15,6 +15,8 @@ var (
 	logger = log.KsyncLogger("state-sync")
 )
 
+// TODO: if snapshot height was not found print nearest snapshot height in error log
+// TODO: if no snapshot height was specified use latest available snapshot height
 func StartStateSync(homePath, chainRest, storageRest string, poolId, snapshotHeight int64) error {
 	// load config
 	config, err := cfg.LoadConfig(homePath)
@@ -24,6 +26,12 @@ func StartStateSync(homePath, chainRest, storageRest string, poolId, snapshotHei
 
 	// perform boundary checks
 	_, startHeight, endHeight := helpers.GetSnapshotBoundaries(chainRest, poolId)
+
+	// if no snapshot height was specified we use the latest available snapshot from the pool
+	if snapshotHeight == 0 {
+		logger.Info().Msg(fmt.Sprintf("no snapshot height given, using latest available snapshot height %d", endHeight))
+		snapshotHeight = endHeight
+	}
 
 	if snapshotHeight < startHeight {
 		return fmt.Errorf("requested snapshot height %d but first available snapshot on pool is %d", snapshotHeight, startHeight)
@@ -35,7 +43,15 @@ func StartStateSync(homePath, chainRest, storageRest string, poolId, snapshotHei
 
 	bundleId, err := snapshots.FindBundleIdBySnapshot(chainRest, poolId, snapshotHeight)
 	if err != nil {
-		return fmt.Errorf("failed to find bundle with requested snapshot height %d: %s", snapshotHeight, err)
+		logger.Error().Msg(fmt.Sprintf("failed to find bundle with requested snapshot height %d: %s", snapshotHeight, err))
+
+		// if we could not find the desired snapshot height we print out the nearest available snapshot height
+		_, nearestHeight, err := snapshots.FindNearestSnapshotBundleIdByHeight(chainRest, poolId, snapshotHeight)
+		if err != nil {
+			return fmt.Errorf("failed to find nearest snapshot height for target height %d: %w", snapshotHeight, err)
+		}
+
+		return fmt.Errorf("found nearest available snapshot at height %d. Please retry with that height", nearestHeight)
 	}
 
 	logger.Info().Msg(fmt.Sprintf("found snapshot with height %d in bundle with id %d", snapshotHeight, bundleId))

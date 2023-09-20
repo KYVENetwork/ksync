@@ -115,11 +115,45 @@ Depending on the sync mode you use, the data pools need to run on the following 
 
 ### BLOCK-SYNC
 
-block-sync
+#### Syncing to latest available height
+
+Depending on your current node height (can be also 0  if you start syncing from genesis) you can sync up to the latest
+height available by the storage pool. KSYNC will automatically exit once that height is reached.
+
+```bash
+ksync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --block-pool-id=<pool-id>
+```
+
+#### Syncing to specified target height
+
+Depending on your current node height (can be also 0  if you start syncing from genesis) you can sync up to your desired
+target height. KSYNC will automatically exit once that height is reached.
+
+```bash
+ksync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --block-pool-id=<pool-id> --target-height=<height>
+```
 
 ### STATE-SYNC
 
-state-sync
+#### Syncing to latest available snapshot height
+
+You can state-sync a node if it has no height (either node has to be just initialized or reset with `ksync unsafe-reset-all`)
+to the latest available snapshot archived by the pool with the following command. If the storage pool has synced with the live
+height this can be used to rapidly join this network.
+
+```bash
+ksync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --snapshot-pool-id=<pool-id>
+```
+
+#### Syncing to specified snapshot height
+
+You can state-sync a node if it has no height (either node has to be just initialized or reset with `ksync unsafe-reset-all`)
+to your desired target height. The target height has to be the exact height of the archived snapshot. If the specified
+height can not be found it prints out the nearest available snapshot height you can use.
+
+```bash
+ksync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --snapshot-pool-id=<pool-id> --target-height=<height>
+```
 
 ### HEIGHT-SYNC
 
