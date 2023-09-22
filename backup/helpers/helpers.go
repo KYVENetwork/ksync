@@ -7,22 +7,21 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
-	"strings"
-	"time"
+	"strconv"
 )
 
-func CreateBackupDestFolder(backupDir string) (string, error) {
-	t := time.Now().Format("20060102_150405")
+func CreateBackupDestFolder(backupDir string, height int64) (string, error) {
+	h := strconv.FormatInt(height, 10)
 
-	if err := os.Mkdir(filepath.Join(backupDir, t), 0o755); err != nil {
+	if err := os.Mkdir(filepath.Join(backupDir, h), 0o755); err != nil {
 		return "", fmt.Errorf("failed to create backup directory: %w", err)
 	}
 
-	if err := os.Mkdir(filepath.Join(backupDir, t, "data"), 0o755); err != nil {
+	if err := os.Mkdir(filepath.Join(backupDir, h, "data"), 0o755); err != nil {
 		return "", fmt.Errorf("failed to create backup data directory: %w", err)
 	}
 
-	return filepath.Join(backupDir, t, "data"), nil
+	return filepath.Join(backupDir, h, "data"), nil
 }
 
 func GetBackupDestPath() (string, error) {
@@ -147,8 +146,8 @@ func ClearBackups(srcPath string, threshold int64) error {
 	backups := make([]os.DirEntry, 0)
 	for _, entry := range entries {
 		if entry.IsDir() {
-			// Make sure to only clear timestamped backups
-			if strings.HasPrefix(entry.Name(), "20") && len(entry.Name()) == 15 {
+			// Make sure to only clear backups with height as a name
+			if _, err := strconv.ParseInt(entry.Name(), 10, 64); err == nil {
 				backups = append(backups, entry)
 			}
 		}

@@ -310,10 +310,11 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 				}
 			}
 
+			// create backup of entire data directory if backup interval is reached
 			if backupCfg != nil && backupCfg.Interval > 0 && prevBlock.Height%backupCfg.Interval == 0 {
 				logger.Info().Msg("reached backup interval height, starting to create backup")
 
-				if err := backup.CreateBackup(backupCfg); err != nil {
+				if err := backup.CreateBackup(backupCfg, prevBlock.Height); err != nil {
 					logger.Error().Msg(fmt.Sprintf("failed to create backup: %w", err))
 				}
 

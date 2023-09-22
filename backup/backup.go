@@ -38,8 +38,8 @@ func GetBackupConfig(homePath string, backupInterval, backupKeepRecent int64, ba
 	return
 }
 
-func CreateBackup(backupCfg *types.BackupConfig) error {
-	destPath, err := helpers.CreateBackupDestFolder(backupCfg.Dest)
+func CreateBackup(backupCfg *types.BackupConfig, height int64) error {
+	destPath, err := helpers.CreateBackupDestFolder(backupCfg.Dest, height)
 	if err != nil {
 		return err
 	}
