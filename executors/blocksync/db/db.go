@@ -3,6 +3,7 @@ package db
 import (
 	"errors"
 	"fmt"
+	"github.com/KYVENetwork/ksync/backup"
 	"github.com/KYVENetwork/ksync/collectors/blocks"
 	cfg "github.com/KYVENetwork/ksync/config"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/helpers"
@@ -52,7 +53,7 @@ func GetBlockBoundaries(restEndpoint string, poolId int64) (*types.PoolResponse,
 	return poolResponse, startHeight, endHeight, nil
 }
 
-func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort int64, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool, userInput bool) error {
+func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort int64, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool, backupCfg *types.BackupConfig, userInput bool) error {
 	// load tendermint config
 	config, err := cfg.LoadConfig(homePath)
 	if err != nil {
@@ -307,6 +308,16 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 
 					logger.Info().Msg(fmt.Sprintf("pruned state.db from height %d to %d", base, height))
 				}
+			}
+
+			if backupCfg != nil && backupCfg.Interval > 0 && prevBlock.Height%backupCfg.Interval == 0 {
+				logger.Info().Msg("reached backup interval height, starting to create backup")
+
+				if err := backup.CreateBackup(backupCfg); err != nil {
+					logger.Error().Msg(fmt.Sprintf("failed to create backup: %w", err))
+				}
+
+				logger.Info().Msg(fmt.Sprintf("finished backup at block height: %d", prevBlock.Height))
 			}
 
 			// if KSYNC has already fetched 2 * snapshot_interval ahead of the snapshot pool we wait

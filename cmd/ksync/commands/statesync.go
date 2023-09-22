@@ -31,7 +31,7 @@ func init() {
 
 	stateSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "snapshot height, if not specified it will use the latest available snapshot height")
 
-	stateSyncCmd.Flags().BoolVarP(&y, "assumeyes", "y", false, "automatically answer yes for all questions")
+	stateSyncCmd.Flags().BoolVarP(&y, "assumeyes", "y", true, "automatically answer yes for all questions")
 
 	rootCmd.AddCommand(stateSyncCmd)
 }

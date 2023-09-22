@@ -9,6 +9,7 @@ const (
 	DefaultChainId              = "kyve-1"
 	DefaultMetricsServerPort    = 8080
 	DefaultSnapshotServerPort   = 7878
+	DefaultBackupPath           = "~/.ksync/backups"
 	KSyncRuntimeTendermint      = "@kyvejs/tendermint"
 	KSyncRuntimeTendermintBsync = "@kyvejs/tendermint-bsync"
 	KSyncRuntimeTendermintSsync = "@kyvejs/tendermint-ssync"

@@ -36,7 +36,7 @@ func init() {
 
 	heightSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target height (including), if not specified it will sync to the latest available block height")
 
-	heightSyncCmd.Flags().BoolVarP(&y, "assumeyes", "y", false, "automatically answer yes for all questions")
+	heightSyncCmd.Flags().BoolVarP(&y, "assumeyes", "y", true, "automatically answer yes for all questions")
 
 	rootCmd.AddCommand(heightSyncCmd)
 }

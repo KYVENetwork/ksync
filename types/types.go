@@ -110,3 +110,11 @@ type TendermintSsyncDataItem struct {
 		Chunk      []byte          `json:"chunk"`
 	} `json:"value"`
 }
+
+type BackupConfig = struct {
+	Interval    int64
+	KeepRecent  int64
+	Src         string
+	Dest        string
+	Compression string
+}
