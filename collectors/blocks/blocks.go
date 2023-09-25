@@ -2,6 +2,7 @@ package blocks
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/collectors/bundles"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
@@ -19,13 +20,13 @@ func StartBlockCollector(blockCh chan<- *types.Block, errorCh chan<- error, chai
 
 BundleCollector:
 	for {
-		bundles, nextKey, err := utils.GetFinalizedBundlesPage(chainRest, blockPool.Pool.Id, utils.BundlesPageLimit, paginationKey)
+		bundlesPage, nextKey, err := bundles.GetFinalizedBundlesPage(chainRest, blockPool.Pool.Id, utils.BundlesPageLimit, paginationKey)
 		if err != nil {
 			errorCh <- fmt.Errorf("failed to get finalized bundles page: %w", err)
 			return
 		}
 
-		for _, bundle := range bundles {
+		for _, bundle := range bundlesPage {
 			height, err := strconv.ParseInt(bundle.ToKey, 10, 64)
 			if err != nil {
 				errorCh <- fmt.Errorf("failed to parse bundle to key to int64: %w", err)
@@ -38,7 +39,7 @@ BundleCollector:
 				logger.Info().Msg(fmt.Sprintf("downloading bundle with storage id %s", bundle.StorageId))
 			}
 
-			deflated, err := utils.GetDataFromFinalizedBundle(bundle, storageRest)
+			deflated, err := bundles.GetDataFromFinalizedBundle(bundle, storageRest)
 			if err != nil {
 				errorCh <- fmt.Errorf("failed to get data from finalized bundle: %w", err)
 				return

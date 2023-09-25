@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/collectors/bundles"
 	cfg "github.com/KYVENetwork/ksync/config"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db"
 	p2pHelpers "github.com/KYVENetwork/ksync/executors/blocksync/p2p/helpers"
@@ -26,12 +27,12 @@ func retrieveBlock(pool *types.PoolResponse, chainRest, storageRest string, heig
 	paginationKey := ""
 
 	for {
-		bundles, nextKey, err := utils.GetFinalizedBundlesPage(chainRest, pool.Pool.Id, utils.BundlesPageLimit, paginationKey)
+		bundlesPage, nextKey, err := bundles.GetFinalizedBundlesPage(chainRest, pool.Pool.Id, utils.BundlesPageLimit, paginationKey)
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve finalized bundles: %w", err)
 		}
 
-		for _, bundle := range bundles {
+		for _, bundle := range bundlesPage {
 			toHeight, err := strconv.ParseInt(bundle.ToKey, 10, 64)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse bundle to key to int64: %w", err)
@@ -44,7 +45,7 @@ func retrieveBlock(pool *types.PoolResponse, chainRest, storageRest string, heig
 				logger.Info().Msg(fmt.Sprintf("downloading bundle with storage id %s", bundle.StorageId))
 			}
 
-			deflated, err := utils.GetDataFromFinalizedBundle(bundle, storageRest)
+			deflated, err := bundles.GetDataFromFinalizedBundle(bundle, storageRest)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get data from finalized bundle: %w", err)
 			}

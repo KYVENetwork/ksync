@@ -2,10 +2,10 @@ package db
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/collectors/bundles"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
-	"github.com/KYVENetwork/ksync/utils"
 	abciClient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmCfg "github.com/tendermint/tendermint/config"
@@ -66,12 +66,12 @@ func StartStateSyncExecutor(config *tmCfg.Config, chainRest, storageRest string,
 		return fmt.Errorf("app height %d is not zero, please reset with \"ksync unsafe-reset-all\"", info.LastBlockHeight)
 	}
 
-	finalizedBundle, err := utils.GetFinalizedBundle(chainRest, poolId, bundleId)
+	finalizedBundle, err := bundles.GetFinalizedBundle(chainRest, poolId, bundleId)
 	if err != nil {
 		return fmt.Errorf("failed getting finalized bundle: %w", err)
 	}
 
-	deflated, err := utils.GetDataFromFinalizedBundle(*finalizedBundle, storageRest)
+	deflated, err := bundles.GetDataFromFinalizedBundle(*finalizedBundle, storageRest)
 	if err != nil {
 		return fmt.Errorf("failed getting data from finalized bundle: %w", err)
 	}
@@ -118,12 +118,12 @@ func StartStateSyncExecutor(config *tmCfg.Config, chainRest, storageRest string,
 	}
 
 	for chunkIndex := uint32(0); chunkIndex < chunks; chunkIndex++ {
-		chunkBundleFinalized, err := utils.GetFinalizedBundle(chainRest, poolId, bundleId+int64(chunkIndex))
+		chunkBundleFinalized, err := bundles.GetFinalizedBundle(chainRest, poolId, bundleId+int64(chunkIndex))
 		if err != nil {
 			return fmt.Errorf("failed getting finalized bundle: %w", err)
 		}
 
-		chunkBundleDeflated, err := utils.GetDataFromFinalizedBundle(*chunkBundleFinalized, storageRest)
+		chunkBundleDeflated, err := bundles.GetDataFromFinalizedBundle(*chunkBundleFinalized, storageRest)
 		if err != nil {
 			return fmt.Errorf("failed getting data from finalized bundle: %w", err)
 		}
