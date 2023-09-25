@@ -13,7 +13,7 @@ var (
 )
 
 func GetSnapshotPoolHeight(restEndpoint string, poolId int64) int64 {
-	snapshotPool, err := pool.GetPoolInfo(0, restEndpoint, poolId)
+	snapshotPool, err := pool.GetPoolInfo(restEndpoint, poolId)
 	if err != nil {
 		panic(fmt.Errorf("could not get snapshot pool: %w", err))
 	}
@@ -28,7 +28,7 @@ func GetSnapshotPoolHeight(restEndpoint string, poolId int64) int64 {
 
 func GetSnapshotBoundaries(restEndpoint string, poolId int64) (*types.PoolResponse, int64, int64, error) {
 	// load start and latest height
-	poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
+	poolResponse, err := pool.GetPoolInfo(restEndpoint, poolId)
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("failed to get pool info: %w", err)
 	}

@@ -19,26 +19,10 @@ func StartBlockCollector(blockCh chan<- *types.Block, errorCh chan<- error, chai
 
 BundleCollector:
 	for {
-		var bundles []types.FinalizedBundle
-		var nextKey string
-		var err error
-
-		for {
-			bundles, nextKey, err = utils.GetFinalizedBundlesPage(chainRest, blockPool.Pool.Id, utils.BundlesPageLimit, paginationKey)
-			if err != nil {
-				logger.Error().Msg(fmt.Sprintf(
-					"failed to get finalized bundles page from: %s/kyve/v1/bundles/%d?pagination.limit=%d&pagination.key=%s, err = %s",
-					chainRest,
-					blockPool.Pool.Id,
-					utils.BundlesPageLimit,
-					paginationKey,
-					err,
-				))
-				time.Sleep(10 * time.Second)
-				continue
-			}
-
-			break
+		bundles, nextKey, err := utils.GetFinalizedBundlesPage(chainRest, blockPool.Pool.Id, utils.BundlesPageLimit, paginationKey)
+		if err != nil {
+			errorCh <- fmt.Errorf("failed to get finalized bundles page: %w", err)
+			return
 		}
 
 		for _, bundle := range bundles {

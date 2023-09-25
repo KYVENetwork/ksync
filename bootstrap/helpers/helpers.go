@@ -19,7 +19,7 @@ func GetNodeHeightFromRPC(homePath string) (height int64, err error) {
 
 	rpc := fmt.Sprintf("%s/abci_info", strings.Replace(config.RPC.ListenAddress, "tcp", "http", 1))
 
-	responseData, err := utils.DownloadFromUrl(rpc)
+	responseData, err := utils.GetFromUrl(rpc)
 	if err != nil {
 		return height, err
 	}

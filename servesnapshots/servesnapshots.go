@@ -32,7 +32,7 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest 
 
 	// get snapshot interval from pool
 	var config types.TendermintSSyncConfig
-	snapshotPool, err := pool.GetPoolInfo(0, chainRest, snapshotPoolId)
+	snapshotPool, err := pool.GetPoolInfo(chainRest, snapshotPoolId)
 
 	if err := json.Unmarshal([]byte(snapshotPool.Pool.Data.Config), &config); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to read pool config: %s", err))

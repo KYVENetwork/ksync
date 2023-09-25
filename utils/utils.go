@@ -5,16 +5,21 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/base64"
-	"errors"
 	"fmt"
+	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/tendermint/tendermint/libs/json"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+)
+
+var (
+	logger = log.KsyncLogger("utils")
 )
 
 func GetChainRest(chainId, chainRest string) string {
@@ -26,14 +31,14 @@ func GetChainRest(chainId, chainRest string) string {
 	// if no custom rest endpoint was given we take it from the chainId
 	if chainRest == "" {
 		switch chainId {
-		case "kyve-1":
+		case ChainIdMainnet:
 			return RestEndpointMainnet
-		case "kaon-1":
+		case ChainIdKaon:
 			return RestEndpointKaon
-		case "korellia":
+		case ChainIdKorellia:
 			return RestEndpointKorellia
 		default:
-			panic("flag --chain-id has to be either \"kyve-1\", \"kaon-1\" or \"korellia\"")
+			panic(fmt.Sprintf("flag --chain-id has to be either \"%s\", \"%s\" or \"%s\"", ChainIdMainnet, ChainIdKaon, ChainIdKorellia))
 		}
 	}
 
@@ -41,14 +46,14 @@ func GetChainRest(chainId, chainRest string) string {
 }
 
 func GetFinalizedBundlesPage(restEndpoint string, poolId int64, paginationLimit int64, paginationKey string) ([]types.FinalizedBundle, string, error) {
-	//raw, err := DownloadFromUrl(fmt.Sprintf(
+	//raw, err := GetFromUrlWithBackoff(fmt.Sprintf(
 	//	"%s/kyve/v1/bundles/%d?pagination.limit=%d&pagination.key=%s",
 	//	restEndpoint,
 	//	poolId,
 	//	paginationLimit,
 	//	paginationKey,
 	//))
-	raw, err := DownloadFromUrl(fmt.Sprintf(
+	raw, err := GetFromUrlWithBackoff(fmt.Sprintf(
 		"%s/kyve/query/v1beta1/finalized_bundles/%d?pagination.limit=%d&pagination.key=%s",
 		restEndpoint,
 		poolId,
@@ -71,13 +76,13 @@ func GetFinalizedBundlesPage(restEndpoint string, poolId int64, paginationLimit 
 }
 
 func GetFinalizedBundle(restEndpoint string, poolId int64, bundleId int64) (*types.FinalizedBundle, error) {
-	//raw, err := DownloadFromUrl(fmt.Sprintf(
+	//raw, err := GetFromUrlWithBackoff(fmt.Sprintf(
 	//	"%s/kyve/v1/bundles/%d/%d",
 	//	restEndpoint,
 	//	poolId,
 	//	bundleId,
 	//))
-	raw, err := DownloadFromUrl(fmt.Sprintf(
+	raw, err := GetFromUrlWithBackoff(fmt.Sprintf(
 		"%s/kyve/query/v1beta1/finalized_bundle/%d/%d",
 		restEndpoint,
 		poolId,
@@ -98,16 +103,14 @@ func GetFinalizedBundle(restEndpoint string, poolId int64, bundleId int64) (*typ
 
 func GetDataFromFinalizedBundle(bundle types.FinalizedBundle, storageRest string) ([]byte, error) {
 	// retrieve bundle from storage provider
-	data, err := RetrieveBundleFromStorageProvider(bundle, storageRest)
-	for err != nil {
-		// sleep 10 seconds after an unsuccessful request
-		time.Sleep(10 * time.Second)
-		data, err = RetrieveBundleFromStorageProvider(bundle, storageRest)
+	data, err := RetrieveDataFromStorageProvider(bundle, storageRest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve data from storage provider with storage id %s: %w", bundle.StorageId, err)
 	}
 
 	// validate bundle with sha256 checksum
-	if CreateChecksum(data) != bundle.DataHash {
-		return nil, fmt.Errorf("found different checksum on bundle with storage id %s: expected = %s found = %s", bundle.StorageId, CreateChecksum(data), bundle.DataHash)
+	if CreateSha256Checksum(data) != bundle.DataHash {
+		return nil, fmt.Errorf("found different sha256 checksum on bundle with storage id %s: expected = %s found = %s", bundle.StorageId, CreateSha256Checksum(data), bundle.DataHash)
 	}
 
 	// decompress bundle
@@ -133,36 +136,37 @@ func DecompressBundleFromStorageProvider(bundle types.FinalizedBundle, data []by
 	}
 }
 
-func RetrieveBundleFromStorageProvider(bundle types.FinalizedBundle, storageRest string) ([]byte, error) {
+func RetrieveDataFromStorageProvider(bundle types.FinalizedBundle, storageRest string) ([]byte, error) {
 	//id, err := strconv.ParseUint(bundle.StorageProviderId, 10, 64)
 	//if err != nil {
 	//	return nil, fmt.Errorf("could not parse uint from storage provider id: %w", err)
 	//}
 
 	if storageRest != "" {
-		return DownloadFromUrl(fmt.Sprintf("%s/%s", storageRest, bundle.StorageId))
+		return GetFromUrlWithBackoff(fmt.Sprintf("%s/%s", storageRest, bundle.StorageId))
 	}
 
 	switch bundle.StorageProviderId {
 	case 1:
-		return DownloadFromUrl(fmt.Sprintf("https://arweave.net/%s", bundle.StorageId))
+		return GetFromUrlWithBackoff(fmt.Sprintf("https://arweave.net/%s", bundle.StorageId))
 	case 2:
-		return DownloadFromUrl(fmt.Sprintf("https://arweave.net/%s", bundle.StorageId))
+		return GetFromUrlWithBackoff(fmt.Sprintf("https://arweave.net/%s", bundle.StorageId))
 	case 3:
-		return DownloadFromUrl(fmt.Sprintf("https://storage.kyve.network/%s", bundle.StorageId))
+		return GetFromUrlWithBackoff(fmt.Sprintf("https://storage.kyve.network/%s", bundle.StorageId))
 	default:
 		return nil, fmt.Errorf("bundle has an invalid storage provider id %s. canceling sync", bundle.StorageProviderId)
 	}
 }
 
-func DownloadFromUrl(url string) ([]byte, error) {
+// GetFromUrl tries to fetch data from url
+func GetFromUrl(url string) ([]byte, error) {
 	response, err := http.Get(url)
 	if err != nil {
 		return nil, err
 	}
 
 	if response.StatusCode != 200 {
-		return nil, errors.New(response.Status)
+		return nil, fmt.Errorf("got status code %d != 200", response.StatusCode)
 	}
 
 	data, err := io.ReadAll(response.Body)
@@ -173,7 +177,31 @@ func DownloadFromUrl(url string) ([]byte, error) {
 	return data, nil
 }
 
-func CreateChecksum(input []byte) (hash string) {
+// GetFromUrlWithBackoff tries to fetch data from url with exponential backoff
+func GetFromUrlWithBackoff(url string) (data []byte, err error) {
+	for i := 0; i < BackoffMaxRetries; i++ {
+		data, err = GetFromUrl(url)
+		if err != nil {
+			delay := time.Duration(math.Pow(2, float64(i))) * time.Second
+
+			logger.Error().Msg(fmt.Sprintf("failed to fetch from url %s, retrying in %d seconds", url, delay))
+			time.Sleep(delay)
+
+			continue
+		}
+
+		// only log success message if there were errors previously
+		if i > 0 {
+			logger.Info().Msg(fmt.Sprintf("successfully fetch data from url %s", url))
+		}
+		return
+	}
+
+	logger.Error().Msg(fmt.Sprintf("failed to fetch data from url within maximum retry limit of %d", BackoffMaxRetries))
+	return
+}
+
+func CreateSha256Checksum(input []byte) (hash string) {
 	h := sha256.New()
 	h.Write(input)
 	bs := h.Sum(nil)
