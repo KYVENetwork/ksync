@@ -148,12 +148,8 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 		go server.StartSnapshotApiServer(config, blockStore, stateStore, snapshotPort)
 	}
 
-	// start block collector
-	if snapshotInterval > 0 {
-		go blocks.StartIncrementalBlockCollector(blockCh, errorCh, chainRest, storageRest, *poolResponse, continuationHeight)
-	} else {
-		go blocks.StartContinuousBlockCollector(blockCh, errorCh, chainRest, storageRest, *poolResponse, continuationHeight, targetHeight)
-	}
+	// start block collector. we must exit if snapshot interval is zero
+	go blocks.StartBlockCollector(blockCh, errorCh, chainRest, storageRest, *poolResponse, continuationHeight, targetHeight, snapshotInterval == 0)
 
 	logger.Info().Msg(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
 
