@@ -6,9 +6,9 @@ import (
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
+	"github.com/KYVENetwork/ksync/utils"
 	abciClient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
-	tmCfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/p2p"
 	tmTypes "github.com/tendermint/tendermint/types"
@@ -18,8 +18,14 @@ var (
 	logger = log.KsyncLogger("state-sync")
 )
 
-func StartStateSyncExecutor(config *tmCfg.Config, chainRest, storageRest string, poolId int64, bundleId int64) error {
+func StartStateSyncExecutor(homePath, chainRest, storageRest string, poolId int64, bundleId int64) error {
 	logger.Info().Msg(fmt.Sprintf("applying state-sync snapshot"))
+
+	// load config
+	config, err := utils.LoadConfig(homePath)
+	if err != nil {
+		return fmt.Errorf("failed to load config.toml: %w", err)
+	}
 
 	stateDB, stateStore, err := store.GetStateDBs(config)
 	defer stateDB.Close()

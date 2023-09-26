@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func GetNodeHeightFromRPC(homePath string) (height int64, err error) {
+func GetAppHeightFromRPC(homePath string) (height int64, err error) {
 	config, err := utils.LoadConfig(homePath)
 	if err != nil {
 		panic(fmt.Errorf("failed to load config.toml: %w", err))
@@ -40,8 +40,8 @@ func GetNodeHeightFromRPC(homePath string) (height int64, err error) {
 	return
 }
 
-func GetNodeHeightFromDB(home string) (int64, error) {
-	config, err := utils.LoadConfig(home)
+func GetBlockHeightFromDB(homePath string) (int64, error) {
+	config, err := utils.LoadConfig(homePath)
 	if err != nil {
 		return 0, err
 	}
@@ -55,4 +55,25 @@ func GetNodeHeightFromDB(home string) (int64, error) {
 
 	height := blockStore.Height()
 	return height, nil
+}
+
+func GetStateHeightFromDB(homePath string) (int64, error) {
+	config, err := utils.LoadConfig(homePath)
+	if err != nil {
+		return 0, err
+	}
+
+	stateDB, stateStore, err := store.GetStateDBs(config)
+	defer stateDB.Close()
+
+	if err != nil {
+		return 0, err
+	}
+
+	state, err := stateStore.Load()
+	if err != nil {
+		return 0, err
+	}
+
+	return state.LastBlockHeight, nil
 }

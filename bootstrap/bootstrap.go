@@ -40,7 +40,7 @@ func StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest strin
 		return err
 	}
 
-	height, err := helpers.GetNodeHeightFromDB(homePath)
+	height, err := helpers.GetBlockHeightFromDB(homePath)
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest strin
 	// wait until binary has properly started by testing if the /abci
 	// endpoint is up
 	for {
-		_, err := helpers.GetNodeHeightFromRPC(homePath)
+		_, err := helpers.GetAppHeightFromRPC(homePath)
 		if err != nil {
 			time.Sleep(5 * time.Second)
 			continue
@@ -88,7 +88,7 @@ func StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest strin
 	// wait until block was properly executed by testing if the /abci
 	// endpoint returns the correct block height
 	for {
-		height, err := helpers.GetNodeHeightFromRPC(homePath)
+		height, err := helpers.GetAppHeightFromRPC(homePath)
 		if err != nil {
 			return err
 		}

@@ -33,16 +33,6 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 		logger.Info().Msg(fmt.Sprintf("target height not specified, searching for latest available block height"))
 	}
 
-	if targetHeight < blockStartHeight {
-		logger.Error().Msg(fmt.Sprintf("specified target height of %d is smaller than earliest available block height %d", targetHeight, blockStartHeight))
-		os.Exit(1)
-	}
-
-	if targetHeight > blockEndHeight {
-		logger.Error().Msg(fmt.Sprintf("specified target height of %d is bigger than latest available block height %d", targetHeight, blockEndHeight))
-		os.Exit(1)
-	}
-
 	_, _, snapshotEndHeight, err := helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
 	if err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to get snapshot boundaries: %s", err))
@@ -116,7 +106,7 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 		}
 
 		// apply state sync snapshot
-		if err := statesync.StartStateSync(homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight, false); err != nil {
+		if err := statesync.StartStateSync(homePath, chainRest, storageRest, snapshotPoolId, bundleId); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to apply state-sync: %s", err))
 
 			// stop binary process thread
@@ -144,7 +134,7 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 	// if we have not reached our target height yet we block-sync the remaining ones
 	if remaining := targetHeight - continuationHeight; remaining > 0 {
 		logger.Info().Msg(fmt.Sprintf("block-syncing remaining %d blocks", remaining))
-		if err := blocksync.StartBlockSync(homePath, chainRest, storageRest, blockPoolId, targetHeight, false, 0, false); err != nil {
+		if err := blocksync.StartBlockSync(homePath, chainRest, storageRest, blockPoolId, continuationHeight, targetHeight, false, 0); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to apply block-sync: %s", err))
 
 			// stop binary process thread
