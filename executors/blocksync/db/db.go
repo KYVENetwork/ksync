@@ -49,7 +49,7 @@ func GetBlockBoundaries(restEndpoint string, poolId int64) (*types.PoolResponse,
 	return poolResponse, startHeight, endHeight, nil
 }
 
-func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, continuationHeight, targetHeight int64, metricsServer bool, metricsPort int64, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool) error {
+func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort int64, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool) error {
 	// load tendermint config
 	config, err := utils.LoadConfig(homePath)
 	if err != nil {
@@ -77,6 +77,12 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, conti
 	state, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(stateDB, defaultDocProvider)
 	if err != nil {
 		return fmt.Errorf("failed to load state and genDoc: %w", err)
+	}
+
+	continuationHeight := blockStore.Height() + 1
+
+	if continuationHeight < genDoc.InitialHeight {
+		continuationHeight = genDoc.InitialHeight
 	}
 
 	// perform boundary checks

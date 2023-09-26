@@ -3,8 +3,10 @@ package db
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/collectors/bundles"
+	"github.com/KYVENetwork/ksync/collectors/snapshots"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
+	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	abciClient "github.com/tendermint/tendermint/abci/client"
@@ -18,7 +20,7 @@ var (
 	logger = log.KsyncLogger("state-sync")
 )
 
-func StartStateSyncExecutor(homePath, chainRest, storageRest string, poolId int64, bundleId int64) error {
+func StartStateSyncExecutor(homePath, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64) error {
 	logger.Info().Msg(fmt.Sprintf("applying state-sync snapshot"))
 
 	// load config
@@ -56,6 +58,20 @@ func StartStateSyncExecutor(homePath, chainRest, storageRest string, poolId int6
 		return fmt.Errorf("store height %d is not zero, please reset with \"ksync unsafe-reset-all\"", blockStore.Height())
 	}
 
+	if snapshotHeight == 0 {
+		_, _, snapshotHeight, err = helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
+		if err != nil {
+			return fmt.Errorf("failed to get snapshot boundaries: %w", err)
+		}
+
+		logger.Info().Msg(fmt.Sprintf("no target height specified, syncing to latest available snapshot %d", snapshotHeight))
+	}
+
+	bundleId, err := snapshots.FindBundleIdBySnapshot(chainRest, snapshotPoolId, snapshotHeight)
+	if err != nil {
+		return fmt.Errorf("error getting bundle id from snapshot: %w", err)
+	}
+
 	socketClient := abciClient.NewSocketClient(config.ProxyApp, false)
 
 	logger.Info().Msg(fmt.Sprintf("connecting to abci app over %s", config.ProxyApp))
@@ -74,7 +90,7 @@ func StartStateSyncExecutor(homePath, chainRest, storageRest string, poolId int6
 		return fmt.Errorf("app height %d is not zero, please reset with \"ksync unsafe-reset-all\"", info.LastBlockHeight)
 	}
 
-	finalizedBundle, err := bundles.GetFinalizedBundle(chainRest, poolId, bundleId)
+	finalizedBundle, err := bundles.GetFinalizedBundle(chainRest, snapshotPoolId, bundleId)
 	if err != nil {
 		return fmt.Errorf("failed getting finalized bundle: %w", err)
 	}
@@ -126,7 +142,7 @@ func StartStateSyncExecutor(homePath, chainRest, storageRest string, poolId int6
 	}
 
 	for chunkIndex := uint32(0); chunkIndex < chunks; chunkIndex++ {
-		chunkBundleFinalized, err := bundles.GetFinalizedBundle(chainRest, poolId, bundleId+int64(chunkIndex))
+		chunkBundleFinalized, err := bundles.GetFinalizedBundle(chainRest, snapshotPoolId, bundleId+int64(chunkIndex))
 		if err != nil {
 			return fmt.Errorf("failed getting finalized bundle: %w", err)
 		}

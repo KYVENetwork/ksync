@@ -19,14 +19,14 @@ var (
 	logger = log.KsyncLogger("block-sync")
 )
 
-func StartBlockSync(homePath, chainRest, storageRest string, poolId, continuationHeight, targetHeight int64, metrics bool, port int64) error {
-	return db.StartDBExecutor(homePath, chainRest, storageRest, poolId, continuationHeight, targetHeight, metrics, port, 0, 0, utils.DefaultSnapshotServerPort, false)
+func StartBlockSync(homePath, chainRest, storageRest string, poolId, targetHeight int64, metrics bool, port int64) error {
+	return db.StartDBExecutor(homePath, chainRest, storageRest, poolId, targetHeight, metrics, port, 0, 0, utils.DefaultSnapshotServerPort, false)
 }
 
-func PerformBlockSyncValidationChecks(homePath, chainRest string, blockPoolId, targetHeight int64, userInput bool) (continuationHeight int64, err error) {
+func PerformBlockSyncValidationChecks(homePath, chainRest string, blockPoolId, targetHeight int64, userInput bool) error {
 	config, err := utils.LoadConfig(homePath)
 	if err != nil {
-		return continuationHeight, fmt.Errorf("failed to load config.toml: %w", err)
+		return fmt.Errorf("failed to load config.toml: %w", err)
 	}
 
 	// load state store
@@ -34,21 +34,21 @@ func PerformBlockSyncValidationChecks(homePath, chainRest string, blockPoolId, t
 	defer stateDB.Close()
 
 	if err != nil {
-		return continuationHeight, fmt.Errorf("failed to load state db: %w", err)
+		return fmt.Errorf("failed to load state db: %w", err)
 	}
 
 	height, err := bootstrapHelpers.GetBlockHeightFromDB(homePath)
 	if err != nil {
-		return continuationHeight, fmt.Errorf("failed get height from blockstore: %w", err)
+		return fmt.Errorf("failed get height from blockstore: %w", err)
 	}
 
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
 	_, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(stateDB, defaultDocProvider)
 	if err != nil {
-		return continuationHeight, fmt.Errorf("failed to load state and genDoc: %w", err)
+		return fmt.Errorf("failed to load state and genDoc: %w", err)
 	}
 
-	continuationHeight = height + 1
+	continuationHeight := height + 1
 
 	if continuationHeight < genDoc.InitialHeight {
 		continuationHeight = genDoc.InitialHeight
@@ -59,59 +59,57 @@ func PerformBlockSyncValidationChecks(homePath, chainRest string, blockPoolId, t
 	// perform boundary checks
 	_, startHeight, endHeight, err := db.GetBlockBoundaries(chainRest, blockPoolId)
 	if err != nil {
-		return continuationHeight, fmt.Errorf("failed to get block boundaries: %w", err)
+		return fmt.Errorf("failed to get block boundaries: %w", err)
 	}
 
 	logger.Info().Msg(fmt.Sprintf("retrieved block boundaries, earliest block height = %d, latest block height %d", startHeight, endHeight))
 
 	if continuationHeight < startHeight {
-		return continuationHeight, fmt.Errorf("app is currently at height %d but first available block on pool is %d", continuationHeight, startHeight)
+		return fmt.Errorf("app is currently at height %d but first available block on pool is %d", continuationHeight, startHeight)
 	}
 
 	if continuationHeight > endHeight {
-		return continuationHeight, fmt.Errorf("app is currently at height %d but last available block on pool is %d", continuationHeight, endHeight)
+		return fmt.Errorf("app is currently at height %d but last available block on pool is %d", continuationHeight, endHeight)
 	}
 
 	if targetHeight > 0 && continuationHeight > targetHeight {
-		return continuationHeight, fmt.Errorf("requested target height is %d but app is already at block height %d", targetHeight, continuationHeight)
+		return fmt.Errorf("requested target height is %d but app is already at block height %d", targetHeight, continuationHeight)
 	}
 
 	if targetHeight > 0 && targetHeight > endHeight {
-		return continuationHeight, fmt.Errorf("requested target height is %d but last available block on pool is %d", targetHeight, endHeight)
+		return fmt.Errorf("requested target height is %d but last available block on pool is %d", targetHeight, endHeight)
 	}
 
-	nBlocks := int64(0)
-
-	if targetHeight > 0 {
-		logger.Info().Msg(fmt.Sprintf("found bundles containing requested blocks from %d to %d", continuationHeight, targetHeight))
-		nBlocks = targetHeight - continuationHeight + 1
-	} else {
-		logger.Info().Msg(fmt.Sprintf("found bundles containing requested blocks from  %d to %d", continuationHeight, endHeight))
-		nBlocks = endHeight - continuationHeight + 1
+	if targetHeight == 0 {
+		logger.Info().Msg(fmt.Sprintf("no target height specified, syncing to latest available block height %d", endHeight))
 	}
 
 	if userInput {
 		answer := ""
-		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should %d blocks be synced [y/N]: ", nBlocks)
+
+		if targetHeight > 0 {
+			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should %d blocks from height %d to %d be synced [y/N]: ", targetHeight-continuationHeight+1, continuationHeight-1, targetHeight)
+		} else {
+			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should %d blocks from height %d to %d be synced [y/N]: ", endHeight-continuationHeight+1, continuationHeight-1, endHeight)
+		}
 
 		if _, err := fmt.Scan(&answer); err != nil {
-			return continuationHeight, fmt.Errorf("failed to read in user input: %s", err)
+			return fmt.Errorf("failed to read in user input: %s", err)
 		}
 
 		if strings.ToLower(answer) != "y" {
-			return continuationHeight, errors.New("aborted block-sync")
+			return errors.New("aborted block-sync")
 		}
 	}
 
-	return
+	return nil
 }
 
 func StartBlockSyncWithBinary(binaryPath, homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metrics bool, port int64, userInput bool) {
 	logger.Info().Msg("starting block-sync")
 
 	// perform validation checks before booting state-sync process
-	continuationHeight, err := PerformBlockSyncValidationChecks(homePath, chainRest, blockPoolId, targetHeight, userInput)
-	if err != nil {
+	if err := PerformBlockSyncValidationChecks(homePath, chainRest, blockPoolId, targetHeight, userInput); err != nil {
 		logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
 		os.Exit(1)
 	}
@@ -128,7 +126,7 @@ func StartBlockSyncWithBinary(binaryPath, homePath, chainRest, storageRest strin
 	}
 
 	// db executes blocks against app until target height is reached
-	if err := StartBlockSync(homePath, chainRest, storageRest, blockPoolId, continuationHeight, targetHeight, metrics, port); err != nil {
+	if err := StartBlockSync(homePath, chainRest, storageRest, blockPoolId, targetHeight, metrics, port); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to start block-sync: %s", err))
 
 		// stop binary process thread

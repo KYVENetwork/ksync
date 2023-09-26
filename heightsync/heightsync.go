@@ -21,9 +21,15 @@ var (
 func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest string, snapshotPoolId, blockPoolId, targetHeight int64, userInput bool) {
 	logger.Info().Msg("starting height-sync")
 
-	_, blockStartHeight, blockEndHeight, err := db.GetBlockBoundaries(chainRest, blockPoolId)
+	_, _, blockEndHeight, err := db.GetBlockBoundaries(chainRest, blockPoolId)
 	if err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to get block boundaries: %s", err))
+		os.Exit(1)
+	}
+
+	_, _, snapshotEndHeight, err := helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
+	if err != nil {
+		logger.Error().Msg(fmt.Sprintf("failed to get snapshot boundaries: %s", err))
 		os.Exit(1)
 	}
 
@@ -33,46 +39,34 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 		logger.Info().Msg(fmt.Sprintf("target height not specified, searching for latest available block height"))
 	}
 
-	_, _, snapshotEndHeight, err := helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
-	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("failed to get snapshot boundaries: %s", err))
+	if err := blocksync.PerformBlockSyncValidationChecks(homePath, chainRest, blockPoolId, targetHeight, false); err != nil {
+		logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
 		os.Exit(1)
 	}
 
-	logger.Info().Msg(fmt.Sprintf("requested target height of %d lies between block boundaries of %d to %d", targetHeight, blockStartHeight, blockEndHeight))
-
-	var bundleId, snapshotHeight = int64(0), int64(0)
+	var snapshotHeight = int64(0)
 
 	// if snapshot is available to skip part of the block-syncing process we search for the nearest one
 	// before our target height
 	if snapshotEndHeight > 0 {
-		bundleId, snapshotHeight, err = snapshots.FindNearestSnapshotBundleIdByHeight(chainRest, snapshotPoolId, targetHeight)
+		_, snapshotHeight, err = snapshots.FindNearestSnapshotBundleIdByHeight(chainRest, snapshotPoolId, targetHeight)
 		if err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to find bundle with nearest snapshot height %d: %s", targetHeight, err))
 			os.Exit(1)
 		}
 
 		// limit snapshot height to snapshot end height
-		// TODO: do this in snapshots.FindNearestSnapshotBundleIdByHeight
 		if snapshotHeight > snapshotEndHeight {
 			snapshotHeight = snapshotEndHeight
 		}
-
-		if snapshotHeight > 0 && snapshotHeight < blockStartHeight {
-			logger.Error().Msg(fmt.Sprintf("snapshot is at height %d but first available block on pool is %d", snapshotHeight, blockStartHeight))
-			os.Exit(1)
-		}
-
-		if snapshotHeight > blockEndHeight {
-			logger.Error().Msg(fmt.Sprintf("snapshot is at height %d but last available block on pool is %d", snapshotHeight, blockEndHeight))
-			os.Exit(1)
-		}
 	}
 
+	// perform state-sync validation checks before snapshot gets applied
 	if snapshotHeight > 0 {
-		logger.Info().Msg(fmt.Sprintf("found nearby snapshot with height %d in bundle with id %d", snapshotHeight, bundleId))
-	} else {
-		logger.Info().Msg(fmt.Sprintf("found no nearby snapshot, will block-sync from genesis"))
+		if err := statesync.PerformStateSyncValidationChecks(homePath, chainRest, snapshotPoolId, snapshotHeight, false); err != nil {
+			logger.Error().Msg(fmt.Sprintf("state-sync validation checks failed: %s", err))
+			os.Exit(1)
+		}
 	}
 
 	if userInput {
@@ -94,7 +88,6 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 		}
 	}
 
-	continuationHeight := int64(0)
 	processId := 0
 
 	// if there are snapshots available before the requested height we apply the nearest
@@ -106,7 +99,7 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 		}
 
 		// apply state sync snapshot
-		if err := statesync.StartStateSync(homePath, chainRest, storageRest, snapshotPoolId, bundleId); err != nil {
+		if err := statesync.StartStateSync(homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to apply state-sync: %s", err))
 
 			// stop binary process thread
@@ -115,8 +108,6 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 			}
 			os.Exit(1)
 		}
-
-		continuationHeight = snapshotHeight
 	} else {
 		// if we have to sync from genesis we first bootstrap the node
 		if err := bootstrap.StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest, blockPoolId); err != nil {
@@ -132,9 +123,10 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 	}
 
 	// if we have not reached our target height yet we block-sync the remaining ones
-	if remaining := targetHeight - continuationHeight; remaining > 0 {
+	if remaining := targetHeight - snapshotHeight; remaining > 0 {
 		logger.Info().Msg(fmt.Sprintf("block-syncing remaining %d blocks", remaining))
-		if err := blocksync.StartBlockSync(homePath, chainRest, storageRest, blockPoolId, continuationHeight, targetHeight, false, 0); err != nil {
+
+		if err := blocksync.StartBlockSync(homePath, chainRest, storageRest, blockPoolId, targetHeight, false, 0); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to apply block-sync: %s", err))
 
 			// stop binary process thread
