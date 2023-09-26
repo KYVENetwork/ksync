@@ -22,6 +22,9 @@ func GetBackupConfig(homePath string, backupInterval, backupKeepRecent int64, ba
 	}
 
 	if backupInterval > 0 {
+		if backupCfg.KeepRecent < 2 && backupCfg.KeepRecent != 0 {
+			return nil, fmt.Errorf("backup-keep-recent needs to be >= 2")
+		}
 		if backupCfg.Dest == "" {
 			backupPath, err := helpers.GetBackupDestPath()
 			if err != nil {
@@ -30,7 +33,7 @@ func GetBackupConfig(homePath string, backupInterval, backupKeepRecent int64, ba
 			backupCfg.Dest = backupPath
 		}
 
-		if err := helpers.ValidatePaths(backupCfg.Src, backupCfg.Dest); err != nil {
+		if err = helpers.ValidatePaths(backupCfg.Src, backupCfg.Dest); err != nil {
 			return nil, fmt.Errorf("backup path validation failed: %w", err)
 		}
 	}
@@ -38,7 +41,7 @@ func GetBackupConfig(homePath string, backupInterval, backupKeepRecent int64, ba
 	return
 }
 
-func CreateBackup(backupCfg *types.BackupConfig, chainId string, height int64) error {
+func CreateBackup(backupCfg *types.BackupConfig, chainId string, height int64, parallel bool) error {
 	destPath, err := helpers.CreateBackupDestFolder(backupCfg.Dest, chainId, height)
 	if err != nil {
 		return err
@@ -50,23 +53,34 @@ func CreateBackup(backupCfg *types.BackupConfig, chainId string, height int64) e
 		return fmt.Errorf("could not copy backup to destination: %w", err)
 	}
 
-	logger.Info().Msg("created copy successfully")
+	logger.Info().Bool("compression", backupCfg.Compression != "").Msg("created copy successfully")
 
 	// execute compression async
 	if backupCfg.Compression != "" {
-		go func() {
+		if parallel {
+			go func() {
+				logger.Info().Str("src-path", destPath).Str("compression", backupCfg.Compression).Msg("start compressing")
+
+				if err = helpers.CompressDirectory(destPath, backupCfg.Compression); err != nil {
+					logger.Error().Str("err", err.Error()).Msg("compression failed")
+					return
+				}
+
+				logger.Info().Str("src-path", destPath).Str("compression", backupCfg.Compression).Msg("compressed backup successfully")
+			}()
+		} else {
 			logger.Info().Str("src-path", destPath).Str("compression", backupCfg.Compression).Msg("start compressing")
 
 			if err = helpers.CompressDirectory(destPath, backupCfg.Compression); err != nil {
 				logger.Error().Str("err", err.Error()).Msg("compression failed")
-				return
+				return err
 			}
 
 			logger.Info().Str("src-path", destPath).Str("compression", backupCfg.Compression).Msg("compressed backup successfully")
-		}()
+		}
 	}
 
-	if backupCfg.KeepRecent > 0 {
+	if backupCfg.KeepRecent >= 2 {
 		logger.Info().Str("path", filepath.Join(backupCfg.Dest, chainId)).Msg("starting to cleanup backup directory")
 
 		if err := helpers.ClearBackups(filepath.Join(backupCfg.Dest, chainId), backupCfg.KeepRecent); err != nil {

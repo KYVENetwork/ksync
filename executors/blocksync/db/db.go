@@ -316,7 +316,7 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 
 				time.Sleep(time.Second * 15)
 
-				if err = backup.CreateBackup(backupCfg, genDoc.ChainID, prevBlock.Height); err != nil {
+				if err = backup.CreateBackup(backupCfg, genDoc.ChainID, prevBlock.Height, false); err != nil {
 					logger.Error().Msg(fmt.Sprintf("failed to create backup: %v", err))
 				}
 
