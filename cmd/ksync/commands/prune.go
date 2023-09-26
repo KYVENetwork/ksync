@@ -2,8 +2,8 @@ package commands
 
 import (
 	"fmt"
-	cfg "github.com/KYVENetwork/ksync/config"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
+	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -32,7 +32,7 @@ var pruneCmd = &cobra.Command{
 	Use:   "prune-blocks",
 	Short: "Prune blocks until a specific height",
 	Run: func(cmd *cobra.Command, args []string) {
-		config, err := cfg.LoadConfig(homePath)
+		config, err := utils.LoadConfig(homePath)
 		if err != nil {
 			panic(fmt.Errorf("failed to load config: %w", err))
 		}

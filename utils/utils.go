@@ -6,10 +6,13 @@ import (
 	"crypto/sha256"
 	"fmt"
 	log "github.com/KYVENetwork/ksync/logger"
+	"github.com/spf13/viper"
+	cfg "github.com/tendermint/tendermint/config"
 	"io"
 	"math"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +21,27 @@ import (
 var (
 	logger = log.KsyncLogger("utils")
 )
+
+func LoadConfig(homePath string) (*cfg.Config, error) {
+	config := cfg.DefaultConfig()
+
+	viper.SetConfigName("config")
+	viper.SetConfigType("toml")
+	viper.AddConfigPath(homePath)
+	viper.AddConfigPath(filepath.Join(homePath, "config"))
+
+	if err := viper.ReadInConfig(); err != nil {
+		return nil, err
+	}
+
+	if err := viper.Unmarshal(config); err != nil {
+		return nil, err
+	}
+
+	config.SetRoot(homePath)
+
+	return config, nil
+}
 
 // GetFromUrl tries to fetch data from url
 func GetFromUrl(url string) ([]byte, error) {

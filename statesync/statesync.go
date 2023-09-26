@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/KYVENetwork/ksync/collectors/snapshots"
-	cfg "github.com/KYVENetwork/ksync/config"
 	"github.com/KYVENetwork/ksync/executors/statesync/db"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/supervisor"
+	"github.com/KYVENetwork/ksync/utils"
 	"os"
 	"strings"
 )
@@ -20,7 +20,7 @@ var (
 // TODO: implement method in utils to check if node is at initial height
 func StartStateSync(homePath, chainRest, storageRest string, poolId, snapshotHeight int64, userInput bool) error {
 	// load config
-	config, err := cfg.LoadConfig(homePath)
+	config, err := utils.LoadConfig(homePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
 	}

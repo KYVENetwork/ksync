@@ -2,7 +2,6 @@ package helpers
 
 import (
 	"fmt"
-	cfg "github.com/KYVENetwork/ksync/config"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
@@ -12,7 +11,7 @@ import (
 )
 
 func GetNodeHeightFromRPC(homePath string) (height int64, err error) {
-	config, err := cfg.LoadConfig(homePath)
+	config, err := utils.LoadConfig(homePath)
 	if err != nil {
 		panic(fmt.Errorf("failed to load config.toml: %w", err))
 	}
@@ -42,7 +41,7 @@ func GetNodeHeightFromRPC(homePath string) (height int64, err error) {
 }
 
 func GetNodeHeightFromDB(home string) (int64, error) {
-	config, err := cfg.LoadConfig(home)
+	config, err := utils.LoadConfig(home)
 	if err != nil {
 		return 0, err
 	}

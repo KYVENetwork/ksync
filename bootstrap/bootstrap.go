@@ -3,7 +3,6 @@ package bootstrap
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/bootstrap/helpers"
-	cfg "github.com/KYVENetwork/ksync/config"
 	"github.com/KYVENetwork/ksync/executors/blocksync/p2p"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/supervisor"
@@ -19,7 +18,7 @@ var (
 func StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest string, poolId int64) error {
 	logger.Info().Msg("starting bootstrap")
 
-	config, err := cfg.LoadConfig(homePath)
+	config, err := utils.LoadConfig(homePath)
 	if err != nil {
 		return err
 	}

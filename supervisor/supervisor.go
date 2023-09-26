@@ -2,7 +2,7 @@ package supervisor
 
 import (
 	"fmt"
-	cfg "github.com/KYVENetwork/ksync/config"
+	"github.com/KYVENetwork/ksync/utils"
 	"os"
 	"os/exec"
 	"strings"
@@ -22,7 +22,7 @@ func StartBinaryProcessForDB(binaryPath string, homePath string, args []string) 
 		startArgs = append(startArgs, "run")
 	}
 
-	config, err := cfg.LoadConfig(homePath)
+	config, err := utils.LoadConfig(homePath)
 	if err != nil {
 		return processId, fmt.Errorf("failed to load config.toml: %w", err)
 	}

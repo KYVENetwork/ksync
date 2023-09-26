@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/collectors/blocks"
 	"github.com/KYVENetwork/ksync/collectors/pool"
-	cfg "github.com/KYVENetwork/ksync/config"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/helpers"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
@@ -54,7 +53,7 @@ func GetBlockBoundaries(restEndpoint string, poolId int64) (*types.PoolResponse,
 
 func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort int64, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool, userInput bool) error {
 	// load tendermint config
-	config, err := cfg.LoadConfig(homePath)
+	config, err := utils.LoadConfig(homePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
 	}

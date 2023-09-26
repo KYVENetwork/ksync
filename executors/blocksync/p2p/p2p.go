@@ -3,7 +3,6 @@ package p2p
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/collectors/bundles"
-	cfg "github.com/KYVENetwork/ksync/config"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db"
 	p2pHelpers "github.com/KYVENetwork/ksync/executors/blocksync/p2p/helpers"
 	"github.com/KYVENetwork/ksync/executors/blocksync/p2p/reactor"
@@ -97,11 +96,11 @@ func retrieveBlock(pool *types.PoolResponse, chainRest, storageRest string, heig
 	return nil, fmt.Errorf("failed to find bundle with block height %d", height)
 }
 
-func StartP2PExecutor(homeDir string, poolId int64, chainRest, storageRest string) (*p2p.Switch, error) {
+func StartP2PExecutor(homePath string, poolId int64, chainRest, storageRest string) (*p2p.Switch, error) {
 	logger.Info().Msg("starting p2p sync")
 
 	// load config
-	config, err := cfg.LoadConfig(homeDir)
+	config, err := utils.LoadConfig(homePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
