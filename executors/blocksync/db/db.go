@@ -153,6 +153,8 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 
 	logger.Info().Msg(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
 
+	logger.Info().Msg(fmt.Sprintf("connecting to abci app over %s", config.ProxyApp))
+
 	proxyApp, err := helpers.CreateAndStartProxyAppConns(config)
 	if err != nil {
 		return fmt.Errorf("failed to start proxy app: %w", err)

@@ -52,6 +52,8 @@ func StartStateSyncExecutor(config *tmCfg.Config, chainRest, storageRest string,
 
 	socketClient := abciClient.NewSocketClient(config.ProxyApp, false)
 
+	logger.Info().Msg(fmt.Sprintf("connecting to abci app over %s", config.ProxyApp))
+
 	if err := socketClient.Start(); err != nil {
 		return fmt.Errorf("error starting abci server %w", err)
 	}
