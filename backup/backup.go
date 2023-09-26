@@ -38,8 +38,8 @@ func GetBackupConfig(homePath string, backupInterval, backupKeepRecent int64, ba
 	return
 }
 
-func CreateBackup(backupCfg *types.BackupConfig, height int64) error {
-	destPath, err := helpers.CreateBackupDestFolder(backupCfg.Dest, height)
+func CreateBackup(backupCfg *types.BackupConfig, chainId string, height int64) error {
+	destPath, err := helpers.CreateBackupDestFolder(backupCfg.Dest, chainId, height)
 	if err != nil {
 		return err
 	}
@@ -57,8 +57,9 @@ func CreateBackup(backupCfg *types.BackupConfig, height int64) error {
 		go func() {
 			logger.Info().Str("src-path", destPath).Str("compression", backupCfg.Compression).Msg("start compressing")
 
-			if err := helpers.CompressDirectory(destPath, backupCfg.Compression); err != nil {
+			if err = helpers.CompressDirectory(destPath, backupCfg.Compression); err != nil {
 				logger.Error().Str("err", err.Error()).Msg("compression failed")
+				return
 			}
 
 			logger.Info().Str("src-path", destPath).Str("compression", backupCfg.Compression).Msg("compressed backup successfully")
@@ -66,9 +67,9 @@ func CreateBackup(backupCfg *types.BackupConfig, height int64) error {
 	}
 
 	if backupCfg.KeepRecent > 0 {
-		logger.Info().Str("path", backupCfg.Dest).Msg("starting to cleanup backup directory")
+		logger.Info().Str("path", filepath.Join(backupCfg.Dest, chainId)).Msg("starting to cleanup backup directory")
 
-		if err := helpers.ClearBackups(backupCfg.Dest, backupCfg.KeepRecent); err != nil {
+		if err := helpers.ClearBackups(filepath.Join(backupCfg.Dest, chainId), backupCfg.KeepRecent); err != nil {
 			return fmt.Errorf("clearing backup directory failed: %w", err)
 		}
 

@@ -10,18 +10,24 @@ import (
 	"strconv"
 )
 
-func CreateBackupDestFolder(backupDir string, height int64) (string, error) {
+func CreateBackupDestFolder(backupDir string, chainId string, height int64) (string, error) {
+	if _, err := os.Stat(filepath.Join(backupDir, chainId)); os.IsNotExist(err) {
+		if err := os.Mkdir(filepath.Join(backupDir, chainId), 0o755); err != nil {
+			return "", fmt.Errorf("failed to create backup directory: %w", err)
+		}
+	}
+
 	h := strconv.FormatInt(height, 10)
 
-	if err := os.Mkdir(filepath.Join(backupDir, h), 0o755); err != nil {
+	if err := os.Mkdir(filepath.Join(backupDir, chainId, h), 0o755); err != nil {
 		return "", fmt.Errorf("failed to create backup directory: %w", err)
 	}
 
-	if err := os.Mkdir(filepath.Join(backupDir, h, "data"), 0o755); err != nil {
+	if err := os.Mkdir(filepath.Join(backupDir, chainId, h, "data"), 0o755); err != nil {
 		return "", fmt.Errorf("failed to create backup data directory: %w", err)
 	}
 
-	return filepath.Join(backupDir, h, "data"), nil
+	return filepath.Join(backupDir, chainId, h, "data"), nil
 }
 
 func GetBackupDestPath() (string, error) {
@@ -122,7 +128,7 @@ func CompressDirectory(srcPath, compressionType string) error {
 	}
 
 	cmd.Dir = filepath.Dir(srcPath)
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = nil
 
 	// Run the command
 	if err := cmd.Run(); err != nil {
@@ -154,7 +160,9 @@ func ClearBackups(srcPath string, threshold int64) error {
 	}
 
 	sort.Slice(backups, func(i, j int) bool {
-		return backups[i].Name() < backups[j].Name()
+		a, _ := strconv.Atoi(backups[i].Name())
+		b, _ := strconv.Atoi(backups[j].Name())
+		return a < b
 	})
 
 	if int64(len(backups)) > threshold {

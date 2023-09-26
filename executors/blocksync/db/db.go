@@ -53,7 +53,7 @@ func GetBlockBoundaries(restEndpoint string, poolId int64) (*types.PoolResponse,
 	return poolResponse, startHeight, endHeight, nil
 }
 
-func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort int64, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool, backupCfg *types.BackupConfig, userInput bool) error {
+func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool, backupCfg *types.BackupConfig, userInput bool) error {
 	// load tendermint config
 	config, err := cfg.LoadConfig(homePath)
 	if err != nil {
@@ -314,8 +314,10 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 			if backupCfg != nil && backupCfg.Interval > 0 && prevBlock.Height%backupCfg.Interval == 0 {
 				logger.Info().Msg("reached backup interval height, starting to create backup")
 
-				if err := backup.CreateBackup(backupCfg, prevBlock.Height); err != nil {
-					logger.Error().Msg(fmt.Sprintf("failed to create backup: %w", err))
+				time.Sleep(time.Second * 15)
+
+				if err = backup.CreateBackup(backupCfg, genDoc.ChainID, prevBlock.Height); err != nil {
+					logger.Error().Msg(fmt.Sprintf("failed to create backup: %v", err))
 				}
 
 				logger.Info().Msg(fmt.Sprintf("finished backup at block height: %d", prevBlock.Height))
