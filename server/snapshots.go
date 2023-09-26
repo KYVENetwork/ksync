@@ -69,7 +69,14 @@ func (apiServer *ApiServer) ListSnapshotsHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := json.Marshal(res.Snapshots)
+	var resp []byte
+
+	if len(res.Snapshots) == 0 {
+		resp, err = json.Marshal([]types.Snapshot{})
+	} else {
+		resp, err = json.Marshal(res.Snapshots)
+	}
+
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Error marshalling response"),
