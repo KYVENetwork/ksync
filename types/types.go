@@ -1,7 +1,9 @@
 package types
 
 import (
+	abciTypes "github.com/tendermint/tendermint/abci/types"
 	tmCfg "github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/state"
 	tmTypes "github.com/tendermint/tendermint/types"
 	"sync"
 )
@@ -16,6 +18,8 @@ type BlockPair struct {
 }
 
 type Block = tmTypes.Block
+type LightBlock = tmTypes.LightBlock
+type Snapshot = abciTypes.Snapshot
 
 type HeightResponse struct {
 	Result struct {
@@ -29,11 +33,18 @@ type PoolResponse = struct {
 	Pool struct {
 		Id   int64 `json:"id"`
 		Data struct {
-			Runtime    string `json:"runtime"`
-			StartKey   int64  `json:"start_key"`
-			CurrentKey int64  `json:"current_key"`
+			Runtime      string `json:"runtime"`
+			StartKey     string `json:"start_key"`
+			CurrentKey   string `json:"current_key"`
+			TotalBundles int64  `json:"total_bundles"`
+			Config       string `json:"config"`
 		} `json:"data"`
 	} `json:"pool"`
+}
+
+type TendermintSSyncConfig = struct {
+	Api      string `json:"api"`
+	Interval int64  `json:"interval"`
 }
 
 type SyncProcess struct {
@@ -67,6 +78,7 @@ type Pagination struct {
 }
 
 type FinalizedBundle struct {
+	Id                string `json:"id,omitempty"`
 	StorageId         string `json:"storage_id,omitempty"`
 	StorageProviderId string `json:"storage_provider_id,omitempty"`
 	CompressionId     string `json:"compression_id,omitempty"`
@@ -75,7 +87,33 @@ type FinalizedBundle struct {
 	DataHash          string `json:"data_hash,omitempty"`
 }
 
-type FinalizedBundleResponse = struct {
+type FinalizedBundlesResponse = struct {
 	FinalizedBundles []FinalizedBundle `json:"finalized_bundles"`
 	Pagination       Pagination        `json:"pagination"`
+}
+
+type FinalizedBundleResponse = struct {
+	FinalizedBundle FinalizedBundle `json:"finalized_bundle"`
+}
+
+type TendermintSsyncBundle = []TendermintSsyncDataItem
+
+type TendermintSsyncDataItem struct {
+	Key   string `json:"key"`
+	Value struct {
+		Snapshot   *Snapshot       `json:"snapshot"`
+		Block      *Block          `json:"block"`
+		SeenCommit *tmTypes.Commit `json:"seenCommit"`
+		State      *state.State    `json:"state"`
+		ChunkIndex uint32          `json:"chunkIndex"`
+		Chunk      []byte          `json:"chunk"`
+	} `json:"value"`
+}
+
+type BackupConfig = struct {
+	Interval    int64
+	KeepRecent  int64
+	Src         string
+	Dest        string
+	Compression string
 }

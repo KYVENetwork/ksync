@@ -2,8 +2,8 @@ package commands
 
 import (
 	"fmt"
-	cfg "github.com/KYVENetwork/ksync/config"
-	"github.com/KYVENetwork/ksync/executor/db/store"
+	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
+	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -13,7 +13,7 @@ var (
 )
 
 func init() {
-	pruneCmd.Flags().StringVar(&home, "home", "", "home directory")
+	pruneCmd.Flags().StringVar(&homePath, "home", "", "home directory")
 	if err := pruneCmd.MarkFlagRequired("home"); err != nil {
 		panic(fmt.Errorf("flag 'home' should be required: %w", err))
 	}
@@ -23,14 +23,16 @@ func init() {
 		panic(fmt.Errorf("flag 'until-height' should be required: %w", err))
 	}
 
-	rootCmd.AddCommand(pruneCmd)
+	// Disable pruning for now until we find a way to properly prune
+	// blockstore.db, state.db and application.db
+	//rootCmd.AddCommand(pruneCmd)
 }
 
 var pruneCmd = &cobra.Command{
 	Use:   "prune-blocks",
 	Short: "Prune blocks until a specific height",
 	Run: func(cmd *cobra.Command, args []string) {
-		config, err := cfg.LoadConfig(home)
+		config, err := utils.LoadConfig(homePath)
 		if err != nil {
 			panic(fmt.Errorf("failed to load config: %w", err))
 		}

@@ -2,12 +2,27 @@ package commands
 
 import (
 	"fmt"
-	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/spf13/cobra"
 )
 
 var (
-	logger = log.Logger("commands")
+	binaryPath        string
+	homePath          string
+	chainId           string
+	chainRest         string
+	storageRest       string
+	snapshotPoolId    int64
+	blockPoolId       int64
+	targetHeight      int64
+	metrics           bool
+	metricsPort       int64
+	snapshotPort      int64
+	pruning           bool
+	backupInterval    int64
+	backupKeepRecent  int64
+	backupCompression string
+	backupDest        string
+	y                 bool
 )
 
 // RootCmd is the root command for KSYNC.
@@ -17,6 +32,15 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+	backupCmd.Flags().SortFlags = false
+	blockSyncCmd.Flags().SortFlags = false
+	heightSyncCmd.Flags().SortFlags = false
+	pruneCmd.Flags().SortFlags = false
+	resetCmd.Flags().SortFlags = false
+	serveCmd.Flags().SortFlags = false
+	stateSyncCmd.Flags().SortFlags = false
+	versionCmd.Flags().SortFlags = false
+
 	if err := rootCmd.Execute(); err != nil {
 		panic(fmt.Errorf("failed to execute root command: %w", err))
 	}
