@@ -23,7 +23,7 @@ func init() {
 
 var resetCmd = &cobra.Command{
 	Use:   "unsafe-reset-all",
-	Short: "Reset tendermint. Similar to \"unsafe-reset-all\"",
+	Short: "Reset tendermint node data",
 	Run: func(cmd *cobra.Command, args []string) {
 		logger.Info().Msg("resetting tendermint application")
 

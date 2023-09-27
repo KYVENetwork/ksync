@@ -43,10 +43,16 @@ To install the latest version of `ksync`, run the following command:
 go install github.com/KYVENetwork/ksync/cmd/ksync@latest
 ```
 
-To install a previous version, you can specify the version.
+To install a previous version, you can specify the version:
 
 ```bash
-go install github.com/KYVENetwork/ksync/cmd/ksync@v0.5.0
+go install github.com/KYVENetwork/ksync/cmd/ksync@vX.X.X
+```
+
+NOTE: To install the current pre-release of KSYNC, which supports the latest changes, run:
+
+```bash
+go install github.com/KYVENetwork/ksync/cmd/ksync@v1.0.0-beta.0
 ```
 
 Run `ksync version` to verify the installation.
