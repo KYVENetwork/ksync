@@ -19,7 +19,7 @@ func init() {
 		panic(fmt.Errorf("flag 'home' should be required: %w", err))
 	}
 
-	stateSyncCmd.Flags().StringVar(&chainId, "chain-id", utils.DefaultChainId, fmt.Sprintf("kyve chain id (\"kyve-1\",\"kaon-1\",\"korellia\"), [default = %s]", utils.DefaultChainId))
+	stateSyncCmd.Flags().StringVar(&chainId, "chain-id", utils.DefaultChainId, fmt.Sprintf("kyve chain id (\"%s\",\"%s\",\"%s\"), [default = %s]", utils.ChainIdMainnet, utils.ChainIdKaon, utils.ChainIdKorellia, utils.DefaultChainId))
 
 	stateSyncCmd.Flags().StringVar(&chainRest, "chain-rest", "", "rest endpoint for KYVE chain")
 	stateSyncCmd.Flags().StringVar(&storageRest, "storage-rest", "", "storage endpoint for requesting bundle data")
@@ -31,7 +31,7 @@ func init() {
 
 	stateSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "snapshot height, if not specified it will use the latest available snapshot height")
 
-	stateSyncCmd.Flags().BoolVarP(&y, "assumeyes", "y", true, "automatically answer yes for all questions")
+	stateSyncCmd.Flags().BoolVarP(&y, "assumeyes", "y", false, "automatically answer yes for all questions")
 
 	rootCmd.AddCommand(stateSyncCmd)
 }

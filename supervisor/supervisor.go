@@ -2,6 +2,7 @@ package supervisor
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/utils"
 	"os"
 	"os/exec"
 	"strings"
@@ -21,11 +22,18 @@ func StartBinaryProcessForDB(binaryPath string, homePath string, args []string) 
 		startArgs = append(startArgs, "run")
 	}
 
+	config, err := utils.LoadConfig(homePath)
+	if err != nil {
+		return processId, fmt.Errorf("failed to load config.toml: %w", err)
+	}
+
 	baseArgs := append([]string{
 		"start",
 		"--home",
 		homePath,
 		"--with-tendermint=false",
+		"--address",
+		config.ProxyApp,
 	}, args...)
 
 	cmd := exec.Command(cmdPath, append(startArgs, baseArgs...)...)

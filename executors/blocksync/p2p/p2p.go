@@ -2,7 +2,7 @@ package p2p
 
 import (
 	"fmt"
-	cfg "github.com/KYVENetwork/ksync/config"
+	"github.com/KYVENetwork/ksync/collectors/bundles"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db"
 	p2pHelpers "github.com/KYVENetwork/ksync/executors/blocksync/p2p/helpers"
 	"github.com/KYVENetwork/ksync/executors/blocksync/p2p/reactor"
@@ -26,12 +26,12 @@ func retrieveBlock(pool *types.PoolResponse, chainRest, storageRest string, heig
 	paginationKey := ""
 
 	for {
-		bundles, nextKey, err := utils.GetFinalizedBundlesPage(chainRest, pool.Pool.Id, utils.BundlesPageLimit, paginationKey)
+		bundlesPage, nextKey, err := bundles.GetFinalizedBundlesPage(chainRest, pool.Pool.Id, utils.BundlesPageLimit, paginationKey)
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve finalized bundles: %w", err)
 		}
 
-		for _, bundle := range bundles {
+		for _, bundle := range bundlesPage {
 			toHeight, err := strconv.ParseInt(bundle.ToKey, 10, 64)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse bundle to key to int64: %w", err)
@@ -44,7 +44,7 @@ func retrieveBlock(pool *types.PoolResponse, chainRest, storageRest string, heig
 				logger.Info().Msg(fmt.Sprintf("downloading bundle with storage id %s", bundle.StorageId))
 			}
 
-			deflated, err := utils.GetDataFromFinalizedBundle(bundle, storageRest)
+			deflated, err := bundles.GetDataFromFinalizedBundle(bundle, storageRest)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get data from finalized bundle: %w", err)
 			}
@@ -96,11 +96,11 @@ func retrieveBlock(pool *types.PoolResponse, chainRest, storageRest string, heig
 	return nil, fmt.Errorf("failed to find bundle with block height %d", height)
 }
 
-func StartP2PExecutor(homeDir string, poolId int64, chainRest, storageRest string) (*p2p.Switch, error) {
+func StartP2PExecutor(homePath string, poolId int64, chainRest, storageRest string) (*p2p.Switch, error) {
 	logger.Info().Msg("starting p2p sync")
 
 	// load config
-	config, err := cfg.LoadConfig(homeDir)
+	config, err := utils.LoadConfig(homePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}

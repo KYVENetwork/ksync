@@ -20,7 +20,7 @@ func init() {
 		panic(fmt.Errorf("flag 'home' should be required: %w", err))
 	}
 
-	blockSyncCmd.Flags().StringVar(&chainId, "chain-id", utils.DefaultChainId, fmt.Sprintf("kyve chain id (\"kyve-1\",\"kaon-1\",\"korellia\"), [default = %s]", utils.DefaultChainId))
+	blockSyncCmd.Flags().StringVar(&chainId, "chain-id", utils.DefaultChainId, fmt.Sprintf("kyve chain id (\"%s\",\"%s\",\"%s\"), [default = %s]", utils.ChainIdMainnet, utils.ChainIdKaon, utils.ChainIdKorellia, utils.DefaultChainId))
 
 	blockSyncCmd.Flags().StringVar(&chainRest, "chain-rest", "", "rest endpoint for KYVE chain")
 	blockSyncCmd.Flags().StringVar(&storageRest, "storage-rest", "", "storage endpoint for requesting bundle data")
@@ -40,7 +40,7 @@ func init() {
 	blockSyncCmd.Flags().StringVar(&backupCompression, "backup-compression", "", "compression type used for backups (\"tar.gz\",\"zip\"), if not compression given the backup will be stored uncompressed")
 	blockSyncCmd.Flags().StringVar(&backupDest, "backup-dest", "", fmt.Sprintf("path where backups should be stored [default = %s]", utils.DefaultBackupPath))
 
-	blockSyncCmd.Flags().BoolVarP(&y, "assumeyes", "y", true, "automatically answer yes for all questions")
+	blockSyncCmd.Flags().BoolVarP(&y, "assumeyes", "y", false, "automatically answer yes for all questions")
 
 	rootCmd.AddCommand(blockSyncCmd)
 }

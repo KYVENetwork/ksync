@@ -3,7 +3,6 @@ package bootstrap
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/bootstrap/helpers"
-	cfg "github.com/KYVENetwork/ksync/config"
 	"github.com/KYVENetwork/ksync/executors/blocksync/p2p"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/supervisor"
@@ -19,7 +18,7 @@ var (
 func StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest string, poolId int64) error {
 	logger.Info().Msg("starting bootstrap")
 
-	config, err := cfg.LoadConfig(homePath)
+	config, err := utils.LoadConfig(homePath)
 	if err != nil {
 		return err
 	}
@@ -41,7 +40,7 @@ func StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest strin
 		return err
 	}
 
-	height, err := helpers.GetNodeHeightFromDB(homePath)
+	height, err := helpers.GetBlockHeightFromDB(homePath)
 	if err != nil {
 		return err
 	}
@@ -65,7 +64,7 @@ func StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest strin
 	// wait until binary has properly started by testing if the /abci
 	// endpoint is up
 	for {
-		_, err := helpers.GetNodeHeightFromRPC(homePath)
+		_, err := helpers.GetAppHeightFromRPC(homePath)
 		if err != nil {
 			time.Sleep(5 * time.Second)
 			continue
@@ -89,7 +88,7 @@ func StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest strin
 	// wait until block was properly executed by testing if the /abci
 	// endpoint returns the correct block height
 	for {
-		height, err := helpers.GetNodeHeightFromRPC(homePath)
+		height, err := helpers.GetAppHeightFromRPC(homePath)
 		if err != nil {
 			return err
 		}

@@ -3,11 +3,12 @@ package servesnapshots
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/KYVENetwork/ksync/blocksync"
 	"github.com/KYVENetwork/ksync/bootstrap"
 	bootstrapHelpers "github.com/KYVENetwork/ksync/bootstrap/helpers"
+	"github.com/KYVENetwork/ksync/collectors/pool"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db"
 	log "github.com/KYVENetwork/ksync/logger"
-	"github.com/KYVENetwork/ksync/pool"
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/supervisor"
@@ -24,15 +25,9 @@ var (
 func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort int64, pruning bool) {
 	logger.Info().Msg("starting serve-snapshots")
 
-	height, err := bootstrapHelpers.GetNodeHeightFromDB(homePath)
-	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("could not get node height: %s", err))
-		os.Exit(1)
-	}
-
 	// get snapshot interval from pool
 	var config types.TendermintSSyncConfig
-	snapshotPool, err := pool.GetPoolInfo(0, chainRest, snapshotPoolId)
+	snapshotPool, err := pool.GetPoolInfo(chainRest, snapshotPoolId)
 
 	if err := json.Unmarshal([]byte(snapshotPool.Pool.Data.Config), &config); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to read pool config: %s", err))
@@ -56,17 +51,34 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest 
 		)
 	}
 
+	height, err := bootstrapHelpers.GetBlockHeightFromDB(homePath)
+	if err != nil {
+		logger.Error().Msg(fmt.Sprintf("could not get node height: %s", err))
+		os.Exit(1)
+	}
+
 	// state-sync to latest snapshot so we skip the block-syncing process.
 	// if no snapshot is available we block-sync from genesis
-	_, _, latestSnapshotHeight, err := helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
+	_, _, snapshotHeight, err := helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
 	if err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to get snapshot boundaries: %s", err))
 		os.Exit(1)
 	}
 
+	if err := blocksync.PerformBlockSyncValidationChecks(homePath, chainRest, blockPoolId, 0, false); err != nil {
+		logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
+		os.Exit(1)
+	}
+
 	processId := 0
 
-	if height == 0 && latestSnapshotHeight > 0 {
+	if height == 0 && snapshotHeight > 0 {
+		// if we can perform a state-sync we first make the validation checks
+		if err := statesync.PerformStateSyncValidationChecks(homePath, chainRest, snapshotPoolId, snapshotHeight, false); err != nil {
+			logger.Error().Msg(fmt.Sprintf("state-sync validation checks failed: %s", err))
+			os.Exit(1)
+		}
+
 		// start binary process thread
 		processId, err = supervisor.StartBinaryProcessForDB(binaryPath, homePath, snapshotArgs)
 		if err != nil {
@@ -74,7 +86,7 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest 
 		}
 
 		// found snapshot, applying it and continuing block-sync from here
-		if statesync.StartStateSync(homePath, chainRest, storageRest, snapshotPoolId, latestSnapshotHeight, false) != nil {
+		if statesync.StartStateSync(homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight) != nil {
 			// stop binary process thread
 			if err := supervisor.StopProcessByProcessId(processId); err != nil {
 				panic(err)
@@ -96,7 +108,7 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest 
 	}
 
 	// db executes blocks against app indefinitely
-	if err := db.StartDBExecutor(homePath, chainRest, storageRest, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning, nil, false); err != nil {
+	if err := db.StartDBExecutor(homePath, chainRest, storageRest, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning, nil); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to start db executor: %s", err))
 
 		// stop binary process thread

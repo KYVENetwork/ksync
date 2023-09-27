@@ -2,18 +2,14 @@ package helpers
 
 import (
 	"fmt"
-	log "github.com/KYVENetwork/ksync/logger"
-	"github.com/KYVENetwork/ksync/pool"
+	"github.com/KYVENetwork/ksync/collectors/bundles"
+	"github.com/KYVENetwork/ksync/collectors/pool"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 )
 
-var (
-	logger = log.KsyncLogger("state-sync")
-)
-
 func GetSnapshotPoolHeight(restEndpoint string, poolId int64) int64 {
-	snapshotPool, err := pool.GetPoolInfo(0, restEndpoint, poolId)
+	snapshotPool, err := pool.GetPoolInfo(restEndpoint, poolId)
 	if err != nil {
 		panic(fmt.Errorf("could not get snapshot pool: %w", err))
 	}
@@ -28,7 +24,7 @@ func GetSnapshotPoolHeight(restEndpoint string, poolId int64) int64 {
 
 func GetSnapshotBoundaries(restEndpoint string, poolId int64) (*types.PoolResponse, int64, int64, error) {
 	// load start and latest height
-	poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
+	poolResponse, err := pool.GetPoolInfo(restEndpoint, poolId)
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("failed to get pool info: %w", err)
 	}
@@ -54,7 +50,7 @@ func GetSnapshotBoundaries(restEndpoint string, poolId int64) (*types.PoolRespon
 	latestBundleId := poolResponse.Pool.Data.TotalBundles - 1
 
 	for {
-		bundle, err := utils.GetFinalizedBundle(restEndpoint, poolId, latestBundleId)
+		bundle, err := bundles.GetFinalizedBundle(restEndpoint, poolId, latestBundleId)
 		if err != nil {
 			return nil, 0, 0, fmt.Errorf("failed to get finalized bundle with id %d: %w", latestBundleId, err)
 		}

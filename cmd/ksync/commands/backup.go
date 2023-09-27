@@ -3,8 +3,8 @@ package commands
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/backup"
-	cfg "github.com/KYVENetwork/ksync/config"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
+	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	nm "github.com/tendermint/tendermint/node"
 )
@@ -29,7 +29,7 @@ var backupCmd = &cobra.Command{
 	Short: "Backup data directory",
 	Run: func(cmd *cobra.Command, args []string) {
 		// load tendermint config
-		config, err := cfg.LoadConfig(homePath)
+		config, err := utils.LoadConfig(homePath)
 		if err != nil {
 			logger.Error().Str("err", err.Error()).Msg("failed to load config.toml")
 			return

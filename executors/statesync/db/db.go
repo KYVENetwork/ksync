@@ -2,13 +2,15 @@ package db
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/collectors/bundles"
+	"github.com/KYVENetwork/ksync/collectors/snapshots"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
+	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	abciClient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
-	tmCfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/p2p"
 	tmTypes "github.com/tendermint/tendermint/types"
@@ -18,8 +20,14 @@ var (
 	logger = log.KsyncLogger("state-sync")
 )
 
-func StartStateSyncExecutor(config *tmCfg.Config, chainRest, storageRest string, poolId int64, bundleId int64) error {
+func StartStateSyncExecutor(homePath, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64) error {
 	logger.Info().Msg(fmt.Sprintf("applying state-sync snapshot"))
+
+	// load config
+	config, err := utils.LoadConfig(homePath)
+	if err != nil {
+		return fmt.Errorf("failed to load config.toml: %w", err)
+	}
 
 	stateDB, stateStore, err := store.GetStateDBs(config)
 	defer stateDB.Close()
@@ -50,7 +58,23 @@ func StartStateSyncExecutor(config *tmCfg.Config, chainRest, storageRest string,
 		return fmt.Errorf("store height %d is not zero, please reset with \"ksync unsafe-reset-all\"", blockStore.Height())
 	}
 
+	if snapshotHeight == 0 {
+		_, _, snapshotHeight, err = helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
+		if err != nil {
+			return fmt.Errorf("failed to get snapshot boundaries: %w", err)
+		}
+
+		logger.Info().Msg(fmt.Sprintf("no target height specified, syncing to latest available snapshot %d", snapshotHeight))
+	}
+
+	bundleId, err := snapshots.FindBundleIdBySnapshot(chainRest, snapshotPoolId, snapshotHeight)
+	if err != nil {
+		return fmt.Errorf("error getting bundle id from snapshot: %w", err)
+	}
+
 	socketClient := abciClient.NewSocketClient(config.ProxyApp, false)
+
+	logger.Info().Msg(fmt.Sprintf("connecting to abci app over %s", config.ProxyApp))
 
 	if err := socketClient.Start(); err != nil {
 		return fmt.Errorf("error starting abci server %w", err)
@@ -66,12 +90,12 @@ func StartStateSyncExecutor(config *tmCfg.Config, chainRest, storageRest string,
 		return fmt.Errorf("app height %d is not zero, please reset with \"ksync unsafe-reset-all\"", info.LastBlockHeight)
 	}
 
-	finalizedBundle, err := utils.GetFinalizedBundle(chainRest, poolId, bundleId)
+	finalizedBundle, err := bundles.GetFinalizedBundle(chainRest, snapshotPoolId, bundleId)
 	if err != nil {
 		return fmt.Errorf("failed getting finalized bundle: %w", err)
 	}
 
-	deflated, err := utils.GetDataFromFinalizedBundle(*finalizedBundle, storageRest)
+	deflated, err := bundles.GetDataFromFinalizedBundle(*finalizedBundle, storageRest)
 	if err != nil {
 		return fmt.Errorf("failed getting data from finalized bundle: %w", err)
 	}
@@ -118,12 +142,12 @@ func StartStateSyncExecutor(config *tmCfg.Config, chainRest, storageRest string,
 	}
 
 	for chunkIndex := uint32(0); chunkIndex < chunks; chunkIndex++ {
-		chunkBundleFinalized, err := utils.GetFinalizedBundle(chainRest, poolId, bundleId+int64(chunkIndex))
+		chunkBundleFinalized, err := bundles.GetFinalizedBundle(chainRest, snapshotPoolId, bundleId+int64(chunkIndex))
 		if err != nil {
 			return fmt.Errorf("failed getting finalized bundle: %w", err)
 		}
 
-		chunkBundleDeflated, err := utils.GetDataFromFinalizedBundle(*chunkBundleFinalized, storageRest)
+		chunkBundleDeflated, err := bundles.GetDataFromFinalizedBundle(*chunkBundleFinalized, storageRest)
 		if err != nil {
 			return fmt.Errorf("failed getting data from finalized bundle: %w", err)
 		}

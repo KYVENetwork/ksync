@@ -1,15 +1,13 @@
 package db
 
 import (
-	"errors"
 	"fmt"
 	"github.com/KYVENetwork/ksync/backup"
 	"github.com/KYVENetwork/ksync/collectors/blocks"
-	cfg "github.com/KYVENetwork/ksync/config"
+	"github.com/KYVENetwork/ksync/collectors/pool"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/helpers"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
-	"github.com/KYVENetwork/ksync/pool"
 	"github.com/KYVENetwork/ksync/server"
 	stateSyncHelpers "github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"
@@ -18,7 +16,6 @@ import (
 	sm "github.com/tendermint/tendermint/state"
 	tmTypes "github.com/tendermint/tendermint/types"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -31,7 +28,7 @@ var (
 
 func GetBlockBoundaries(restEndpoint string, poolId int64) (*types.PoolResponse, int64, int64, error) {
 	// load start and latest height
-	poolResponse, err := pool.GetPoolInfo(0, restEndpoint, poolId)
+	poolResponse, err := pool.GetPoolInfo(restEndpoint, poolId)
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("failed to get pool info: %w", err)
 	}
@@ -53,9 +50,9 @@ func GetBlockBoundaries(restEndpoint string, poolId int64) (*types.PoolResponse,
 	return poolResponse, startHeight, endHeight, nil
 }
 
-func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool, backupCfg *types.BackupConfig, userInput bool) error {
+func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool, backupCfg *types.BackupConfig) error {
 	// load tendermint config
-	config, err := cfg.LoadConfig(homePath)
+	config, err := utils.LoadConfig(homePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
 	}
@@ -93,50 +90,9 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 	logger.Info().Msg(fmt.Sprintf("loaded current block height of node: %d", continuationHeight-1))
 
 	// perform boundary checks
-	poolResponse, startHeight, endHeight, err := GetBlockBoundaries(chainRest, blockPoolId)
+	poolResponse, _, _, err := GetBlockBoundaries(chainRest, blockPoolId)
 	if err != nil {
 		return fmt.Errorf("failed to get block boundaries: %w", err)
-	}
-
-	logger.Info().Msg(fmt.Sprintf("retrieved block boundaries, earliest block height = %d, latest block height %d", startHeight, endHeight))
-
-	if continuationHeight < startHeight {
-		return fmt.Errorf("app is currently at height %d but first available block on pool is %d", continuationHeight, startHeight)
-	}
-
-	if continuationHeight > endHeight {
-		return fmt.Errorf("app is currently at height %d but last available block on pool is %d", continuationHeight, endHeight)
-	}
-
-	if targetHeight > 0 && continuationHeight > targetHeight {
-		return fmt.Errorf("requested target height is %d but app is already at block height %d", targetHeight, continuationHeight)
-	}
-
-	if targetHeight > 0 && targetHeight > endHeight {
-		return fmt.Errorf("requested target height is %d but last available block on pool is %d", targetHeight, endHeight)
-	}
-
-	nBlocks := int64(0)
-
-	if targetHeight > 0 {
-		logger.Info().Msg(fmt.Sprintf("found bundles containing requested blocks from %d to %d", continuationHeight, targetHeight))
-		nBlocks = targetHeight - continuationHeight + 1
-	} else {
-		logger.Info().Msg(fmt.Sprintf("found bundles containing requested blocks from  %d to %d", continuationHeight, endHeight))
-		nBlocks = endHeight - continuationHeight + 1
-	}
-
-	if userInput {
-		answer := ""
-		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should %d blocks be synced [y/N]: ", nBlocks)
-
-		if _, err := fmt.Scan(&answer); err != nil {
-			return fmt.Errorf("failed to read in user input: %s", err)
-		}
-
-		if strings.ToLower(answer) != "y" {
-			return errors.New("aborted block-sync")
-		}
 	}
 
 	// start metrics api server which serves an api endpoint sync metrics
@@ -149,14 +105,12 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 		go server.StartSnapshotApiServer(config, blockStore, stateStore, snapshotPort)
 	}
 
-	// start block collector
-	if snapshotInterval > 0 {
-		go blocks.StartIncrementalBlockCollector(blockCh, errorCh, chainRest, storageRest, *poolResponse, continuationHeight)
-	} else {
-		go blocks.StartContinuousBlockCollector(blockCh, errorCh, chainRest, storageRest, *poolResponse, continuationHeight, targetHeight)
-	}
+	// start block collector. we must exit if snapshot interval is zero
+	go blocks.StartBlockCollector(blockCh, errorCh, chainRest, storageRest, *poolResponse, continuationHeight, targetHeight, snapshotInterval == 0)
 
 	logger.Info().Msg(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
+
+	logger.Info().Msg(fmt.Sprintf("connecting to abci app over %s", config.ProxyApp))
 
 	proxyApp, err := helpers.CreateAndStartProxyAppConns(config)
 	if err != nil {

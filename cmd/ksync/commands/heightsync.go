@@ -19,7 +19,7 @@ func init() {
 		panic(fmt.Errorf("flag 'home' should be required: %w", err))
 	}
 
-	heightSyncCmd.Flags().StringVar(&chainId, "chain-id", utils.DefaultChainId, fmt.Sprintf("kyve chain id (\"kyve-1\",\"kaon-1\",\"korellia\"), [default = %s]", utils.DefaultChainId))
+	heightSyncCmd.Flags().StringVar(&chainId, "chain-id", utils.DefaultChainId, fmt.Sprintf("kyve chain id (\"%s\",\"%s\",\"%s\"), [default = %s]", utils.ChainIdMainnet, utils.ChainIdKaon, utils.ChainIdKorellia, utils.DefaultChainId))
 
 	heightSyncCmd.Flags().StringVar(&chainRest, "chain-rest", "", "rest endpoint for KYVE chain")
 	heightSyncCmd.Flags().StringVar(&storageRest, "storage-rest", "", "storage endpoint for requesting bundle data")
@@ -36,7 +36,7 @@ func init() {
 
 	heightSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target height (including), if not specified it will sync to the latest available block height")
 
-	heightSyncCmd.Flags().BoolVarP(&y, "assumeyes", "y", true, "automatically answer yes for all questions")
+	heightSyncCmd.Flags().BoolVarP(&y, "assumeyes", "y", false, "automatically answer yes for all questions")
 
 	rootCmd.AddCommand(heightSyncCmd)
 }
