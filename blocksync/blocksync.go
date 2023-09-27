@@ -9,6 +9,7 @@ import (
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/supervisor"
+	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	nm "github.com/tendermint/tendermint/node"
 	"os"
@@ -19,8 +20,8 @@ var (
 	logger = log.KsyncLogger("block-sync")
 )
 
-func StartBlockSync(homePath, chainRest, storageRest string, poolId, targetHeight int64, metrics bool, port int64) error {
-	return db.StartDBExecutor(homePath, chainRest, storageRest, poolId, targetHeight, metrics, port, 0, 0, utils.DefaultSnapshotServerPort, false)
+func StartBlockSync(homePath, chainRest, storageRest string, poolId, targetHeight int64, metrics bool, port int64, backupCfg *types.BackupConfig) error {
+	return db.StartDBExecutor(homePath, chainRest, storageRest, poolId, targetHeight, metrics, port, 0, 0, utils.DefaultSnapshotServerPort, false, backupCfg)
 }
 
 func PerformBlockSyncValidationChecks(homePath, chainRest string, blockPoolId, targetHeight int64, userInput bool) error {
@@ -105,7 +106,7 @@ func PerformBlockSyncValidationChecks(homePath, chainRest string, blockPoolId, t
 	return nil
 }
 
-func StartBlockSyncWithBinary(binaryPath, homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metrics bool, port int64, userInput bool) {
+func StartBlockSyncWithBinary(binaryPath, homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metrics bool, port int64, backupCfg *types.BackupConfig, userInput bool) {
 	logger.Info().Msg("starting block-sync")
 
 	// perform validation checks before booting state-sync process
@@ -126,8 +127,8 @@ func StartBlockSyncWithBinary(binaryPath, homePath, chainRest, storageRest strin
 	}
 
 	// db executes blocks against app until target height is reached
-	if err := StartBlockSync(homePath, chainRest, storageRest, blockPoolId, targetHeight, metrics, port); err != nil {
-		logger.Error().Msg(fmt.Sprintf("failed to start block-sync: %s", err))
+	if err := StartBlockSync(homePath, chainRest, storageRest, blockPoolId, targetHeight, metrics, port, backupCfg); err != nil {
+		logger.Error().Msg(fmt.Sprintf("%s", err))
 
 		// stop binary process thread
 		if err := supervisor.StopProcessByProcessId(processId); err != nil {

@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/backup"
 	"github.com/KYVENetwork/ksync/collectors/blocks"
 	"github.com/KYVENetwork/ksync/collectors/pool"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/helpers"
@@ -49,7 +50,7 @@ func GetBlockBoundaries(restEndpoint string, poolId int64) (*types.PoolResponse,
 	return poolResponse, startHeight, endHeight, nil
 }
 
-func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort int64, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool) error {
+func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool, backupCfg *types.BackupConfig) error {
 	// load tendermint config
 	config, err := utils.LoadConfig(homePath)
 	if err != nil {
@@ -79,11 +80,14 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 		return fmt.Errorf("failed to load state and genDoc: %w", err)
 	}
 
+	// get height at which ksync should continue block-syncing
 	continuationHeight := blockStore.Height() + 1
 
 	if continuationHeight < genDoc.InitialHeight {
 		continuationHeight = genDoc.InitialHeight
 	}
+
+	logger.Info().Msg(fmt.Sprintf("loaded current block height of node: %d", continuationHeight-1))
 
 	// perform boundary checks
 	poolResponse, _, _, err := GetBlockBoundaries(chainRest, blockPoolId)
@@ -258,6 +262,19 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 
 					logger.Info().Msg(fmt.Sprintf("pruned state.db from height %d to %d", base, height))
 				}
+			}
+
+			// create backup of entire data directory if backup interval is reached
+			if backupCfg != nil && backupCfg.Interval > 0 && prevBlock.Height%backupCfg.Interval == 0 {
+				logger.Info().Msg("reached backup interval height, starting to create backup")
+
+				time.Sleep(time.Second * 15)
+
+				if err = backup.CreateBackup(backupCfg, genDoc.ChainID, prevBlock.Height, false); err != nil {
+					logger.Error().Msg(fmt.Sprintf("failed to create backup: %v", err))
+				}
+
+				logger.Info().Msg(fmt.Sprintf("finished backup at block height: %d", prevBlock.Height))
 			}
 
 			// if KSYNC has already fetched 2 * snapshot_interval ahead of the snapshot pool we wait

@@ -216,3 +216,54 @@ are automatically, deleted, saving a lot of disk space. If you want to disable i
 ## Examples
 
 Coming soon
+
+## Backups
+
+Even with the right setup and careful maintenance, it's possible to encounter app-hash errors or other unexpected problems that can lead to node collisions. Especially when you're dealing with syncing an archival node, it's a good idea to create periodic backups of the node's data.
+
+KSYNC offers precisely this option for creating backups. There are two different methods to utilize this:
+
+### 1. BLOCK-SYNC-Backups
+
+With BLOCK-SYNC, nodes can be synced by KSYNC from any height up to the latest height available by the storage pool.
+Backups can be created automatically at an interval, with the following parameters:
+
+```bash
+--home                 string   'home directory of the node (e.g. ~/.osmosisd)'
+--backup-interval      int      'block interval to write backups of data directory (set 0 to disable backups)'
+--backup-keep-recent   int      'number of latest backups to be keep (0 to keep all backups)'
+--backup-compression   string   'compression type used for backups ("tar.gz","zip"), if not compression given the backup will be stored uncompressed'
+--backup-dest          string   'path where backups should be stored [default = ~/.ksync/backups]'
+```
+
+When the specified `backup-interval` is reached (`height % backup-interval = 0`), KSYNC temporarily pauses the sync process and creates a backup. 
+These backups are duplicates of the node's data directory (e.g. `~/.osmosisd/data`). If compression is enabled (e.g. using `--backup-compression="tar.gz"`), the backup is compressed and the original uncompressed version is deleted after successful compression in a parallel process.
+
+#### Usage 
+
+Because backups are disabled by default, it's only required to set ``backup-interval``, whereas the other flags are optional.
+Since the creation of a backup takes steadily longer as the data size grows, it is recommended to choose an interval of more than `20000` blocks.
+
+Example command to run BLOCK-SYNC with compressed backups:
+```bash
+ksync block-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --block-pool-id=<pool-id> --target-height=<height>
+  --backup-interval=50000 --backup-compression="tar.gz"
+```
+
+### 2. Backup-Command
+
+The backup functionality can of course also be used with a standalone command. In this case everything runs in one process
+where the following flags can be used:
+
+```bash
+--home                 string   'home directory of the node (e.g. ~/.osmosisd)'
+--backup-keep-recent   int      'number of latest backups to be keep (0 to keep all backups)'
+--backup-compression   string   'compression type used for backups ("tar.gz","zip"), if not compression given the backup will be stored uncompressed'
+--backup-dest          string   'path where backups should be stored [default = ~/.ksync/backups]'
+```
+
+#### Usage
+
+```bash
+ksync backup --home="/Users/christopher/.osmosisd" --compression="tar.gz"
+```

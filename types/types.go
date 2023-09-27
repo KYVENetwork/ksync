@@ -77,12 +77,11 @@ type Pagination struct {
 	NextKey []byte `json:"next_key"`
 }
 
-// TODO: change back once Korellia has been updated
 type FinalizedBundle struct {
 	Id                string `json:"id,omitempty"`
 	StorageId         string `json:"storage_id,omitempty"`
-	StorageProviderId int32  `json:"storage_provider_id,omitempty"`
-	CompressionId     int32  `json:"compression_id,omitempty"`
+	StorageProviderId string `json:"storage_provider_id,omitempty"`
+	CompressionId     string `json:"compression_id,omitempty"`
 	FromKey           string `json:"from_key,omitempty"`
 	ToKey             string `json:"to_key,omitempty"`
 	DataHash          string `json:"data_hash,omitempty"`
@@ -109,4 +108,12 @@ type TendermintSsyncDataItem struct {
 		ChunkIndex uint32          `json:"chunkIndex"`
 		Chunk      []byte          `json:"chunk"`
 	} `json:"value"`
+}
+
+type BackupConfig = struct {
+	Interval    int64
+	KeepRecent  int64
+	Src         string
+	Dest        string
+	Compression string
 }

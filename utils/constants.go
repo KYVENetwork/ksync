@@ -18,6 +18,7 @@ const (
 
 const (
 	DefaultChainId            = ChainIdMainnet
+	DefaultBackupPath         = "~/.ksync/backups"
 	DefaultMetricsServerPort  = 8080
 	DefaultSnapshotServerPort = 7878
 )
