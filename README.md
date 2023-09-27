@@ -75,9 +75,11 @@ cp build/ksync ~/go/bin/ksync
 Depending on what you want to achieve with KSYNC there are three sync modes available. A quick summary of what they do
 and when to use them can be found below:
 
-| **BLOCK-SYNC**   | **STATE-SYNC**                                                                                         | **HEIGHT-SYNC**                                                                                     |
-|------------|-----------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
-| Syncs blocks from the node's current height up to a specified target height. | Applies a state-sync snapshot to the node. After the snapshot is applied, the node can continue block-syncing from the applied snapshot height.                        | Finds the quickest way out of _state-sync_ and _height-sync_ to get to the specified target height. |
+|                 | Description                                                                                         | Recommendation                                                                                                               |
+|-----------------|-----------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|
+| **BLOCK-SYNC**  | Syncs blocks from the node's current height up to a specified target height.                        | Generally recommended for archival node runners, who want to have a full node containing all blocks.                      |
+| **STATE-SYNC**  | Applies a state-sync snapshot to the node. After the snapshot is applied, the node can continue block-syncing from the applied snapshot height. | Generally recommended for new node runners, who want to join a network in minutes without wanting to sync the entire blockchain. |
+| **HEIGHT-SYNC** | Finds the quickest way out of state-sync and height-sync to get to the specified target height.     | Generally recommended for users who want to check out a historical state within minutes at the specified target height for analysis.      |
 
 ### Limitations
 
@@ -120,6 +122,30 @@ ksync block-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --block
 
 Use _block-sync_ to sync your Osmosis node with validated KYVE data to height ``42,000``:
 
+To _block-sync_ Osmosis you have to download and set up the correct Osmosis binary. To sync from genesis the version `v3.1.0` has
+to be used. You can download them [here](https://github.com/osmosis-labs/osmosis/releases/tag/v3.1.0) or build them from source: [https://github.com/osmosis-labs/osmosis](https://github.com/osmosis-labs/osmosis)
+
+Verify installation with:
+
+```bash
+./osmosisd version
+3.1.0
+```
+
+After the installation, init the config:
+
+```bash
+./osmosisd init <your-moniker> --chain-id osmosis-1
+```
+
+Download the genesis:
+
+```bash
+wget -O ~/.osmosisd/config/genesis.json https://github.com/osmosis-labs/networks/raw/main/osmosis-1/genesis.json
+```
+
+Now that the binary is properly installed, KSYNC can already be started:
+
 ```bash
 ksync block-sync --binary="/Users/alice/osmosisd" --home="/Users/alice/.osmosisd" --block-pool-id=1 --target-height=42000
 ```
@@ -146,6 +172,10 @@ height can not be found it prints out the nearest available snapshot height you 
 ksync state-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --snapshot-pool-id=<pool-id> --target-height=<height>
 ```
 
+### Example
+
+Will be added when the Archway State-Sync pool on Kaon is live.
+
 ## HEIGHT-SYNC
 
 ### Syncing to latest available block height
@@ -167,6 +197,10 @@ it will use available _state-sync_ snapshots and _block-sync_ to get to the targ
 ```bash
 ksync height-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --snapshot-pool-id=<pool-id> --block-pool-id=<pool-id> --target-height=<height>
 ```
+
+### Example
+
+Will be added when the Archway State-Sync pool on Kaon is live.
 
 # For KYVE Protocol Validators
 
