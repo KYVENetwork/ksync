@@ -32,6 +32,15 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+	backupCmd.Flags().SortFlags = false
+	blockSyncCmd.Flags().SortFlags = false
+	heightSyncCmd.Flags().SortFlags = false
+	pruneCmd.Flags().SortFlags = false
+	resetCmd.Flags().SortFlags = false
+	serveCmd.Flags().SortFlags = false
+	stateSyncCmd.Flags().SortFlags = false
+	versionCmd.Flags().SortFlags = false
+
 	if err := rootCmd.Execute(); err != nil {
 		panic(fmt.Errorf("failed to execute root command: %w", err))
 	}
