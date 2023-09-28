@@ -10,16 +10,16 @@ import (
 )
 
 func init() {
-	backupCmd.Flags().StringVar(&homePath, "home", "", "path to home directory (e.g. /root/.osmosisd)")
+	backupCmd.Flags().StringVar(&homePath, "home", "", "home directory")
 	if err := backupCmd.MarkFlagRequired("home"); err != nil {
 		panic(fmt.Errorf("flag 'src-path' should be required: %w", err))
 	}
 
-	backupCmd.Flags().StringVar(&backupDest, "backup-dest", "", "destination path of the written backup (default '~/.ksync/backups)'")
+	backupCmd.Flags().StringVar(&backupDest, "backup-dest", "", fmt.Sprintf("path where backups should be stored (default = %s)", utils.DefaultBackupPath))
 
 	backupCmd.Flags().StringVar(&backupCompression, "backup-compression", "", "compression type to compress backup directory ['tar.gz', 'zip', '']")
 
-	backupCmd.Flags().Int64Var(&backupKeepRecent, "backup-keep-recent", 0, "number of kept backups (set 0 to keep all)")
+	backupCmd.Flags().Int64Var(&backupKeepRecent, "backup-keep-recent", 0, "number of kept backups (0 to keep all)")
 
 	rootCmd.AddCommand(backupCmd)
 }
