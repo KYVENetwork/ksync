@@ -96,6 +96,20 @@ type FinalizedBundleResponse = struct {
 	FinalizedBundle FinalizedBundle `json:"finalized_bundle"`
 }
 
+type SupportedChain = struct {
+	BlockPoolId    string `json:"block_pool_id"`
+	ChainId        string `json:"chain-id"`
+	LatestBlockKey string `json:"latest_block_key"`
+	LatestStateKey string `json:"latest_state_key"`
+	Name           string `json:"name"`
+	StatePoolId    string `json:"state_pool_id"`
+}
+
+type SupportedChains = struct {
+	Mainnet []SupportedChain `json:"kyve-1"`
+	Kaon    []SupportedChain `json:"kaon-1"`
+}
+
 type TendermintSsyncBundle = []TendermintSsyncDataItem
 
 type TendermintSsyncDataItem struct {
