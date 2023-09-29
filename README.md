@@ -52,7 +52,7 @@ go install github.com/KYVENetwork/ksync/cmd/ksync@vX.X.X
 NOTE: To install the current pre-release of KSYNC, which supports the latest changes, run:
 
 ```bash
-go install github.com/KYVENetwork/ksync/cmd/ksync@v1.0.0-beta.0
+go install github.com/KYVENetwork/ksync/cmd/ksync@v1.0.0-beta.1
 ```
 
 Run `ksync version` to verify the installation.
