@@ -43,6 +43,9 @@ func GetSnapshotBoundaries(restEndpoint string, poolId int64) (*types.PoolRespon
 		return nil, 0, 0, fmt.Errorf("failed to parse snapshot key: %w", err)
 	}
 
+	fmt.Println("current key", poolResponse.Pool.Data.CurrentKey)
+	fmt.Println("endHeight", endHeight)
+
 	if poolResponse.Pool.Data.TotalBundles == 0 {
 		return poolResponse, startHeight, endHeight, nil
 	}
@@ -59,6 +62,8 @@ func GetSnapshotBoundaries(restEndpoint string, poolId int64) (*types.PoolRespon
 		if err != nil {
 			return nil, 0, 0, fmt.Errorf("failed to parse snapshot key: %w", err)
 		}
+
+		fmt.Println("to key height", height)
 
 		// we need to go back until we find the first complete snapshot since
 		// the current key belongs to a snapshot which is still being archived and
