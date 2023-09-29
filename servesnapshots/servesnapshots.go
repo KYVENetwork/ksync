@@ -49,6 +49,14 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest 
 			"--pruning-keep-recent",
 			strconv.FormatInt(utils.SnapshotPruningWindowFactor*config.Interval, 10),
 		)
+	} else {
+		snapshotArgs = append(
+			snapshotArgs,
+			"--state-sync.snapshot-keep-recent",
+			"0",
+			"--pruning",
+			"nothing",
+		)
 	}
 
 	height, err := bootstrapHelpers.GetBlockHeightFromDB(homePath)
