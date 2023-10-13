@@ -90,14 +90,19 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest 
 		// start binary process thread
 		processId, err = supervisor.StartBinaryProcessForDB(binaryPath, homePath, snapshotArgs)
 		if err != nil {
-			panic(err)
+			logger.Error().Msg(fmt.Sprintf("failed to start supervised node: %s", err))
+			// if exists, stop binary process thread
+			if err = supervisor.StopProcessByProcessId(processId); err != nil {
+				logger.Error().Str("err", err.Error()).Msg("failed to stop process by id")
+				os.Exit(1)
+			}
 		}
 
 		// found snapshot, applying it and continuing block-sync from here
 		if statesync.StartStateSync(homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight) != nil {
 			// stop binary process thread
 			if err := supervisor.StopProcessByProcessId(processId); err != nil {
-				panic(err)
+				logger.Error().Str("err", err.Error()).Msg("failed to stop process by id")
 			}
 			os.Exit(1)
 		}

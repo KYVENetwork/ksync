@@ -123,23 +123,30 @@ func StartBlockSyncWithBinary(binaryPath, homePath, chainRest, storageRest strin
 	// start binary process thread
 	processId, err := supervisor.StartBinaryProcessForDB(binaryPath, homePath, []string{})
 	if err != nil {
-		panic(err)
+		logger.Error().Str("err", err.Error()).Msg("failed to start binary process")
+		// stop binary process thread
+		if err := supervisor.StopProcessByProcessId(processId); err != nil {
+			logger.Error().Str("err", err.Error()).Msg("failed to stop process by id")
+		}
+		os.Exit(1)
+
 	}
 
 	// db executes blocks against app until target height is reached
 	if err := StartBlockSync(homePath, chainRest, storageRest, blockPoolId, targetHeight, metrics, port, backupCfg); err != nil {
-		logger.Error().Msg(fmt.Sprintf("%s", err))
+		logger.Error().Str("err", err.Error()).Msg("failed to sync blocks")
 
 		// stop binary process thread
 		if err := supervisor.StopProcessByProcessId(processId); err != nil {
-			panic(err)
+			logger.Error().Str("err", err.Error()).Msg("failed to stop process by id")
 		}
 		os.Exit(1)
 	}
 
 	// stop binary process thread
 	if err := supervisor.StopProcessByProcessId(processId); err != nil {
-		panic(err)
+		logger.Error().Str("err", err.Error()).Msg("failed to stop process by id")
+		os.Exit(1)
 	}
 
 	logger.Info().Msg("successfully finished block-sync")
