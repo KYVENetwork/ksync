@@ -72,7 +72,7 @@ func StartStateSyncExecutor(homePath, chainRest, storageRest string, snapshotPoo
 		return fmt.Errorf("error getting bundle id from snapshot: %w", err)
 	}
 
-	grpcClient := abciClient.NewGRPCClient(config.ProxyApp, false)
+	grpcClient := abciClient.NewGRPCClient(config.ProxyApp, true)
 
 	logger.Info().Msg(fmt.Sprintf("connecting to abci app over %s", config.ProxyApp))
 

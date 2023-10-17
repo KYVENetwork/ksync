@@ -45,7 +45,7 @@ func StartSnapshotApiServer(config *config.Config, blockStore *store.BlockStore,
 }
 
 func (apiServer *ApiServer) ListSnapshotsHandler(c *gin.Context) {
-	grpcClient := abciClient.NewGRPCClient(apiServer.config.ProxyApp, false)
+	grpcClient := abciClient.NewGRPCClient(apiServer.config.ProxyApp, true)
 
 	if err := grpcClient.Start(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -112,7 +112,7 @@ func (apiServer *ApiServer) LoadSnapshotChunkHandler(c *gin.Context) {
 		return
 	}
 
-	grpcClient := abciClient.NewGRPCClient(apiServer.config.ProxyApp, false)
+	grpcClient := abciClient.NewGRPCClient(apiServer.config.ProxyApp, true)
 
 	if err := grpcClient.Start(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{

@@ -101,7 +101,7 @@ func CreateEvidenceReactor(config *tmCfg.Config, stateStore sm.Store, blockStore
 }
 
 func IsSnapshotAvailableAtHeight(config *tmCfg.Config, height int64) (found bool, err error) {
-	grpcClient := abciClient.NewGRPCClient(config.ProxyApp, false)
+	grpcClient := abciClient.NewGRPCClient(config.ProxyApp, true)
 	found = false
 
 	if err := grpcClient.Start(); err != nil {
