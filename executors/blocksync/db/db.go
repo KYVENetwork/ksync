@@ -111,19 +111,19 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 
 	logger.Info().Msg(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
 
-	logger.Info().Msg(fmt.Sprintf("connecting to abci app over %s", config.ProxyApp))
-
-	proxyApp, err := helpers.CreateAndStartProxyAppConns(config)
-	if err != nil {
-		return fmt.Errorf("failed to start proxy app: %w", err)
-	}
-
 	socketClient := abciClient.NewSocketClient(config.ProxyApp, false)
 
 	logger.Info().Msg(fmt.Sprintf("connecting to abci app over %s", config.ProxyApp))
 
 	if err := socketClient.Start(); err != nil {
 		return fmt.Errorf("error starting abci server %w", err)
+	}
+
+	logger.Info().Msg(fmt.Sprintf("connecting to abci app over %s", config.ProxyApp))
+
+	proxyApp, err := helpers.CreateAndStartProxyAppConns(config)
+	if err != nil {
+		return fmt.Errorf("failed to start proxy app: %w", err)
 	}
 
 	eventBus, err := helpers.CreateAndStartEventBus()
