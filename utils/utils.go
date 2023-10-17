@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
@@ -41,6 +42,41 @@ func LoadConfig(homePath string) (*cfg.Config, error) {
 	config.SetRoot(homePath)
 
 	return config, nil
+}
+
+// ConfigureGrpc updates the config.toml file of the given home directory.
+// It reads the current file, modifies the relevant line to set abci=grpc and
+// writes the updated lines back to the file.
+func ConfigureGrpc(homePath string) error {
+	configPath := filepath.Join(homePath, "config", "config.toml")
+
+	file, err := os.OpenFile(configPath, os.O_RDWR, 0o644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	var updatedLines []string
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if strings.Contains(line, "abci =") {
+			line = "abci = \"" + "grpc" + "\""
+		}
+		updatedLines = append(updatedLines, line)
+	}
+
+	if err = scanner.Err(); err != nil {
+		return err
+	}
+
+	if err = writeUpdatedConfig(configPath, updatedLines); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // GetFromUrl tries to fetch data from url
@@ -174,4 +210,21 @@ func GetChainRest(chainId, chainRest string) string {
 	}
 
 	return ""
+}
+
+// writeUpdatedConfig is responsible for writing the updated config to a given config file.
+func writeUpdatedConfig(configPath string, lines []string) error {
+	updatedFile, err := os.Create(configPath)
+	if err != nil {
+		return err
+	}
+	defer updatedFile.Close()
+
+	writer := bufio.NewWriter(updatedFile)
+	for _, line := range lines {
+		if _, err = fmt.Fprintln(writer, line); err != nil {
+			return err
+		}
+	}
+	return writer.Flush()
 }

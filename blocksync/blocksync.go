@@ -115,6 +115,12 @@ func StartBlockSyncWithBinary(binaryPath, homePath, chainRest, storageRest strin
 		os.Exit(1)
 	}
 
+	// set 'abci= "grpc"' to enable grpc connection
+	if err := utils.ConfigureGrpc(homePath); err != nil {
+		logger.Error().Str("err", err.Error()).Msg("configure grpc settings failed")
+		os.Exit(1)
+	}
+
 	if err := bootstrap.StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest, blockPoolId); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
 		os.Exit(1)

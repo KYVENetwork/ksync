@@ -78,6 +78,12 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest 
 		os.Exit(1)
 	}
 
+	// set 'abci= "grpc"' to enable grpc connection
+	if err := utils.ConfigureGrpc(homePath); err != nil {
+		logger.Error().Str("err", err.Error()).Msg("configure grpc settings failed")
+		os.Exit(1)
+	}
+
 	processId := 0
 
 	if height == 0 && snapshotHeight > 0 {

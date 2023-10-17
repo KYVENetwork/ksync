@@ -32,6 +32,7 @@ func StartBinaryProcessForDB(binaryPath string, homePath string, args []string) 
 		"--home",
 		homePath,
 		"--with-tendermint=false",
+		"--abci=grpc",
 		"--address",
 		config.ProxyApp,
 	}, args...)
@@ -63,6 +64,7 @@ func StartBinaryProcessForP2P(binaryPath string, homePath string, args []string)
 		"start",
 		"--home",
 		homePath,
+		"--abci=grpc",
 		"--p2p.pex=false",
 		"--p2p.persistent_peers",
 		"",

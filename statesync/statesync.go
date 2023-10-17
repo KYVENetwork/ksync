@@ -9,6 +9,7 @@ import (
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/supervisor"
+	"github.com/KYVENetwork/ksync/utils"
 	"os"
 	"strings"
 )
@@ -88,6 +89,12 @@ func StartStateSyncWithBinary(binaryPath, homePath, chainRest, storageRest strin
 	// perform validation checks before booting state-sync process
 	if err := PerformStateSyncValidationChecks(homePath, chainRest, snapshotPoolId, snapshotHeight, userInput); err != nil {
 		logger.Error().Msg(fmt.Sprintf("state-sync validation checks failed: %s", err))
+		os.Exit(1)
+	}
+
+	// set 'abci= "grpc"' to enable grpc connection
+	if err := utils.ConfigureGrpc(homePath); err != nil {
+		logger.Error().Str("err", err.Error()).Msg("configure grpc settings failed")
 		os.Exit(1)
 	}
 
