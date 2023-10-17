@@ -101,19 +101,19 @@ func CreateEvidenceReactor(config *tmCfg.Config, stateStore sm.Store, blockStore
 }
 
 func IsSnapshotAvailableAtHeight(config *tmCfg.Config, height int64) (found bool, err error) {
-	socketClient := abciClient.NewSocketClient(config.ProxyApp, false)
+	grpcClient := abciClient.NewGRPCClient(config.ProxyApp, false)
 	found = false
 
-	if err := socketClient.Start(); err != nil {
+	if err := grpcClient.Start(); err != nil {
 		return found, err
 	}
 
-	res, err := socketClient.ListSnapshotsSync(types.RequestListSnapshots{})
+	res, err := grpcClient.ListSnapshotsSync(types.RequestListSnapshots{})
 	if err != nil {
 		return found, err
 	}
 
-	if err := socketClient.Stop(); err != nil {
+	if err := grpcClient.Stop(); err != nil {
 		return found, err
 	}
 

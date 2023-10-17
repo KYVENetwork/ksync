@@ -45,16 +45,16 @@ func StartSnapshotApiServer(config *config.Config, blockStore *store.BlockStore,
 }
 
 func (apiServer *ApiServer) ListSnapshotsHandler(c *gin.Context) {
-	socketClient := abciClient.NewSocketClient(apiServer.config.ProxyApp, false)
+	grpcClient := abciClient.NewGRPCClient(apiServer.config.ProxyApp, false)
 
-	if err := socketClient.Start(); err != nil {
+	if err := grpcClient.Start(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
 
-	res, err := socketClient.ListSnapshotsSync(types.RequestListSnapshots{})
+	res, err := grpcClient.ListSnapshotsSync(types.RequestListSnapshots{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -62,7 +62,7 @@ func (apiServer *ApiServer) ListSnapshotsHandler(c *gin.Context) {
 		return
 	}
 
-	if err := socketClient.Stop(); err != nil {
+	if err := grpcClient.Stop(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
@@ -112,16 +112,16 @@ func (apiServer *ApiServer) LoadSnapshotChunkHandler(c *gin.Context) {
 		return
 	}
 
-	socketClient := abciClient.NewSocketClient(apiServer.config.ProxyApp, false)
+	grpcClient := abciClient.NewGRPCClient(apiServer.config.ProxyApp, false)
 
-	if err := socketClient.Start(); err != nil {
+	if err := grpcClient.Start(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
 
-	res, err := socketClient.LoadSnapshotChunkSync(types.RequestLoadSnapshotChunk{
+	res, err := grpcClient.LoadSnapshotChunkSync(types.RequestLoadSnapshotChunk{
 		Height: height,
 		Format: uint32(format),
 		Chunk:  uint32(chunk),
@@ -133,7 +133,7 @@ func (apiServer *ApiServer) LoadSnapshotChunkHandler(c *gin.Context) {
 		return
 	}
 
-	if err := socketClient.Stop(); err != nil {
+	if err := grpcClient.Stop(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
