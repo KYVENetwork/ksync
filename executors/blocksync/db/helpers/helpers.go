@@ -21,7 +21,7 @@ var (
 )
 
 func CreateAndStartProxyAppConns(config *tmCfg.Config) (proxy.AppConns, error) {
-	proxyApp := proxy.NewAppConns(proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()))
+	proxyApp := proxy.NewAppConns(proxy.NewRemoteClientCreator(config.ProxyApp, config.ABCI, true))
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
