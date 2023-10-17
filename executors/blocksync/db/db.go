@@ -12,6 +12,7 @@ import (
 	stateSyncHelpers "github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
+	abciClient "github.com/tendermint/tendermint/abci/client"
 	nm "github.com/tendermint/tendermint/node"
 	sm "github.com/tendermint/tendermint/state"
 	tmTypes "github.com/tendermint/tendermint/types"
@@ -115,6 +116,14 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 	proxyApp, err := helpers.CreateAndStartProxyAppConns(config)
 	if err != nil {
 		return fmt.Errorf("failed to start proxy app: %w", err)
+	}
+
+	socketClient := abciClient.NewSocketClient(config.ProxyApp, false)
+
+	logger.Info().Msg(fmt.Sprintf("connecting to abci app over %s", config.ProxyApp))
+
+	if err := socketClient.Start(); err != nil {
+		return fmt.Errorf("error starting abci server %w", err)
 	}
 
 	eventBus, err := helpers.CreateAndStartEventBus()
