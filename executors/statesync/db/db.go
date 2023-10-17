@@ -72,16 +72,16 @@ func StartStateSyncExecutor(homePath, chainRest, storageRest string, snapshotPoo
 		return fmt.Errorf("error getting bundle id from snapshot: %w", err)
 	}
 
-	socketClient := abciClient.NewSocketClient(config.ProxyApp, false)
+	grpcClient := abciClient.NewGRPCClient(config.ProxyApp, false)
 
 	logger.Info().Msg(fmt.Sprintf("connecting to abci app over %s", config.ProxyApp))
 
-	if err := socketClient.Start(); err != nil {
+	if err := grpcClient.Start(); err != nil {
 		return fmt.Errorf("error starting abci server %w", err)
 	}
 
 	// check if app height is zero
-	info, err := socketClient.InfoSync(abci.RequestInfo{})
+	info, err := grpcClient.InfoSync(abci.RequestInfo{})
 	if err != nil {
 		return fmt.Errorf("requesting info from app failed: %w", err)
 	}
@@ -114,7 +114,7 @@ func StartStateSyncExecutor(homePath, chainRest, storageRest string, snapshotPoo
 
 	logger.Info().Msg("downloaded snapshot and state commits")
 
-	res, err := socketClient.OfferSnapshotSync(abci.RequestOfferSnapshot{
+	res, err := grpcClient.OfferSnapshotSync(abci.RequestOfferSnapshot{
 		Snapshot: &abci.Snapshot{
 			Height:   snapshot.Height,
 			Format:   snapshot.Format,
@@ -162,7 +162,7 @@ func StartStateSyncExecutor(homePath, chainRest, storageRest string, snapshotPoo
 
 		logger.Info().Msg(fmt.Sprintf("downloaded snapshot chunk %d/%d", chunkIndex+1, chunks))
 
-		res, err := socketClient.ApplySnapshotChunkSync(abci.RequestApplySnapshotChunk{
+		res, err := grpcClient.ApplySnapshotChunkSync(abci.RequestApplySnapshotChunk{
 			Index:  chunkIndex,
 			Chunk:  chunk,
 			Sender: string(nodeKey.ID()),
