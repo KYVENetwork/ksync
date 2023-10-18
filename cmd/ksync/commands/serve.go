@@ -39,6 +39,8 @@ func init() {
 	serveCmd.Flags().BoolVar(&metrics, "metrics", false, "metrics server exposing sync status")
 	serveCmd.Flags().Int64Var(&metricsPort, "metrics-port", utils.DefaultMetricsServerPort, "port for metrics server")
 
+	serveCmd.Flags().Int64Var(&startHeight, "start-height", 0, "start creating snapshots at this height. note that pruning should be false when using start height")
+
 	serveCmd.Flags().BoolVar(&pruning, "pruning", true, "prune application, state and blockstore db")
 
 	rootCmd.AddCommand(serveCmd)
@@ -50,6 +52,6 @@ var serveCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
-		servesnapshots.StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest, blockPoolId, metrics, metricsPort, snapshotPoolId, snapshotPort, pruning)
+		servesnapshots.StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest, blockPoolId, metrics, metricsPort, snapshotPoolId, snapshotPort, startHeight, pruning)
 	},
 }
