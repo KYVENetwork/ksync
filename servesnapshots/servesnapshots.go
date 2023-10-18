@@ -7,6 +7,7 @@ import (
 	"github.com/KYVENetwork/ksync/bootstrap"
 	bootstrapHelpers "github.com/KYVENetwork/ksync/bootstrap/helpers"
 	"github.com/KYVENetwork/ksync/collectors/pool"
+	"github.com/KYVENetwork/ksync/collectors/snapshots"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/statesync"
@@ -22,7 +23,7 @@ var (
 	logger = log.KsyncLogger("serve-snapshots")
 )
 
-func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort int64, pruning bool) {
+func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort, startHeight int64, pruning bool) {
 	logger.Info().Msg("starting serve-snapshots")
 
 	// get snapshot interval from pool
@@ -65,12 +66,24 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest 
 		os.Exit(1)
 	}
 
-	// state-sync to latest snapshot so we skip the block-syncing process.
-	// if no snapshot is available we block-sync from genesis
-	_, _, snapshotHeight, err := helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
-	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("failed to get snapshot boundaries: %s", err))
-		os.Exit(1)
+	var snapshotHeight int64
+
+	if startHeight > 0 {
+		// if a start height is given we search for the nearest snapshot before that
+		// and continue from there
+		_, snapshotHeight, err = snapshots.FindNearestSnapshotBundleIdByHeight(chainRest, snapshotPoolId, startHeight)
+		if err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to get nearest snapshot of start height: %s", err))
+			os.Exit(1)
+		}
+	} else {
+		// state-sync to latest snapshot so we skip the block-syncing process.
+		// if no snapshot is available we block-sync from genesis
+		_, _, snapshotHeight, err = helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
+		if err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to get snapshot boundaries: %s", err))
+			os.Exit(1)
+		}
 	}
 
 	if err := blocksync.PerformBlockSyncValidationChecks(homePath, chainRest, blockPoolId, 0, false); err != nil {

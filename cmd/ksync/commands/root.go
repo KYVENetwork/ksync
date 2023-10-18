@@ -13,6 +13,7 @@ var (
 	storageRest       string
 	snapshotPoolId    int64
 	blockPoolId       int64
+	startHeight       int64
 	targetHeight      int64
 	metrics           bool
 	metricsPort       int64
