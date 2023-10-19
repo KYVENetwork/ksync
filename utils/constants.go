@@ -31,7 +31,7 @@ const (
 	BundlesPageLimit            = 100
 	BlockBuffer                 = 300
 	PruningInterval             = 100
-	SnapshotPruningAheadFactor  = 2
-	SnapshotPruningWindowFactor = 5
+	SnapshotPruningAheadFactor  = 3
+	SnapshotPruningWindowFactor = 6
 	BackoffMaxRetries           = 10
 )

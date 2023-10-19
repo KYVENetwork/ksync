@@ -150,7 +150,7 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 
 	snapshotPoolHeight := int64(0)
 
-	// if KSYNC has already fetched 2 * snapshot_interval ahead of the snapshot pool we wait
+	// if KSYNC has already fetched 3 * snapshot_interval ahead of the snapshot pool we wait
 	// in order to not bloat the KSYNC process
 	if snapshotInterval > 0 {
 		snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(chainRest, snapshotPoolId)
@@ -236,8 +236,8 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 			}
 
 			if pruning && prevBlock.Height%utils.PruningInterval == 0 {
-				// Because we sync 2 * snapshot_interval ahead we keep the latest
-				// 5 * snapshot_interval blocks and prune everything before that
+				// Because we sync 3 * snapshot_interval ahead we keep the latest
+				// 6 * snapshot_interval blocks and prune everything before that
 				height := blockStore.Height() - (utils.SnapshotPruningWindowFactor * snapshotInterval)
 
 				if height < blockStore.Base() {
@@ -277,7 +277,7 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 				logger.Info().Msg(fmt.Sprintf("finished backup at block height: %d", prevBlock.Height))
 			}
 
-			// if KSYNC has already fetched 2 * snapshot_interval ahead of the snapshot pool we wait
+			// if KSYNC has already fetched 3 * snapshot_interval ahead of the snapshot pool we wait
 			// in order to not bloat the KSYNC process
 			if snapshotInterval > 0 {
 				// only log this message once
