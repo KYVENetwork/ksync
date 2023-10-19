@@ -80,8 +80,8 @@ type Pagination struct {
 type FinalizedBundle struct {
 	Id                string `json:"id,omitempty"`
 	StorageId         string `json:"storage_id,omitempty"`
-	StorageProviderId string `json:"storage_provider_id,omitempty"`
-	CompressionId     string `json:"compression_id,omitempty"`
+	StorageProviderId uint32 `json:"storage_provider_id,omitempty"`
+	CompressionId     uint32 `json:"compression_id,omitempty"`
 	FromKey           string `json:"from_key,omitempty"`
 	ToKey             string `json:"to_key,omitempty"`
 	DataHash          string `json:"data_hash,omitempty"`

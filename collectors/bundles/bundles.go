@@ -6,12 +6,11 @@ import (
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/tendermint/tendermint/libs/json"
-	"strconv"
 )
 
 func GetFinalizedBundlesPage(restEndpoint string, poolId int64, paginationLimit int64, paginationKey string) ([]types.FinalizedBundle, string, error) {
 	raw, err := utils.GetFromUrlWithBackoff(fmt.Sprintf(
-		"%s/kyve/v1/bundles/%d?pagination.limit=%d&pagination.key=%s",
+		"%s/kyve/query/v1beta1/finalized_bundles/%d?pagination.limit=%d&pagination.key=%s",
 		restEndpoint,
 		poolId,
 		paginationLimit,
@@ -34,7 +33,7 @@ func GetFinalizedBundlesPage(restEndpoint string, poolId int64, paginationLimit 
 
 func GetFinalizedBundle(restEndpoint string, poolId int64, bundleId int64) (*types.FinalizedBundle, error) {
 	raw, err := utils.GetFromUrlWithBackoff(fmt.Sprintf(
-		"%s/kyve/v1/bundles/%d/%d",
+		"%s/kyve/query/v1beta1/finalized_bundle/%d/%d",
 		restEndpoint,
 		poolId,
 		bundleId,
@@ -74,16 +73,16 @@ func GetDataFromFinalizedBundle(bundle types.FinalizedBundle, storageRest string
 }
 
 func RetrieveDataFromStorageProvider(bundle types.FinalizedBundle, storageRest string) ([]byte, error) {
-	id, err := strconv.ParseUint(bundle.StorageProviderId, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse uint from storage provider id: %w", err)
-	}
+	//id, err := strconv.ParseUint(bundle.StorageProviderId, 10, 64)
+	//if err != nil {
+	//	return nil, fmt.Errorf("could not parse uint from storage provider id: %w", err)
+	//}
 
 	if storageRest != "" {
 		return utils.GetFromUrlWithBackoff(fmt.Sprintf("%s/%s", storageRest, bundle.StorageId))
 	}
 
-	switch id {
+	switch bundle.StorageProviderId {
 	case 1:
 		return utils.GetFromUrlWithBackoff(fmt.Sprintf("%v/%s", utils.RestEndpointArweave, bundle.StorageId))
 	case 2:
@@ -96,12 +95,12 @@ func RetrieveDataFromStorageProvider(bundle types.FinalizedBundle, storageRest s
 }
 
 func DecompressBundleFromStorageProvider(bundle types.FinalizedBundle, data []byte) ([]byte, error) {
-	id, err := strconv.ParseUint(bundle.CompressionId, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse uint from compression id: %w", err)
-	}
+	//id, err := strconv.ParseUint(bundle.CompressionId, 10, 64)
+	//if err != nil {
+	//	return nil, fmt.Errorf("could not parse uint from compression id: %w", err)
+	//}
 
-	switch id {
+	switch bundle.CompressionId {
 	case 1:
 		return utils.DecompressGzip(data)
 	default:
