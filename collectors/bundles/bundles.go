@@ -42,13 +42,13 @@ func GetFinalizedBundle(restEndpoint string, poolId int64, bundleId int64) (*typ
 		return nil, err
 	}
 
-	var finalizedBundle types.FinalizedBundle
+	var finalizedBundle types.FinalizedBundleResponse
 
 	if err := json.Unmarshal(raw, &finalizedBundle); err != nil {
 		return nil, err
 	}
 
-	return &finalizedBundle, nil
+	return &finalizedBundle.FinalizedBundle, nil
 }
 
 func GetDataFromFinalizedBundle(bundle types.FinalizedBundle, storageRest string) ([]byte, error) {
