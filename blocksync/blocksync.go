@@ -106,7 +106,7 @@ func PerformBlockSyncValidationChecks(homePath, chainRest string, blockPoolId, t
 	return nil
 }
 
-func StartBlockSyncWithBinary(binaryPath, homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metrics bool, port int64, backupCfg *types.BackupConfig, userInput bool) {
+func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metrics bool, port int64, backupCfg *types.BackupConfig, userInput bool) {
 	logger.Info().Msg("starting block-sync")
 
 	// perform validation checks before booting state-sync process

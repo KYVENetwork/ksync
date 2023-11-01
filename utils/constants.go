@@ -21,6 +21,12 @@ const (
 )
 
 const (
+	EngineTendermint = "tendermint"
+	EngineCometBFT   = "cometbft"
+)
+
+const (
+	DefaultEngine             = EngineTendermint
 	DefaultChainId            = ChainIdMainnet
 	DefaultBackupPath         = "~/.ksync/backups"
 	DefaultMetricsServerPort  = 8080

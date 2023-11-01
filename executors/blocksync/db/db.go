@@ -89,10 +89,9 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 
 	logger.Info().Msg(fmt.Sprintf("loaded current block height of node: %d", continuationHeight-1))
 
-	// perform boundary checks
-	poolResponse, _, _, err := GetBlockBoundaries(chainRest, blockPoolId)
+	poolResponse, err := pool.GetPoolInfo(chainRest, blockPoolId)
 	if err != nil {
-		return fmt.Errorf("failed to get block boundaries: %w", err)
+		return fmt.Errorf("failed to get pool info: %w", err)
 	}
 
 	// start metrics api server which serves an api endpoint sync metrics

@@ -4,12 +4,16 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/backup"
 	"github.com/KYVENetwork/ksync/blocksync"
+	"github.com/KYVENetwork/ksync/engines/tendermint"
+	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"strings"
 )
 
 func init() {
+	blockSyncCmd.Flags().StringVar(&engine, "engine", utils.DefaultEngine, fmt.Sprintf("KSYNC engines [\"%s\",\"%s\"]", utils.EngineTendermint, utils.EngineCometBFT))
+
 	blockSyncCmd.Flags().StringVar(&binaryPath, "binary", "", "binary path of node to be synced")
 	if err := blockSyncCmd.MarkFlagRequired("binary"); err != nil {
 		panic(fmt.Errorf("flag 'binary' should be required: %w", err))
@@ -58,6 +62,22 @@ var blockSyncCmd = &cobra.Command{
 			return
 		}
 
-		blocksync.StartBlockSyncWithBinary(binaryPath, homePath, chainRest, storageRest, blockPoolId, targetHeight, metrics, metricsPort, backupCfg, !y)
+		var ksyncEngine types.Engine
+
+		switch engine {
+		case utils.EngineTendermint:
+			ksyncEngine = tendermint.TmEngine{
+				HomePath: homePath,
+			}
+		case utils.EngineCometBFT:
+			ksyncEngine = tendermint.TmEngine{
+				HomePath: homePath,
+			}
+		default:
+			logger.Error().Msg(fmt.Sprintf("engine %s not found", engine))
+			return
+		}
+
+		blocksync.StartBlockSyncWithBinary(ksyncEngine, binaryPath, homePath, chainRest, storageRest, blockPoolId, targetHeight, metrics, metricsPort, backupCfg, !y)
 	},
 }
