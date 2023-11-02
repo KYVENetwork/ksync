@@ -36,12 +36,12 @@ func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blo
 		return fmt.Errorf("failed to get pool info: %w", err)
 	}
 
-	startHeight, err := engine.GetStartHeight(poolInfo.Pool.Data.StartKey)
+	startHeight, err := engine.ParseHeightFromKey(poolInfo.Pool.Data.StartKey)
 	if err != nil {
 		return fmt.Errorf("failed to get start height from start key %s: %w", poolInfo.Pool.Data.StartKey, err)
 	}
 
-	endHeight, err := engine.GetStartHeight(poolInfo.Pool.Data.CurrentKey)
+	endHeight, err := engine.ParseHeightFromKey(poolInfo.Pool.Data.CurrentKey)
 	if err != nil {
 		return fmt.Errorf("failed to get end height from current key %s: %w", poolInfo.Pool.Data.CurrentKey, err)
 	}

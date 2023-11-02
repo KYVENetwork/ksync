@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/json"
 	abciTypes "github.com/tendermint/tendermint/abci/types"
 	tmCfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/state"
@@ -54,6 +55,18 @@ type SyncProcess struct {
 	Running   bool
 	wg        sync.WaitGroup
 }
+
+type RawDataItem struct {
+	Key   string          `json:"key"`
+	Value json.RawMessage `json:"value"`
+}
+
+type RawBlock struct {
+	Height int64
+	Block  []byte
+}
+
+type RawBundle = []RawDataItem
 
 type TendermintDataItem struct {
 	Key   string `json:"key"`

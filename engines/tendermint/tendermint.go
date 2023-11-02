@@ -8,6 +8,7 @@ import (
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	cfg "github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/libs/json"
 	nm "github.com/tendermint/tendermint/node"
 	tmState "github.com/tendermint/tendermint/state"
 	tmStore "github.com/tendermint/tendermint/store"
@@ -80,12 +81,8 @@ func (tm *TmEngine) GetCompatibleRuntimes() []string {
 	return []string{utils.KSyncRuntimeTendermintBsync, utils.KSyncRuntimeTendermint}
 }
 
-func (tm *TmEngine) GetStartHeight(startKey string) (startHeight int64, err error) {
-	return strconv.ParseInt(startKey, 10, 64)
-}
-
-func (tm *TmEngine) GetEndHeight(currentKey string) (endHeight int64, err error) {
-	return strconv.ParseInt(currentKey, 10, 64)
+func (tm *TmEngine) ParseHeightFromKey(key string) (int64, error) {
+	return strconv.ParseInt(key, 10, 64)
 }
 
 func (tm *TmEngine) GetContinuationHeight() (int64, error) {
@@ -152,7 +149,27 @@ func (tm *TmEngine) DoHandshake() error {
 	return nil
 }
 
-func (tm *TmEngine) ApplyBlock(prevBlock, block *types.Block) error {
+type TendermintValue struct {
+	Block struct {
+		Block *types.Block `json:"block"`
+	} `json:"block"`
+}
+
+func (tm *TmEngine) ApplyBlock(prevValueRaw, valueRaw []byte) error {
+	var prevValue, value TendermintValue
+	var prevBlock, block *types.Block
+
+	if err := json.Unmarshal(prevValueRaw, &prevValue); err != nil {
+		return fmt.Errorf("failed to unmarshal prevBlock: %w", err)
+	}
+
+	if err := json.Unmarshal(valueRaw, &value); err != nil {
+		return fmt.Errorf("failed to unmarshal block: %w", err)
+	}
+
+	prevBlock = prevValue.Block.Block
+	block = value.Block.Block
+
 	// get block data
 	blockParts := prevBlock.MakePartSet(tmTypes.BlockPartSizeBytes)
 	blockId := tmTypes.BlockID{Hash: prevBlock.Hash(), PartSetHeader: blockParts.Header()}

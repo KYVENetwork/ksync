@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	blockCh = make(chan *types.Block, utils.BlockBuffer)
+	blockCh = make(chan types.RawBlock, utils.BlockBuffer)
 	errorCh = make(chan error)
 	kLogger = log.KLogger()
 	logger  = log.KsyncLogger("db")
@@ -70,13 +70,13 @@ func StartDBExecutor(engine types.Engine, homePath, chainRest, storageRest strin
 	//}
 
 	// start block collector. we must exit if snapshot interval is zero
-	go blocks.StartBlockCollector(blockCh, errorCh, chainRest, storageRest, *poolResponse, continuationHeight, targetHeight, snapshotInterval == 0)
+	go blocks.StartBlockCollector(engine, blockCh, errorCh, chainRest, storageRest, *poolResponse, continuationHeight, targetHeight, snapshotInterval == 0)
 
 	//logger.Info().Msg(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
 	//
 	//logger.Info().Msg(fmt.Sprintf("connecting to abci app over %s", config.ProxyApp))
 
-	var prevBlock *types.Block
+	var prevBlock []byte
 
 	snapshotPoolHeight := int64(0)
 
@@ -110,12 +110,12 @@ func StartDBExecutor(engine types.Engine, homePath, chainRest, storageRest strin
 		case block := <-blockCh:
 			// set previous block
 			if prevBlock == nil {
-				prevBlock = block
+				prevBlock = block.Block
 				continue
 			}
 
-			if err := engine.ApplyBlock(prevBlock, block); err != nil {
-				return fmt.Errorf("failed to apply block %d in engine: %w", prevBlock.Height, err)
+			if err := engine.ApplyBlock(prevBlock, block.Block); err != nil {
+				return fmt.Errorf("failed to apply block in engine: %w", err)
 			}
 
 			// TODO: wait for snapshot implementation
@@ -218,7 +218,7 @@ func StartDBExecutor(engine types.Engine, homePath, chainRest, storageRest strin
 				logger.Info().Msg(fmt.Sprintf("block-synced from %d to height %d", continuationHeight, targetHeight))
 				return nil
 			} else {
-				prevBlock = block
+				prevBlock = block.Block
 			}
 		}
 	}

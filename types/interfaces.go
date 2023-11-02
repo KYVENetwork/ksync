@@ -1,7 +1,5 @@
 package types
 
-import "github.com/tendermint/tendermint/types"
-
 type Engine interface {
 	// StartEngine starts the engine and performs setups,
 	// should be called before every other method
@@ -17,13 +15,8 @@ type Engine interface {
 	// GetCompatibleRuntimes gets all runtimes this engine can run with
 	GetCompatibleRuntimes() []string
 
-	// GetStartHeight gets the earliest available block height from the
-	// startKey of a pool
-	GetStartHeight(startKey string) (int64, error)
-
-	// GetEndHeight gets the latest available block height from the
-	// currentKey of a pool
-	GetEndHeight(currentKey string) (int64, error)
+	// ParseHeightFromKey parses the block height from a given key
+	ParseHeightFromKey(key string) (int64, error)
 
 	// GetContinuationHeight gets the block height from the app at which
 	// KSYNC should proceed block-syncing
@@ -35,5 +28,5 @@ type Engine interface {
 
 	// ApplyBlock takes the block in the raw format and applies it against
 	// the app
-	ApplyBlock(prevBlock, block *types.Block) error
+	ApplyBlock(prevBlock, block []byte) error
 }
