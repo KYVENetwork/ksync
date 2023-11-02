@@ -15,6 +15,10 @@ type Engine interface {
 	// GetCompatibleRuntimes gets all runtimes this engine can run with
 	GetCompatibleRuntimes() []string
 
+	// GetMetrics gets already encoded metric information
+	// for the metrics server
+	GetMetrics() ([]byte, error)
+
 	// ParseHeightFromKey parses the block height from a given key
 	ParseHeightFromKey(key string) (int64, error)
 
@@ -29,4 +33,14 @@ type Engine interface {
 	// ApplyBlock takes the block in the raw format and applies it against
 	// the app
 	ApplyBlock(value []byte) error
+
+	GetSnapshots() ([]byte, error)
+
+	GetSnapshotChunk(height, format, chunk int64) ([]byte, error)
+
+	GetBlock(height int64) ([]byte, error)
+
+	GetState(height int64) ([]byte, error)
+
+	GetSeenCommit(height int64) ([]byte, error)
 }

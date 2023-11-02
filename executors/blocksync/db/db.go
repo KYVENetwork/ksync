@@ -5,6 +5,7 @@ import (
 	"github.com/KYVENetwork/ksync/collectors/blocks"
 	"github.com/KYVENetwork/ksync/collectors/pool"
 	log "github.com/KYVENetwork/ksync/logger"
+	"github.com/KYVENetwork/ksync/server"
 	stateSyncHelpers "github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
@@ -58,16 +59,15 @@ func StartDBExecutor(engine types.Engine, homePath, chainRest, storageRest strin
 		return fmt.Errorf("failed to get pool info: %w", err)
 	}
 
-	// TODO: where to go?
-	//// start metrics api server which serves an api endpoint sync metrics
-	//if metricsServer {
-	//	go server.StartMetricsApiServer(blockStore, metricsPort)
-	//}
-	//
-	//// start api server which serves an api endpoint for querying snapshots
-	//if snapshotInterval > 0 {
-	//	go server.StartSnapshotApiServer(config, blockStore, stateStore, snapshotPort)
-	//}
+	// start metrics api server which serves an api endpoint sync metrics
+	if metricsServer {
+		go server.StartMetricsApiServer(engine, metricsPort)
+	}
+
+	// start api server which serves an api endpoint for querying snapshots
+	if snapshotInterval > 0 {
+		go server.StartSnapshotApiServer(engine, snapshotPort)
+	}
 
 	// start block collector. we must exit if snapshot interval is zero
 	go blocks.StartBlockCollector(engine, itemCh, errorCh, chainRest, storageRest, *poolResponse, continuationHeight, targetHeight, snapshotInterval == 0)

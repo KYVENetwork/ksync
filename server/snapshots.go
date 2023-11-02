@@ -2,31 +2,21 @@ package server
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/types"
 	"github.com/gin-gonic/gin"
-	abciClient "github.com/tendermint/tendermint/abci/client"
-	"github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/libs/json"
-	tmState "github.com/tendermint/tendermint/proto/tendermint/state"
-	"github.com/tendermint/tendermint/state"
-	"github.com/tendermint/tendermint/store"
-	"github.com/tendermint/tendermint/version"
 	"net/http"
 	"strconv"
 )
 
 type ApiServer struct {
-	config     *config.Config
-	blockStore *store.BlockStore
-	stateStore state.Store
-	port       int64
+	engine types.Engine
+	port   int64
 }
 
-func StartSnapshotApiServer(config *config.Config, blockStore *store.BlockStore, stateStore state.Store, port int64) *ApiServer {
+func StartSnapshotApiServer(engine types.Engine, port int64) *ApiServer {
 	apiServer := &ApiServer{
-		config:     config,
-		blockStore: blockStore,
-		stateStore: stateStore,
+		engine: engine,
+		port:   port,
 	}
 
 	r := gin.New()
@@ -45,41 +35,10 @@ func StartSnapshotApiServer(config *config.Config, blockStore *store.BlockStore,
 }
 
 func (apiServer *ApiServer) ListSnapshotsHandler(c *gin.Context) {
-	socketClient := abciClient.NewSocketClient(apiServer.config.ProxyApp, false)
-
-	if err := socketClient.Start(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
-		return
-	}
-
-	res, err := socketClient.ListSnapshotsSync(types.RequestListSnapshots{})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
-		return
-	}
-
-	if err := socketClient.Stop(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
-		return
-	}
-
-	var resp []byte
-
-	if len(res.Snapshots) == 0 {
-		resp, err = json.Marshal([]types.Snapshot{})
-	} else {
-		resp, err = json.Marshal(res.Snapshots)
-	}
-
+	resp, err := apiServer.engine.GetSnapshots()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Error marshalling response"),
+			"error": err.Error(),
 		})
 		return
 	}
@@ -88,7 +47,7 @@ func (apiServer *ApiServer) ListSnapshotsHandler(c *gin.Context) {
 }
 
 func (apiServer *ApiServer) LoadSnapshotChunkHandler(c *gin.Context) {
-	height, err := strconv.ParseUint(c.Param("height"), 10, 64)
+	height, err := strconv.ParseInt(c.Param("height"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Error parsing param \"height\" to uint64: %s", err.Error()),
@@ -96,7 +55,7 @@ func (apiServer *ApiServer) LoadSnapshotChunkHandler(c *gin.Context) {
 		return
 	}
 
-	format, err := strconv.ParseUint(c.Param("format"), 10, 32)
+	format, err := strconv.ParseInt(c.Param("format"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Error parsing param \"format\" to uint32: %s", err.Error()),
@@ -104,7 +63,7 @@ func (apiServer *ApiServer) LoadSnapshotChunkHandler(c *gin.Context) {
 		return
 	}
 
-	chunk, err := strconv.ParseUint(c.Param("chunk"), 10, 32)
+	chunk, err := strconv.ParseInt(c.Param("chunk"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Error parsing param \"chunk\" to uint32: %s", err.Error()),
@@ -112,38 +71,10 @@ func (apiServer *ApiServer) LoadSnapshotChunkHandler(c *gin.Context) {
 		return
 	}
 
-	socketClient := abciClient.NewSocketClient(apiServer.config.ProxyApp, false)
-
-	if err := socketClient.Start(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
-		return
-	}
-
-	res, err := socketClient.LoadSnapshotChunkSync(types.RequestLoadSnapshotChunk{
-		Height: height,
-		Format: uint32(format),
-		Chunk:  uint32(chunk),
-	})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
-		return
-	}
-
-	if err := socketClient.Stop(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
-		return
-	}
-
-	resp, err := json.Marshal(res.Chunk)
+	resp, err := apiServer.engine.GetSnapshotChunk(height, format, chunk)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Error marshalling response"),
+			"error": err.Error(),
 		})
 		return
 	}
@@ -160,12 +91,10 @@ func (apiServer *ApiServer) GetBlockHandler(c *gin.Context) {
 		return
 	}
 
-	block := apiServer.blockStore.LoadBlock(height)
-
-	resp, err := json.Marshal(block)
+	resp, err := apiServer.engine.GetBlock(height)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Error marshalling response"),
+			"error": err.Error(),
 		})
 		return
 	}
@@ -182,69 +111,10 @@ func (apiServer *ApiServer) GetStateHandler(c *gin.Context) {
 		return
 	}
 
-	initialHeight := height
-	if initialHeight == 0 {
-		initialHeight = 1
-	}
-
-	lastBlock := apiServer.blockStore.LoadBlock(height)
-	currentBlock := apiServer.blockStore.LoadBlock(height + 1)
-	nextBlock := apiServer.blockStore.LoadBlock(height + 2)
-
-	lastValidators, err := apiServer.stateStore.LoadValidators(height)
+	resp, err := apiServer.engine.GetState(height)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Error loading validator set at height %d: %s", height, err.Error()),
-		})
-		return
-	}
-	currentValidators, err := apiServer.stateStore.LoadValidators(height + 1)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Error loading validator set at height %d: %s", height+1, err.Error()),
-		})
-		return
-	}
-	nextValidators, err := apiServer.stateStore.LoadValidators(height + 2)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Error loading validator set at height %d: %s", height+2, err.Error()),
-		})
-		return
-	}
-
-	consensusParams, err := apiServer.stateStore.LoadConsensusParams(height)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Failed to load consensus params at height %d: %s", height, err.Error()),
-		})
-		return
-	}
-
-	snapshotState := state.State{
-		Version: tmState.Version{
-			Consensus: lastBlock.Version,
-			Software:  version.TMCoreSemVer,
-		},
-		ChainID:                          lastBlock.ChainID,
-		InitialHeight:                    initialHeight,
-		LastBlockHeight:                  lastBlock.Height,
-		LastBlockID:                      currentBlock.LastBlockID,
-		LastBlockTime:                    lastBlock.Time,
-		NextValidators:                   nextValidators,
-		Validators:                       currentValidators,
-		LastValidators:                   lastValidators,
-		LastHeightValidatorsChanged:      nextBlock.Height,
-		ConsensusParams:                  consensusParams,
-		LastHeightConsensusParamsChanged: currentBlock.Height,
-		LastResultsHash:                  currentBlock.LastResultsHash,
-		AppHash:                          currentBlock.AppHash,
-	}
-
-	resp, err := json.Marshal(snapshotState)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Error marshalling response"),
+			"error": err.Error(),
 		})
 		return
 	}
@@ -261,12 +131,10 @@ func (apiServer *ApiServer) GetSeenCommitHandler(c *gin.Context) {
 		return
 	}
 
-	block := apiServer.blockStore.LoadBlock(height + 1)
-
-	resp, err := json.Marshal(block.LastCommit)
+	resp, err := apiServer.engine.GetSeenCommit(height)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Error marshalling response"),
+			"error": err.Error(),
 		})
 		return
 	}

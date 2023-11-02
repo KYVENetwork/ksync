@@ -7,6 +7,7 @@ import (
 	"github.com/tendermint/tendermint/state"
 	tmTypes "github.com/tendermint/tendermint/types"
 	"sync"
+	"time"
 )
 
 type Config = tmCfg.Config
@@ -138,4 +139,16 @@ type BackupConfig = struct {
 	Src         string
 	Dest        string
 	Compression string
+}
+
+type Metrics struct {
+	LatestBlockHash     string    `json:"latest_block_hash"`
+	LatestAppHash       string    `json:"latest_app_hash"`
+	LatestBlockHeight   int64     `json:"latest_block_height"`
+	LatestBlockTime     time.Time `json:"latest_block_time"`
+	EarliestBlockHash   string    `json:"earliest_block_hash"`
+	EarliestAppHash     string    `json:"earliest_app_hash"`
+	EarliestBlockHeight int64     `json:"earliest_block_height"`
+	EarliestBlockTime   time.Time `json:"earliest_block_time"`
+	CatchingUp          bool      `json:"catching_up"`
 }

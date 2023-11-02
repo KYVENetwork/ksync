@@ -5,13 +5,18 @@ import (
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/helpers"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
+	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
+	abciClient "github.com/tendermint/tendermint/abci/client"
+	abciTypes "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/json"
 	nm "github.com/tendermint/tendermint/node"
+	tmProtoState "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmState "github.com/tendermint/tendermint/state"
 	tmStore "github.com/tendermint/tendermint/store"
 	tmTypes "github.com/tendermint/tendermint/types"
+	"github.com/tendermint/tendermint/version"
 	db "github.com/tendermint/tm-db"
 	"strconv"
 )
@@ -79,6 +84,23 @@ func (tm *TmEngine) GetName() string {
 
 func (tm *TmEngine) GetCompatibleRuntimes() []string {
 	return []string{utils.KSyncRuntimeTendermintBsync, utils.KSyncRuntimeTendermint}
+}
+
+func (tm *TmEngine) GetMetrics() ([]byte, error) {
+	latest := tm.blockStore.LoadBlock(tm.blockStore.Height())
+	earliest := tm.blockStore.LoadBlock(tm.blockStore.Base())
+
+	return json.Marshal(types.Metrics{
+		LatestBlockHash:     latest.Header.Hash().String(),
+		LatestAppHash:       latest.AppHash.String(),
+		LatestBlockHeight:   latest.Height,
+		LatestBlockTime:     latest.Time,
+		EarliestBlockHash:   earliest.Hash().String(),
+		EarliestAppHash:     earliest.AppHash.String(),
+		EarliestBlockHeight: earliest.Height,
+		EarliestBlockTime:   earliest.Time,
+		CatchingUp:          true,
+	})
 }
 
 func (tm *TmEngine) ParseHeightFromKey(key string) (int64, error) {
@@ -193,4 +215,113 @@ func (tm *TmEngine) ApplyBlock(value []byte) error {
 	tm.prevBlock = block
 
 	return nil
+}
+
+func (tm *TmEngine) GetSnapshots() ([]byte, error) {
+	socketClient := abciClient.NewSocketClient(tm.config.ProxyApp, false)
+
+	if err := socketClient.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start socket client: %w", err)
+	}
+
+	res, err := socketClient.ListSnapshotsSync(abciTypes.RequestListSnapshots{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list snapshots: %w", err)
+	}
+
+	if err := socketClient.Stop(); err != nil {
+		return nil, fmt.Errorf("failed to stop socket client: %w", err)
+	}
+
+	if len(res.Snapshots) == 0 {
+		return json.Marshal([]types.Snapshot{})
+	}
+
+	return json.Marshal(res.Snapshots)
+}
+
+func (tm *TmEngine) GetSnapshotChunk(height, format, chunk int64) ([]byte, error) {
+	socketClient := abciClient.NewSocketClient(tm.config.ProxyApp, false)
+
+	if err := socketClient.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start socket client: %w", err)
+	}
+
+	res, err := socketClient.LoadSnapshotChunkSync(abciTypes.RequestLoadSnapshotChunk{
+		Height: uint64(height),
+		Format: uint32(format),
+		Chunk:  uint32(chunk),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to load snapshot chunk: %w", err)
+	}
+
+	if err := socketClient.Stop(); err != nil {
+		return nil, fmt.Errorf("failed to stop socket client: %w", err)
+	}
+
+	return json.Marshal(res.Chunk)
+}
+
+func (tm *TmEngine) GetBlock(height int64) ([]byte, error) {
+	block := tm.blockStore.LoadBlock(height)
+	return json.Marshal(block)
+}
+
+func (tm *TmEngine) GetState(height int64) ([]byte, error) {
+	initialHeight := height
+	if initialHeight == 0 {
+		initialHeight = 1
+	}
+
+	lastBlock := tm.blockStore.LoadBlock(height)
+	currentBlock := tm.blockStore.LoadBlock(height + 1)
+	nextBlock := tm.blockStore.LoadBlock(height + 2)
+
+	lastValidators, err := tm.stateStore.LoadValidators(height)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load validators at height %d: %w", height, err)
+	}
+
+	currentValidators, err := tm.stateStore.LoadValidators(height + 1)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load validators at height %d: %w", height+1, err)
+	}
+
+	nextValidators, err := tm.stateStore.LoadValidators(height + 2)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load validators at height %d: %w", height+2, err)
+	}
+
+	consensusParams, err := tm.stateStore.LoadConsensusParams(height + 2)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load consensus params at height %d: %w", height, err)
+	}
+
+	snapshotState := tmState.State{
+		Version: tmProtoState.Version{
+			Consensus: lastBlock.Version,
+			Software:  version.TMCoreSemVer,
+		},
+		ChainID:                          lastBlock.ChainID,
+		InitialHeight:                    initialHeight,
+		LastBlockHeight:                  lastBlock.Height,
+		LastBlockID:                      currentBlock.LastBlockID,
+		LastBlockTime:                    lastBlock.Time,
+		NextValidators:                   nextValidators,
+		Validators:                       currentValidators,
+		LastValidators:                   lastValidators,
+		LastHeightValidatorsChanged:      nextBlock.Height,
+		ConsensusParams:                  consensusParams,
+		LastHeightConsensusParamsChanged: currentBlock.Height,
+		LastResultsHash:                  currentBlock.LastResultsHash,
+		AppHash:                          currentBlock.AppHash,
+	}
+
+	return json.Marshal(snapshotState)
+}
+
+func (tm *TmEngine) GetSeenCommit(height int64) ([]byte, error) {
+	block := tm.blockStore.LoadBlock(height + 1)
+	return json.Marshal(block.LastCommit)
 }
