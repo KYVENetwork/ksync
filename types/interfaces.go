@@ -2,12 +2,15 @@ package types
 
 import "github.com/tendermint/tendermint/types"
 
-type DataItem struct {
-	Key   string
-	Value []byte
-}
-
 type Engine interface {
+	// StartEngine starts the engine and performs setups,
+	// should be called before every other method
+	StartEngine(homePath string) error
+
+	// StopEngine stops the engine and should be called before
+	// KSYNC exits
+	StopEngine() error
+
 	// GetName gets the name of the engine
 	GetName() string
 
@@ -26,9 +29,9 @@ type Engine interface {
 	// KSYNC should proceed block-syncing
 	GetContinuationHeight() (int64, error)
 
-	// InitApp performs the setup of the app and should be called before
-	// using ApplyBlock
-	InitApp() error
+	// DoHandshake does a handshake with the app and needs to be called
+	// before ApplyBlock
+	DoHandshake() error
 
 	// ApplyBlock takes the block in the raw format and applies it against
 	// the app

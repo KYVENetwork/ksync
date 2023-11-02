@@ -7,6 +7,7 @@ import (
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
+	"os"
 	"strings"
 )
 
@@ -61,18 +62,24 @@ var serveCmd = &cobra.Command{
 
 		switch engine {
 		case utils.EngineTendermint:
-			ksyncEngine = &tendermint.TmEngine{
-				HomePath: homePath,
-			}
+			ksyncEngine = &tendermint.TmEngine{}
 		case utils.EngineCometBFT:
-			ksyncEngine = &tendermint.TmEngine{
-				HomePath: homePath,
-			}
+			ksyncEngine = &tendermint.TmEngine{}
 		default:
 			logger.Error().Msg(fmt.Sprintf("engine %s not found", engine))
 			return
 		}
 
+		if err := ksyncEngine.StartEngine(homePath); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to start engine: %s", err))
+			os.Exit(1)
+		}
+
 		servesnapshots.StartServeSnapshotsWithBinary(ksyncEngine, binaryPath, homePath, chainRest, storageRest, blockPoolId, metrics, metricsPort, snapshotPoolId, snapshotPort, startHeight, pruning)
+
+		if err := ksyncEngine.StopEngine(); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to stop engine: %s", err))
+			os.Exit(1)
+		}
 	},
 }

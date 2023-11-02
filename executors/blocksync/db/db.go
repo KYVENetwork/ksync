@@ -49,7 +49,7 @@ func StartDBExecutor(engine types.Engine, homePath, chainRest, storageRest strin
 		return fmt.Errorf("failed to get continuation height from engine: %w", err)
 	}
 
-	if err := engine.InitApp(); err != nil {
+	if err := engine.DoHandshake(); err != nil {
 		return fmt.Errorf("failed to initialize engine: %w", err)
 	}
 

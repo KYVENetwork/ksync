@@ -2,16 +2,17 @@ package tendermint
 
 import (
 	"fmt"
-	bootstrapHelpers "github.com/KYVENetwork/ksync/bootstrap/helpers"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/helpers"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
+	cfg "github.com/tendermint/tendermint/config"
 	nm "github.com/tendermint/tendermint/node"
 	tmState "github.com/tendermint/tendermint/state"
 	tmStore "github.com/tendermint/tendermint/store"
 	tmTypes "github.com/tendermint/tendermint/types"
+	db "github.com/tendermint/tm-db"
 	"strconv"
 )
 
@@ -20,13 +21,55 @@ var (
 )
 
 type TmEngine struct {
-	HomePath string
+	config *cfg.Config
 
-	BlockStore *tmStore.BlockStore
-	StateStore tmState.Store
+	blockDB    db.DB
+	blockStore *tmStore.BlockStore
 
-	State         tmState.State
-	BlockExecutor *tmState.BlockExecutor
+	stateDB    db.DB
+	stateStore tmState.Store
+
+	state         tmState.State
+	blockExecutor *tmState.BlockExecutor
+}
+
+func (tm *TmEngine) StartEngine(homePath string) error {
+	config, err := utils.LoadConfig(homePath)
+	if err != nil {
+		return fmt.Errorf("failed to load config.toml: %w", err)
+	}
+
+	tm.config = config
+
+	blockDB, blockStore, err := store.GetBlockstoreDBs(config)
+	if err != nil {
+		return fmt.Errorf("failed to open blockDB: %w", err)
+	}
+
+	tm.blockDB = blockDB
+	tm.blockStore = blockStore
+
+	stateDB, stateStore, err := store.GetStateDBs(config)
+	if err != nil {
+		return fmt.Errorf("failed to open stateDB: %w", err)
+	}
+
+	tm.stateDB = stateDB
+	tm.stateStore = stateStore
+
+	return nil
+}
+
+func (tm *TmEngine) StopEngine() error {
+	if err := tm.blockDB.Close(); err != nil {
+		return fmt.Errorf("failed to close blockDB: %w", err)
+	}
+
+	if err := tm.stateDB.Close(); err != nil {
+		return fmt.Errorf("failed to close stateDB: %w", err)
+	}
+
+	return nil
 }
 
 func (tm *TmEngine) GetName() string {
@@ -46,25 +89,10 @@ func (tm *TmEngine) GetEndHeight(currentKey string) (endHeight int64, err error)
 }
 
 func (tm *TmEngine) GetContinuationHeight() (int64, error) {
-	config, err := utils.LoadConfig(tm.HomePath)
-	if err != nil {
-		return 0, fmt.Errorf("failed to load config.toml: %w", err)
-	}
+	height := tm.blockStore.Height()
 
-	stateDB, _, err := store.GetStateDBs(config)
-	defer stateDB.Close()
-
-	if err != nil {
-		return 0, fmt.Errorf("failed to load state db: %w", err)
-	}
-
-	height, err := bootstrapHelpers.GetBlockHeightFromDB(tm.HomePath)
-	if err != nil {
-		return 0, fmt.Errorf("failed get height from blockstore: %w", err)
-	}
-
-	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
-	_, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(stateDB, defaultDocProvider)
+	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(tm.config)
+	_, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(tm.stateDB, defaultDocProvider)
 	if err != nil {
 		return 0, fmt.Errorf("failed to load state and genDoc: %w", err)
 	}
@@ -78,39 +106,14 @@ func (tm *TmEngine) GetContinuationHeight() (int64, error) {
 	return continuationHeight, nil
 }
 
-func (tm *TmEngine) InitApp() error {
-	config, err := utils.LoadConfig(tm.HomePath)
-	if err != nil {
-		return fmt.Errorf("failed to load config.toml: %w", err)
-	}
-
-	_, blockStore, err := store.GetBlockstoreDBs(config)
-	//defer blockStoreDB.Close()
-
-	if err != nil {
-		return fmt.Errorf("failed to load blockstore db: %w", err)
-	}
-
-	tm.BlockStore = blockStore
-
-	stateDB, stateStore, err := store.GetStateDBs(config)
-	//defer stateDB.Close()
-
-	if err != nil {
-		return fmt.Errorf("failed to load state db: %w", err)
-	}
-
-	tm.StateStore = stateStore
-
-	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
-	state, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(stateDB, defaultDocProvider)
+func (tm *TmEngine) DoHandshake() error {
+	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(tm.config)
+	state, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(tm.stateDB, defaultDocProvider)
 	if err != nil {
 		return fmt.Errorf("failed to load state and genDoc: %w", err)
 	}
 
-	tm.State = state
-
-	proxyApp, err := helpers.CreateAndStartProxyAppConns(config)
+	proxyApp, err := helpers.CreateAndStartProxyAppConns(tm.config)
 	if err != nil {
 		return fmt.Errorf("failed to start proxy app: %w", err)
 	}
@@ -120,26 +123,26 @@ func (tm *TmEngine) InitApp() error {
 		return fmt.Errorf("failed to start event bus: %w", err)
 	}
 
-	if err := helpers.DoHandshake(stateStore, state, blockStore, genDoc, eventBus, proxyApp); err != nil {
+	if err := helpers.DoHandshake(tm.stateStore, state, tm.blockStore, genDoc, eventBus, proxyApp); err != nil {
 		return fmt.Errorf("failed to do handshake: %w", err)
 	}
 
-	state, err = stateStore.Load()
+	state, err = tm.stateStore.Load()
 	if err != nil {
 		return fmt.Errorf("failed to reload state: %w", err)
 	}
 
-	tm.State = state
+	tm.state = state
 
-	_, mempool := helpers.CreateMempoolAndMempoolReactor(config, proxyApp, state)
+	_, mempool := helpers.CreateMempoolAndMempoolReactor(tm.config, proxyApp, state)
 
-	_, evidencePool, err := helpers.CreateEvidenceReactor(config, stateStore, blockStore)
+	_, evidencePool, err := helpers.CreateEvidenceReactor(tm.config, tm.stateStore, tm.blockStore)
 	if err != nil {
 		return fmt.Errorf("failed to create evidence reactor: %w", err)
 	}
 
-	tm.BlockExecutor = tmState.NewBlockExecutor(
-		stateStore,
+	tm.blockExecutor = tmState.NewBlockExecutor(
+		tm.stateStore,
 		kLogger.With("module", "state"),
 		proxyApp.Consensus(),
 		mempool,
@@ -155,24 +158,24 @@ func (tm *TmEngine) ApplyBlock(prevBlock, block *types.Block) error {
 	blockId := tmTypes.BlockID{Hash: prevBlock.Hash(), PartSetHeader: blockParts.Header()}
 
 	// verify block
-	if err := tm.BlockExecutor.ValidateBlock(tm.State, prevBlock); err != nil {
+	if err := tm.blockExecutor.ValidateBlock(tm.state, prevBlock); err != nil {
 		return fmt.Errorf("block validation failed at height %d: %w", prevBlock.Height, err)
 	}
 
 	// verify commits
-	if err := tm.State.Validators.VerifyCommitLight(tm.State.ChainID, blockId, prevBlock.Height, block.LastCommit); err != nil {
+	if err := tm.state.Validators.VerifyCommitLight(tm.state.ChainID, blockId, prevBlock.Height, block.LastCommit); err != nil {
 		return fmt.Errorf("light commit verification failed at height %d: %w", prevBlock.Height, err)
 	}
 
 	// store block
-	tm.BlockStore.SaveBlock(prevBlock, blockParts, block.LastCommit)
+	tm.blockStore.SaveBlock(prevBlock, blockParts, block.LastCommit)
 
 	// execute block against app
-	state, _, err := tm.BlockExecutor.ApplyBlock(tm.State, blockId, prevBlock)
+	state, _, err := tm.blockExecutor.ApplyBlock(tm.state, blockId, prevBlock)
 	if err != nil {
 		return fmt.Errorf("failed to apply block at height %d: %w", prevBlock.Height, err)
 	}
 
-	tm.State = state
+	tm.state = state
 	return nil
 }
