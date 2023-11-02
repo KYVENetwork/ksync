@@ -64,7 +64,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 
 	// perform state-sync validation checks before snapshot gets applied
 	if snapshotHeight > 0 {
-		if err := statesync.PerformStateSyncValidationChecks(homePath, chainRest, snapshotPoolId, snapshotHeight, false); err != nil {
+		if err := statesync.PerformStateSyncValidationChecks(engine, homePath, chainRest, snapshotPoolId, snapshotHeight, false); err != nil {
 			logger.Error().Msg(fmt.Sprintf("state-sync validation checks failed: %s", err))
 			os.Exit(1)
 		}
@@ -100,7 +100,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 		}
 
 		// apply state sync snapshot
-		if err := statesync.StartStateSync(homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight); err != nil {
+		if err := statesync.StartStateSync(engine, homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to apply state-sync: %s", err))
 
 			// stop binary process thread

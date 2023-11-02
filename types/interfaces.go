@@ -34,6 +34,8 @@ type Engine interface {
 	// the app
 	ApplyBlock(value []byte) error
 
+	GetAppHeight() (int64, error)
+
 	GetSnapshots() ([]byte, error)
 
 	GetSnapshotChunk(height, format, chunk int64) ([]byte, error)
@@ -43,4 +45,10 @@ type Engine interface {
 	GetState(height int64) ([]byte, error)
 
 	GetSeenCommit(height int64) ([]byte, error)
+
+	OfferSnapshot(value []byte) (string, uint32, error)
+
+	ApplySnapshotChunk(chunkIndex uint32, value []byte) (string, error)
+
+	BootstrapState(value []byte) error
 }

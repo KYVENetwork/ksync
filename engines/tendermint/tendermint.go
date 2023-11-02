@@ -12,6 +12,7 @@ import (
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/json"
 	nm "github.com/tendermint/tendermint/node"
+	"github.com/tendermint/tendermint/p2p"
 	tmProtoState "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmState "github.com/tendermint/tendermint/state"
 	tmStore "github.com/tendermint/tendermint/store"
@@ -217,6 +218,29 @@ func (tm *TmEngine) ApplyBlock(value []byte) error {
 	return nil
 }
 
+func (tm *TmEngine) GetAppHeight() (int64, error) {
+	fmt.Println("NewSocketClient")
+	socketClient := abciClient.NewSocketClient(tm.config.ProxyApp, false)
+
+	fmt.Println("Start")
+	if err := socketClient.Start(); err != nil {
+		return 0, fmt.Errorf("failed to start socket client: %w", err)
+	}
+
+	fmt.Println("info sync")
+	info, err := socketClient.InfoSync(abciTypes.RequestInfo{})
+	if err != nil {
+		return 0, fmt.Errorf("failed to query info: %w", err)
+	}
+	fmt.Println(info)
+
+	if err := socketClient.Stop(); err != nil {
+		return 0, fmt.Errorf("failed to stop socket client: %w", err)
+	}
+
+	return info.LastBlockHeight, nil
+}
+
 func (tm *TmEngine) GetSnapshots() ([]byte, error) {
 	socketClient := abciClient.NewSocketClient(tm.config.ProxyApp, false)
 
@@ -324,4 +348,91 @@ func (tm *TmEngine) GetState(height int64) ([]byte, error) {
 func (tm *TmEngine) GetSeenCommit(height int64) ([]byte, error) {
 	block := tm.blockStore.LoadBlock(height + 1)
 	return json.Marshal(block.LastCommit)
+}
+
+func (tm *TmEngine) OfferSnapshot(value []byte) (string, uint32, error) {
+	var bundle TendermintSsyncBundle
+
+	if err := json.Unmarshal(value, &bundle); err != nil {
+		return abciTypes.ResponseOfferSnapshot_UNKNOWN.String(), 0, fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
+	}
+
+	socketClient := abciClient.NewSocketClient(tm.config.ProxyApp, false)
+
+	if err := socketClient.Start(); err != nil {
+		return abciTypes.ResponseOfferSnapshot_UNKNOWN.String(), 0, fmt.Errorf("failed to start socket client: %w", err)
+	}
+
+	res, err := socketClient.OfferSnapshotSync(abciTypes.RequestOfferSnapshot{
+		Snapshot: bundle[0].Value.Snapshot,
+		AppHash:  bundle[0].Value.State.AppHash,
+	})
+
+	if err != nil {
+		return abciTypes.ResponseOfferSnapshot_UNKNOWN.String(), 0, err
+	}
+
+	if err := socketClient.Stop(); err != nil {
+		return abciTypes.ResponseOfferSnapshot_UNKNOWN.String(), 0, fmt.Errorf("failed to stop socket client: %w", err)
+	}
+
+	return res.Result.String(), bundle[0].Value.Snapshot.Chunks, nil
+}
+
+func (tm *TmEngine) ApplySnapshotChunk(chunkIndex uint32, value []byte) (string, error) {
+	var bundle TendermintSsyncBundle
+
+	if err := json.Unmarshal(value, &bundle); err != nil {
+		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
+	}
+
+	nodeKey, err := p2p.LoadNodeKey(tm.config.NodeKeyFile())
+	if err != nil {
+		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("loading node key file failed: %w", err)
+	}
+
+	socketClient := abciClient.NewSocketClient(tm.config.ProxyApp, false)
+
+	if err := socketClient.Start(); err != nil {
+		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("failed to start socket client: %w", err)
+	}
+
+	res, err := socketClient.ApplySnapshotChunkSync(abciTypes.RequestApplySnapshotChunk{
+		Index:  chunkIndex,
+		Chunk:  bundle[0].Value.Chunk,
+		Sender: string(nodeKey.ID()),
+	})
+
+	if err != nil {
+		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), err
+	}
+
+	if err := socketClient.Stop(); err != nil {
+		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("failed to stop socket client: %w", err)
+	}
+
+	return res.Result.String(), nil
+}
+
+func (tm *TmEngine) BootstrapState(value []byte) error {
+	var bundle TendermintSsyncBundle
+
+	if err := json.Unmarshal(value, &bundle); err != nil {
+		return fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
+	}
+
+	err := tm.stateStore.Bootstrap(*bundle[0].Value.State)
+	if err != nil {
+		return fmt.Errorf("failed to bootstrap state: %s\"", err)
+	}
+
+	err = tm.blockStore.SaveSeenCommit(bundle[0].Value.State.LastBlockHeight, bundle[0].Value.SeenCommit)
+	if err != nil {
+		return fmt.Errorf("failed to save seen commit: %s\"", err)
+	}
+
+	blockParts := bundle[0].Value.Block.MakePartSet(tmTypes.BlockPartSizeBytes)
+	tm.blockStore.SaveBlock(bundle[0].Value.Block, blockParts, bundle[0].Value.SeenCommit)
+
+	return nil
 }

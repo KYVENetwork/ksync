@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	abciTypes "github.com/tendermint/tendermint/abci/types"
 	tmCfg "github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/state"
 	tmTypes "github.com/tendermint/tendermint/types"
 	"sync"
 	"time"
@@ -117,20 +116,6 @@ type SupportedChain = struct {
 type SupportedChains = struct {
 	Mainnet []SupportedChain `json:"kyve-1"`
 	Kaon    []SupportedChain `json:"kaon-1"`
-}
-
-type TendermintSsyncBundle = []TendermintSsyncDataItem
-
-type TendermintSsyncDataItem struct {
-	Key   string `json:"key"`
-	Value struct {
-		Snapshot   *Snapshot       `json:"snapshot"`
-		Block      *Block          `json:"block"`
-		SeenCommit *tmTypes.Commit `json:"seenCommit"`
-		State      *state.State    `json:"state"`
-		ChunkIndex uint32          `json:"chunkIndex"`
-		Chunk      []byte          `json:"chunk"`
-	} `json:"value"`
 }
 
 type BackupConfig = struct {

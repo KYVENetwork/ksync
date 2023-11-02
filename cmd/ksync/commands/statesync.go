@@ -2,13 +2,18 @@ package commands
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/engines/tendermint"
 	"github.com/KYVENetwork/ksync/statesync"
+	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
+	"os"
 	"strings"
 )
 
 func init() {
+	stateSyncCmd.Flags().StringVar(&engine, "engine", utils.DefaultEngine, fmt.Sprintf("KSYNC engines [\"%s\",\"%s\"]", utils.EngineTendermint, utils.EngineCometBFT))
+
 	stateSyncCmd.Flags().StringVar(&binaryPath, "binary", "", "binary path of node to be synced")
 	if err := stateSyncCmd.MarkFlagRequired("binary"); err != nil {
 		panic(fmt.Errorf("flag 'binary' should be required: %w", err))
@@ -42,6 +47,29 @@ var stateSyncCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
-		statesync.StartStateSyncWithBinary(binaryPath, homePath, chainRest, storageRest, snapshotPoolId, targetHeight, !y)
+
+		var ksyncEngine types.Engine
+
+		switch engine {
+		case utils.EngineTendermint:
+			ksyncEngine = &tendermint.TmEngine{}
+		case utils.EngineCometBFT:
+			ksyncEngine = &tendermint.TmEngine{}
+		default:
+			logger.Error().Msg(fmt.Sprintf("engine %s not found", engine))
+			return
+		}
+
+		if err := ksyncEngine.StartEngine(homePath); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to start engine: %s", err))
+			os.Exit(1)
+		}
+
+		statesync.StartStateSyncWithBinary(ksyncEngine, binaryPath, homePath, chainRest, storageRest, snapshotPoolId, targetHeight, !y)
+
+		if err := ksyncEngine.StopEngine(); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to stop engine: %s", err))
+			os.Exit(1)
+		}
 	},
 }
