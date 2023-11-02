@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	blockCh = make(chan types.RawBlock, utils.BlockBuffer)
+	itemCh  = make(chan types.DataItem, utils.BlockBuffer)
 	errorCh = make(chan error)
 	kLogger = log.KLogger()
 	logger  = log.KsyncLogger("db")
@@ -70,13 +70,11 @@ func StartDBExecutor(engine types.Engine, homePath, chainRest, storageRest strin
 	//}
 
 	// start block collector. we must exit if snapshot interval is zero
-	go blocks.StartBlockCollector(engine, blockCh, errorCh, chainRest, storageRest, *poolResponse, continuationHeight, targetHeight, snapshotInterval == 0)
+	go blocks.StartBlockCollector(engine, itemCh, errorCh, chainRest, storageRest, *poolResponse, continuationHeight, targetHeight, snapshotInterval == 0)
 
 	//logger.Info().Msg(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
 	//
 	//logger.Info().Msg(fmt.Sprintf("connecting to abci app over %s", config.ProxyApp))
-
-	var prevBlock []byte
 
 	snapshotPoolHeight := int64(0)
 
@@ -107,14 +105,14 @@ func StartDBExecutor(engine types.Engine, homePath, chainRest, storageRest strin
 		select {
 		case err := <-errorCh:
 			return fmt.Errorf("error in block collector: %w", err)
-		case block := <-blockCh:
-			// set previous block
-			if prevBlock == nil {
-				prevBlock = block.Block
-				continue
+		case item := <-itemCh:
+			// parse block height from item key
+			height, err := engine.ParseHeightFromKey(item.Key)
+			if err != nil {
+				return fmt.Errorf("failed parse block height from key %s: %w", item.Key, err)
 			}
 
-			if err := engine.ApplyBlock(prevBlock, block.Block); err != nil {
+			if err := engine.ApplyBlock(item.Value); err != nil {
 				return fmt.Errorf("failed to apply block in engine: %w", err)
 			}
 
@@ -195,13 +193,13 @@ func StartDBExecutor(engine types.Engine, homePath, chainRest, storageRest strin
 			// in order to not bloat the KSYNC process
 			if snapshotInterval > 0 {
 				// only log this message once
-				if block.Height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
+				if height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
 					logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to produce new bundles")
 				}
 
 				for {
 					// if we are in that range we wait until the snapshot pool moved on
-					if block.Height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
+					if height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
 						time.Sleep(10 * time.Second)
 
 						// refresh snapshot pool height
@@ -214,11 +212,9 @@ func StartDBExecutor(engine types.Engine, homePath, chainRest, storageRest strin
 			}
 
 			// stop with block execution if we have reached our target height
-			if targetHeight > 0 && block.Height == targetHeight+1 {
+			if targetHeight > 0 && height == targetHeight+1 {
 				logger.Info().Msg(fmt.Sprintf("block-synced from %d to height %d", continuationHeight, targetHeight))
 				return nil
-			} else {
-				prevBlock = block.Block
 			}
 		}
 	}

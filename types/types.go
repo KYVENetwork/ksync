@@ -56,17 +56,12 @@ type SyncProcess struct {
 	wg        sync.WaitGroup
 }
 
-type RawDataItem struct {
+type DataItem struct {
 	Key   string          `json:"key"`
 	Value json.RawMessage `json:"value"`
 }
 
-type RawBlock struct {
-	Height int64
-	Block  []byte
-}
-
-type RawBundle = []RawDataItem
+type Bundle = []DataItem
 
 type TendermintDataItem struct {
 	Key   string `json:"key"`

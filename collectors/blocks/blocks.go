@@ -15,7 +15,7 @@ var (
 	logger = log.KsyncLogger("collector")
 )
 
-func StartBlockCollector(engine types.Engine, blockCh chan<- types.RawBlock, errorCh chan<- error, chainRest, storageRest string, blockPool types.PoolResponse, continuationHeight, targetHeight int64, mustExit bool) {
+func StartBlockCollector(engine types.Engine, itemCh chan<- types.DataItem, errorCh chan<- error, chainRest, storageRest string, blockPool types.PoolResponse, continuationHeight, targetHeight int64, mustExit bool) {
 	paginationKey := ""
 
 BundleCollector:
@@ -46,7 +46,7 @@ BundleCollector:
 			}
 
 			// parse bundle
-			var bundle types.RawBundle
+			var bundle types.Bundle
 
 			if err := json.Unmarshal(deflated, &bundle); err != nil {
 				errorCh <- fmt.Errorf("failed to unmarshal tendermint bundle: %w", err)
@@ -65,11 +65,8 @@ BundleCollector:
 					continue
 				}
 
-				// send raw block to block executor
-				blockCh <- types.RawBlock{
-					Height: itemHeight,
-					Block:  dataItem.Value,
-				}
+				// send raw data item executor
+				itemCh <- dataItem
 
 				// keep track of latest retrieved height
 				continuationHeight = itemHeight + 1

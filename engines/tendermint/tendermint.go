@@ -5,7 +5,6 @@ import (
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/helpers"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
-	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/json"
@@ -31,6 +30,7 @@ type TmEngine struct {
 	stateStore tmState.Store
 
 	state         tmState.State
+	prevBlock     *Block
 	blockExecutor *tmState.BlockExecutor
 }
 
@@ -149,50 +149,48 @@ func (tm *TmEngine) DoHandshake() error {
 	return nil
 }
 
-type TendermintValue struct {
-	Block struct {
-		Block *types.Block `json:"block"`
-	} `json:"block"`
-}
+func (tm *TmEngine) ApplyBlock(value []byte) error {
+	// TODO: add support for tendermint-bsync runtime
+	var parsed TendermintValue
 
-func (tm *TmEngine) ApplyBlock(prevValueRaw, valueRaw []byte) error {
-	var prevValue, value TendermintValue
-	var prevBlock, block *types.Block
-
-	if err := json.Unmarshal(prevValueRaw, &prevValue); err != nil {
-		return fmt.Errorf("failed to unmarshal prevBlock: %w", err)
+	if err := json.Unmarshal(value, &parsed); err != nil {
+		return fmt.Errorf("failed to unmarshal value: %w", err)
 	}
 
-	if err := json.Unmarshal(valueRaw, &value); err != nil {
-		return fmt.Errorf("failed to unmarshal block: %w", err)
-	}
+	block := parsed.Block.Block
 
-	prevBlock = prevValue.Block.Block
-	block = value.Block.Block
+	// if the previous block is not defined we continue
+	if tm.prevBlock == nil {
+		tm.prevBlock = block
+		return nil
+	}
 
 	// get block data
-	blockParts := prevBlock.MakePartSet(tmTypes.BlockPartSizeBytes)
-	blockId := tmTypes.BlockID{Hash: prevBlock.Hash(), PartSetHeader: blockParts.Header()}
+	blockParts := tm.prevBlock.MakePartSet(tmTypes.BlockPartSizeBytes)
+	blockId := tmTypes.BlockID{Hash: tm.prevBlock.Hash(), PartSetHeader: blockParts.Header()}
 
 	// verify block
-	if err := tm.blockExecutor.ValidateBlock(tm.state, prevBlock); err != nil {
-		return fmt.Errorf("block validation failed at height %d: %w", prevBlock.Height, err)
+	if err := tm.blockExecutor.ValidateBlock(tm.state, tm.prevBlock); err != nil {
+		return fmt.Errorf("block validation failed at height %d: %w", tm.prevBlock.Height, err)
 	}
 
 	// verify commits
-	if err := tm.state.Validators.VerifyCommitLight(tm.state.ChainID, blockId, prevBlock.Height, block.LastCommit); err != nil {
-		return fmt.Errorf("light commit verification failed at height %d: %w", prevBlock.Height, err)
+	if err := tm.state.Validators.VerifyCommitLight(tm.state.ChainID, blockId, tm.prevBlock.Height, block.LastCommit); err != nil {
+		return fmt.Errorf("light commit verification failed at height %d: %w", tm.prevBlock.Height, err)
 	}
 
 	// store block
-	tm.blockStore.SaveBlock(prevBlock, blockParts, block.LastCommit)
+	tm.blockStore.SaveBlock(tm.prevBlock, blockParts, block.LastCommit)
 
 	// execute block against app
-	state, _, err := tm.blockExecutor.ApplyBlock(tm.state, blockId, prevBlock)
+	state, _, err := tm.blockExecutor.ApplyBlock(tm.state, blockId, tm.prevBlock)
 	if err != nil {
-		return fmt.Errorf("failed to apply block at height %d: %w", prevBlock.Height, err)
+		return fmt.Errorf("failed to apply block at height %d: %w", tm.prevBlock.Height, err)
 	}
 
+	// update values for next round
 	tm.state = state
+	tm.prevBlock = block
+
 	return nil
 }

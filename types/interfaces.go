@@ -28,5 +28,5 @@ type Engine interface {
 
 	// ApplyBlock takes the block in the raw format and applies it against
 	// the app
-	ApplyBlock(prevBlock, block []byte) error
+	ApplyBlock(value []byte) error
 }
