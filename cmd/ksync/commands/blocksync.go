@@ -66,11 +66,11 @@ var blockSyncCmd = &cobra.Command{
 
 		switch engine {
 		case utils.EngineTendermint:
-			ksyncEngine = tendermint.TmEngine{
+			ksyncEngine = &tendermint.TmEngine{
 				HomePath: homePath,
 			}
 		case utils.EngineCometBFT:
-			ksyncEngine = tendermint.TmEngine{
+			ksyncEngine = &tendermint.TmEngine{
 				HomePath: homePath,
 			}
 		default:

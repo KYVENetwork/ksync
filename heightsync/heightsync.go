@@ -10,6 +10,7 @@ import (
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/supervisor"
+	"github.com/KYVENetwork/ksync/types"
 	"os"
 	"strings"
 )
@@ -18,7 +19,7 @@ var (
 	logger = log.KsyncLogger("height-sync")
 )
 
-func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest string, snapshotPoolId, blockPoolId, targetHeight int64, userInput bool) {
+func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, snapshotPoolId, blockPoolId, targetHeight int64, userInput bool) {
 	logger.Info().Msg("starting height-sync")
 
 	_, _, blockEndHeight, err := db.GetBlockBoundaries(chainRest, blockPoolId)
@@ -39,7 +40,7 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 		logger.Info().Msg(fmt.Sprintf("target height not specified, searching for latest available block height"))
 	}
 
-	if err := blocksync.PerformBlockSyncValidationChecks(homePath, chainRest, blockPoolId, targetHeight, false); err != nil {
+	if err := blocksync.PerformBlockSyncValidationChecks(engine, chainRest, blockPoolId, targetHeight, false); err != nil {
 		logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
 		os.Exit(1)
 	}
@@ -125,7 +126,7 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 	// if we have not reached our target height yet we block-sync the remaining ones
 	if remaining := targetHeight - snapshotHeight; remaining > 0 {
 		logger.Info().Msg(fmt.Sprintf("block-syncing remaining %d blocks", remaining))
-		if err := blocksync.StartBlockSync(homePath, chainRest, storageRest, blockPoolId, targetHeight, false, 0, nil); err != nil {
+		if err := blocksync.StartBlockSync(engine, homePath, chainRest, storageRest, blockPoolId, targetHeight, false, 0, nil); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to apply block-sync: %s", err))
 
 			// stop binary process thread

@@ -1,5 +1,7 @@
 package types
 
+import "github.com/tendermint/tendermint/types"
+
 type DataItem struct {
 	Key   string
 	Value []byte
@@ -30,5 +32,5 @@ type Engine interface {
 
 	// ApplyBlock takes the block in the raw format and applies it against
 	// the app
-	ApplyBlock(item DataItem) error
+	ApplyBlock(prevBlock, block *types.Block) error
 }

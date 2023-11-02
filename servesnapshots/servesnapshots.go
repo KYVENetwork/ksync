@@ -23,7 +23,7 @@ var (
 	logger = log.KsyncLogger("serve-snapshots")
 )
 
-func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort, startHeight int64, pruning bool) {
+func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort, startHeight int64, pruning bool) {
 	logger.Info().Msg("starting serve-snapshots")
 
 	// get snapshot interval from pool
@@ -86,7 +86,7 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest 
 		}
 	}
 
-	if err := blocksync.PerformBlockSyncValidationChecks(homePath, chainRest, blockPoolId, 0, false); err != nil {
+	if err := blocksync.PerformBlockSyncValidationChecks(engine, chainRest, blockPoolId, 0, false); err != nil {
 		logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
 		os.Exit(1)
 	}
@@ -129,7 +129,7 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest 
 	}
 
 	// db executes blocks against app indefinitely
-	if err := db.StartDBExecutor(homePath, chainRest, storageRest, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning, nil); err != nil {
+	if err := db.StartDBExecutor(engine, homePath, chainRest, storageRest, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning, nil); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to start db executor: %s", err))
 
 		// stop binary process thread

@@ -2,13 +2,17 @@ package commands
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/engines/tendermint"
 	"github.com/KYVENetwork/ksync/heightsync"
+	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"strings"
 )
 
 func init() {
+	heightSyncCmd.Flags().StringVar(&engine, "engine", utils.DefaultEngine, fmt.Sprintf("KSYNC engines [\"%s\",\"%s\"]", utils.EngineTendermint, utils.EngineCometBFT))
+
 	heightSyncCmd.Flags().StringVar(&binaryPath, "binary", "", "binary path of node to be synced")
 	if err := heightSyncCmd.MarkFlagRequired("binary"); err != nil {
 		panic(fmt.Errorf("flag 'binary' should be required: %w", err))
@@ -47,6 +51,23 @@ var heightSyncCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
-		heightsync.StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest, snapshotPoolId, blockPoolId, targetHeight, !y)
+
+		var ksyncEngine types.Engine
+
+		switch engine {
+		case utils.EngineTendermint:
+			ksyncEngine = &tendermint.TmEngine{
+				HomePath: homePath,
+			}
+		case utils.EngineCometBFT:
+			ksyncEngine = &tendermint.TmEngine{
+				HomePath: homePath,
+			}
+		default:
+			logger.Error().Msg(fmt.Sprintf("engine %s not found", engine))
+			return
+		}
+
+		heightsync.StartHeightSyncWithBinary(ksyncEngine, binaryPath, homePath, chainRest, storageRest, snapshotPoolId, blockPoolId, targetHeight, !y)
 	},
 }

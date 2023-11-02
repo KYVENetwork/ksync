@@ -2,19 +2,12 @@ package db
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/backup"
 	"github.com/KYVENetwork/ksync/collectors/blocks"
 	"github.com/KYVENetwork/ksync/collectors/pool"
-	"github.com/KYVENetwork/ksync/executors/blocksync/db/helpers"
-	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
-	"github.com/KYVENetwork/ksync/server"
 	stateSyncHelpers "github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
-	nm "github.com/tendermint/tendermint/node"
-	sm "github.com/tendermint/tendermint/state"
-	tmTypes "github.com/tendermint/tendermint/types"
 	"strconv"
 	"time"
 )
@@ -50,100 +43,38 @@ func GetBlockBoundaries(restEndpoint string, poolId int64) (*types.PoolResponse,
 	return poolResponse, startHeight, endHeight, nil
 }
 
-func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool, backupCfg *types.BackupConfig) error {
-	// load tendermint config
-	config, err := utils.LoadConfig(homePath)
+func StartDBExecutor(engine types.Engine, homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool, backupCfg *types.BackupConfig) error {
+	continuationHeight, err := engine.GetContinuationHeight()
 	if err != nil {
-		return fmt.Errorf("failed to load config.toml: %w", err)
+		return fmt.Errorf("failed to get continuation height from engine: %w", err)
 	}
 
-	// load state store
-	stateDB, stateStore, err := store.GetStateDBs(config)
-	defer stateDB.Close()
-
-	if err != nil {
-		return fmt.Errorf("failed to load state db: %w", err)
+	if err := engine.InitApp(); err != nil {
+		return fmt.Errorf("failed to initialize engine: %w", err)
 	}
-
-	// load block store
-	blockStoreDB, blockStore, err := store.GetBlockstoreDBs(config)
-	defer blockStoreDB.Close()
-
-	if err != nil {
-		return fmt.Errorf("failed to load blockstore db: %w", err)
-	}
-
-	// load genesis file
-	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
-	state, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(stateDB, defaultDocProvider)
-	if err != nil {
-		return fmt.Errorf("failed to load state and genDoc: %w", err)
-	}
-
-	// get height at which ksync should continue block-syncing
-	continuationHeight := blockStore.Height() + 1
-
-	if continuationHeight < genDoc.InitialHeight {
-		continuationHeight = genDoc.InitialHeight
-	}
-
-	logger.Info().Msg(fmt.Sprintf("loaded current block height of node: %d", continuationHeight-1))
 
 	poolResponse, err := pool.GetPoolInfo(chainRest, blockPoolId)
 	if err != nil {
 		return fmt.Errorf("failed to get pool info: %w", err)
 	}
 
-	// start metrics api server which serves an api endpoint sync metrics
-	if metricsServer {
-		go server.StartMetricsApiServer(blockStore, metricsPort)
-	}
-
-	// start api server which serves an api endpoint for querying snapshots
-	if snapshotInterval > 0 {
-		go server.StartSnapshotApiServer(config, blockStore, stateStore, snapshotPort)
-	}
+	// TODO: where to go?
+	//// start metrics api server which serves an api endpoint sync metrics
+	//if metricsServer {
+	//	go server.StartMetricsApiServer(blockStore, metricsPort)
+	//}
+	//
+	//// start api server which serves an api endpoint for querying snapshots
+	//if snapshotInterval > 0 {
+	//	go server.StartSnapshotApiServer(config, blockStore, stateStore, snapshotPort)
+	//}
 
 	// start block collector. we must exit if snapshot interval is zero
 	go blocks.StartBlockCollector(blockCh, errorCh, chainRest, storageRest, *poolResponse, continuationHeight, targetHeight, snapshotInterval == 0)
 
-	logger.Info().Msg(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
-
-	logger.Info().Msg(fmt.Sprintf("connecting to abci app over %s", config.ProxyApp))
-
-	proxyApp, err := helpers.CreateAndStartProxyAppConns(config)
-	if err != nil {
-		return fmt.Errorf("failed to start proxy app: %w", err)
-	}
-
-	eventBus, err := helpers.CreateAndStartEventBus()
-	if err != nil {
-		return fmt.Errorf("failed to start event bus: %w", err)
-	}
-
-	if err := helpers.DoHandshake(stateStore, state, blockStore, genDoc, eventBus, proxyApp); err != nil {
-		return fmt.Errorf("failed to do handshake: %w", err)
-	}
-
-	state, err = stateStore.Load()
-	if err != nil {
-		return fmt.Errorf("failed to reload state: %w", err)
-	}
-
-	_, mempool := helpers.CreateMempoolAndMempoolReactor(config, proxyApp, state)
-
-	_, evidencePool, err := helpers.CreateEvidenceReactor(config, stateStore, blockStore)
-	if err != nil {
-		return fmt.Errorf("failed to create evidence reactor: %w", err)
-	}
-
-	blockExec := sm.NewBlockExecutor(
-		stateStore,
-		kLogger.With("module", "state"),
-		proxyApp.Consensus(),
-		mempool,
-		evidencePool,
-	)
+	//logger.Info().Msg(fmt.Sprintf("State loaded. LatestBlockHeight = %d", state.LastBlockHeight))
+	//
+	//logger.Info().Msg(fmt.Sprintf("connecting to abci app over %s", config.ProxyApp))
 
 	var prevBlock *types.Block
 
@@ -183,98 +114,82 @@ func StartDBExecutor(homePath, chainRest, storageRest string, blockPoolId, targe
 				continue
 			}
 
-			// get block data
-			blockParts := prevBlock.MakePartSet(tmTypes.BlockPartSizeBytes)
-			blockId := tmTypes.BlockID{Hash: prevBlock.Hash(), PartSetHeader: blockParts.Header()}
-
-			// verify block
-			if err := blockExec.ValidateBlock(state, prevBlock); err != nil {
-				return fmt.Errorf("block validation failed at height %d: %w", prevBlock.Height, err)
+			if err := engine.ApplyBlock(prevBlock, block); err != nil {
+				return fmt.Errorf("failed to apply block %d in engine: %w", prevBlock.Height, err)
 			}
 
-			// verify commits
-			if err := state.Validators.VerifyCommitLight(state.ChainID, blockId, prevBlock.Height, block.LastCommit); err != nil {
-				return fmt.Errorf("light commit verification failed at height %d: %w", prevBlock.Height, err)
-			}
+			// TODO: wait for snapshot implementation
+			//// if we have reached a height where a snapshot should be created by the app
+			//// we wait until it is created, else if KSYNC moves to fast the snapshot can
+			//// not be properly written to disk.
+			//if snapshotInterval > 0 && prevBlock.Height%snapshotInterval == 0 {
+			//	for {
+			//		logger.Info().Msg(fmt.Sprintf("waiting until snapshot at height %d is created by app", prevBlock.Height))
+			//
+			//		found, err := helpers.IsSnapshotAvailableAtHeight(config, prevBlock.Height)
+			//		if err != nil {
+			//			logger.Error().Msg(fmt.Sprintf("check snapshot availability failed at height %d", prevBlock.Height))
+			//			time.Sleep(10 * time.Second)
+			//			continue
+			//		}
+			//
+			//		if !found {
+			//			logger.Info().Msg(fmt.Sprintf("snapshot at height %d was not created yet. Waiting ...", prevBlock.Height))
+			//			time.Sleep(10 * time.Second)
+			//			continue
+			//		}
+			//
+			//		logger.Info().Msg(fmt.Sprintf("snapshot at height %d was created. Continuing ...", prevBlock.Height))
+			//		break
+			//	}
+			//
+			//	// refresh snapshot pool height here, because we don't want to fetch this on every block
+			//	snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(chainRest, snapshotPoolId)
+			//}
 
-			// store block
-			blockStore.SaveBlock(prevBlock, blockParts, block.LastCommit)
+			// TODO: add pruning interface to engine
+			//if pruning && prevBlock.Height%utils.PruningInterval == 0 {
+			//	// Because we sync 3 * snapshot_interval ahead we keep the latest
+			//	// 6 * snapshot_interval blocks and prune everything before that
+			//	height := blockStore.Height() - (utils.SnapshotPruningWindowFactor * snapshotInterval)
+			//
+			//	if height < blockStore.Base() {
+			//		height = blockStore.Base()
+			//	}
+			//
+			//	blocksPruned, err := blockStore.PruneBlocks(height)
+			//	if err != nil {
+			//		logger.Error().Msg(fmt.Sprintf("failed to prune blocks up to %d: %s", height, err))
+			//	}
+			//
+			//	base := height - int64(blocksPruned)
+			//
+			//	if blocksPruned > 0 {
+			//		logger.Info().Msg(fmt.Sprintf("pruned blockstore.db from height %d to %d", base, height))
+			//	}
+			//
+			//	if height > base {
+			//		if err := stateStore.PruneStates(base, height); err != nil {
+			//			logger.Error().Msg(fmt.Sprintf("failed to prune state up to %d: %s", height, err))
+			//		}
+			//
+			//		logger.Info().Msg(fmt.Sprintf("pruned state.db from height %d to %d", base, height))
+			//	}
+			//}
 
-			// execute block against app
-			state, _, err = blockExec.ApplyBlock(state, blockId, prevBlock)
-			if err != nil {
-				return fmt.Errorf("failed to apply block at height %d: %w", prevBlock.Height, err)
-			}
-
-			// if we have reached a height where a snapshot should be created by the app
-			// we wait until it is created, else if KSYNC moves to fast the snapshot can
-			// not be properly written to disk.
-			if snapshotInterval > 0 && prevBlock.Height%snapshotInterval == 0 {
-				for {
-					logger.Info().Msg(fmt.Sprintf("waiting until snapshot at height %d is created by app", prevBlock.Height))
-
-					found, err := helpers.IsSnapshotAvailableAtHeight(config, prevBlock.Height)
-					if err != nil {
-						logger.Error().Msg(fmt.Sprintf("check snapshot availability failed at height %d", prevBlock.Height))
-						time.Sleep(10 * time.Second)
-						continue
-					}
-
-					if !found {
-						logger.Info().Msg(fmt.Sprintf("snapshot at height %d was not created yet. Waiting ...", prevBlock.Height))
-						time.Sleep(10 * time.Second)
-						continue
-					}
-
-					logger.Info().Msg(fmt.Sprintf("snapshot at height %d was created. Continuing ...", prevBlock.Height))
-					break
-				}
-
-				// refresh snapshot pool height here, because we don't want to fetch this on every block
-				snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(chainRest, snapshotPoolId)
-			}
-
-			if pruning && prevBlock.Height%utils.PruningInterval == 0 {
-				// Because we sync 3 * snapshot_interval ahead we keep the latest
-				// 6 * snapshot_interval blocks and prune everything before that
-				height := blockStore.Height() - (utils.SnapshotPruningWindowFactor * snapshotInterval)
-
-				if height < blockStore.Base() {
-					height = blockStore.Base()
-				}
-
-				blocksPruned, err := blockStore.PruneBlocks(height)
-				if err != nil {
-					logger.Error().Msg(fmt.Sprintf("failed to prune blocks up to %d: %s", height, err))
-				}
-
-				base := height - int64(blocksPruned)
-
-				if blocksPruned > 0 {
-					logger.Info().Msg(fmt.Sprintf("pruned blockstore.db from height %d to %d", base, height))
-				}
-
-				if height > base {
-					if err := stateStore.PruneStates(base, height); err != nil {
-						logger.Error().Msg(fmt.Sprintf("failed to prune state up to %d: %s", height, err))
-					}
-
-					logger.Info().Msg(fmt.Sprintf("pruned state.db from height %d to %d", base, height))
-				}
-			}
-
-			// create backup of entire data directory if backup interval is reached
-			if backupCfg != nil && backupCfg.Interval > 0 && prevBlock.Height%backupCfg.Interval == 0 {
-				logger.Info().Msg("reached backup interval height, starting to create backup")
-
-				time.Sleep(time.Second * 15)
-
-				if err = backup.CreateBackup(backupCfg, genDoc.ChainID, prevBlock.Height, false); err != nil {
-					logger.Error().Msg(fmt.Sprintf("failed to create backup: %v", err))
-				}
-
-				logger.Info().Msg(fmt.Sprintf("finished backup at block height: %d", prevBlock.Height))
-			}
+			// TODO: create backup interface for engine
+			//// create backup of entire data directory if backup interval is reached
+			//if backupCfg != nil && backupCfg.Interval > 0 && prevBlock.Height%backupCfg.Interval == 0 {
+			//	logger.Info().Msg("reached backup interval height, starting to create backup")
+			//
+			//	time.Sleep(time.Second * 15)
+			//
+			//	if err = backup.CreateBackup(backupCfg, genDoc.ChainID, prevBlock.Height, false); err != nil {
+			//		logger.Error().Msg(fmt.Sprintf("failed to create backup: %v", err))
+			//	}
+			//
+			//	logger.Info().Msg(fmt.Sprintf("finished backup at block height: %d", prevBlock.Height))
+			//}
 
 			// if KSYNC has already fetched 3 * snapshot_interval ahead of the snapshot pool we wait
 			// in order to not bloat the KSYNC process
