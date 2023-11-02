@@ -21,21 +21,7 @@ func StartStateSync(engine types.Engine, homePath, chainRest, storageRest string
 	return db.StartStateSyncExecutor(engine, homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight)
 }
 
-func PerformStateSyncValidationChecks(engine types.Engine, homePath, chainRest string, snapshotPoolId, snapshotHeight int64, userInput bool) error {
-	// check if block height is zero
-
-	fmt.Println("hit")
-	appHeight, err := engine.GetAppHeight()
-	if err != nil {
-		return fmt.Errorf("failed get height from app: %w", err)
-	}
-
-	fmt.Println(appHeight)
-
-	if appHeight > 0 {
-		return fmt.Errorf("block height %d is not zero, please reset with \"ksync unsafe-reset-all\"", appHeight)
-	}
-
+func PerformStateSyncValidationChecks(chainRest string, snapshotPoolId, snapshotHeight int64, userInput bool) error {
 	// perform boundary checks
 	_, startHeight, endHeight, err := helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
 	if err != nil {
@@ -90,7 +76,7 @@ func StartStateSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 	logger.Info().Msg("starting state-sync")
 
 	// perform validation checks before booting state-sync process
-	if err := PerformStateSyncValidationChecks(engine, homePath, chainRest, snapshotPoolId, snapshotHeight, userInput); err != nil {
+	if err := PerformStateSyncValidationChecks(chainRest, snapshotPoolId, snapshotHeight, userInput); err != nil {
 		logger.Error().Msg(fmt.Sprintf("state-sync validation checks failed: %s", err))
 		os.Exit(1)
 	}

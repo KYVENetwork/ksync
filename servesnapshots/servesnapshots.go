@@ -95,7 +95,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 
 	if height == 0 && snapshotHeight > 0 {
 		// if we can perform a state-sync we first make the validation checks
-		if err := statesync.PerformStateSyncValidationChecks(engine, homePath, chainRest, snapshotPoolId, snapshotHeight, false); err != nil {
+		if err := statesync.PerformStateSyncValidationChecks(chainRest, snapshotPoolId, snapshotHeight, false); err != nil {
 			logger.Error().Msg(fmt.Sprintf("state-sync validation checks failed: %s", err))
 			os.Exit(1)
 		}

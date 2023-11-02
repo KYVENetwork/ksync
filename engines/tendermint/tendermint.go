@@ -219,20 +219,16 @@ func (tm *TmEngine) ApplyBlock(value []byte) error {
 }
 
 func (tm *TmEngine) GetAppHeight() (int64, error) {
-	fmt.Println("NewSocketClient")
 	socketClient := abciClient.NewSocketClient(tm.config.ProxyApp, false)
 
-	fmt.Println("Start")
 	if err := socketClient.Start(); err != nil {
 		return 0, fmt.Errorf("failed to start socket client: %w", err)
 	}
 
-	fmt.Println("info sync")
 	info, err := socketClient.InfoSync(abciTypes.RequestInfo{})
 	if err != nil {
 		return 0, fmt.Errorf("failed to query info: %w", err)
 	}
-	fmt.Println(info)
 
 	if err := socketClient.Stop(); err != nil {
 		return 0, fmt.Errorf("failed to stop socket client: %w", err)

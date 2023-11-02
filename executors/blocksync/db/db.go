@@ -21,6 +21,7 @@ var (
 )
 
 func GetBlockBoundaries(restEndpoint string, poolId int64) (*types.PoolResponse, int64, int64, error) {
+	// TODO: use this in block-sync again
 	// load start and latest height
 	poolResponse, err := pool.GetPoolInfo(restEndpoint, poolId)
 	if err != nil {
