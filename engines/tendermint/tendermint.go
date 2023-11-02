@@ -19,7 +19,6 @@ import (
 	tmTypes "github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tendermint/version"
 	db "github.com/tendermint/tm-db"
-	"strconv"
 )
 
 var (
@@ -40,7 +39,7 @@ type TmEngine struct {
 	blockExecutor *tmState.BlockExecutor
 }
 
-func (tm *TmEngine) StartEngine(homePath string) error {
+func (tm *TmEngine) Start(homePath string) error {
 	config, err := utils.LoadConfig(homePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
@@ -67,7 +66,7 @@ func (tm *TmEngine) StartEngine(homePath string) error {
 	return nil
 }
 
-func (tm *TmEngine) StopEngine() error {
+func (tm *TmEngine) Stop() error {
 	if err := tm.blockDB.Close(); err != nil {
 		return fmt.Errorf("failed to close blockDB: %w", err)
 	}
@@ -79,12 +78,14 @@ func (tm *TmEngine) StopEngine() error {
 	return nil
 }
 
-func (tm *TmEngine) GetName() string {
-	return "Tendermint"
-}
+func (tm *TmEngine) GetChainId() (string, error) {
+	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(tm.config)
+	_, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(tm.stateDB, defaultDocProvider)
+	if err != nil {
+		return "", fmt.Errorf("failed to load state and genDoc: %w", err)
+	}
 
-func (tm *TmEngine) GetCompatibleRuntimes() []string {
-	return []string{utils.KSyncRuntimeTendermintBsync, utils.KSyncRuntimeTendermint}
+	return genDoc.ChainID, nil
 }
 
 func (tm *TmEngine) GetMetrics() ([]byte, error) {
@@ -102,10 +103,6 @@ func (tm *TmEngine) GetMetrics() ([]byte, error) {
 		EarliestBlockTime:   earliest.Time,
 		CatchingUp:          true,
 	})
-}
-
-func (tm *TmEngine) ParseHeightFromKey(key string) (int64, error) {
-	return strconv.ParseInt(key, 10, 64)
 }
 
 func (tm *TmEngine) GetContinuationHeight() (int64, error) {
@@ -218,6 +215,14 @@ func (tm *TmEngine) ApplyBlock(value []byte) error {
 	return nil
 }
 
+func (tm *TmEngine) GetHeight() int64 {
+	return tm.blockStore.Height()
+}
+
+func (tm *TmEngine) GetBaseHeight() int64 {
+	return tm.blockStore.Base()
+}
+
 func (tm *TmEngine) GetAppHeight() (int64, error) {
 	socketClient := abciClient.NewSocketClient(tm.config.ProxyApp, false)
 
@@ -258,6 +263,31 @@ func (tm *TmEngine) GetSnapshots() ([]byte, error) {
 	}
 
 	return json.Marshal(res.Snapshots)
+}
+
+func (tm *TmEngine) IsSnapshotAvailable(height int64) (bool, error) {
+	socketClient := abciClient.NewSocketClient(tm.config.ProxyApp, false)
+
+	if err := socketClient.Start(); err != nil {
+		return false, fmt.Errorf("failed to start socket client: %w", err)
+	}
+
+	res, err := socketClient.ListSnapshotsSync(abciTypes.RequestListSnapshots{})
+	if err != nil {
+		return false, fmt.Errorf("failed to list snapshots: %w", err)
+	}
+
+	if err := socketClient.Stop(); err != nil {
+		return false, fmt.Errorf("failed to stop socket client: %w", err)
+	}
+
+	for _, snapshot := range res.Snapshots {
+		if snapshot.Height == uint64(height) {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func (tm *TmEngine) GetSnapshotChunk(height, format, chunk int64) ([]byte, error) {
@@ -429,6 +459,23 @@ func (tm *TmEngine) BootstrapState(value []byte) error {
 
 	blockParts := bundle[0].Value.Block.MakePartSet(tmTypes.BlockPartSizeBytes)
 	tm.blockStore.SaveBlock(bundle[0].Value.Block, blockParts, bundle[0].Value.SeenCommit)
+
+	return nil
+}
+
+func (tm *TmEngine) PruneBlocks(toHeight int64) error {
+	blocksPruned, err := tm.blockStore.PruneBlocks(toHeight)
+	if err != nil {
+		return fmt.Errorf("failed to prune blocks up to %d: %s", toHeight, err)
+	}
+
+	base := toHeight - int64(blocksPruned)
+
+	if toHeight > base {
+		if err := tm.stateStore.PruneStates(base, toHeight); err != nil {
+			return fmt.Errorf("failed to prune state up to %d: %s", toHeight, err)
+		}
+	}
 
 	return nil
 }

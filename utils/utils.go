@@ -128,6 +128,10 @@ func IsFileGreaterThanOrEqualTo100MB(filePath string) (bool, error) {
 	return false, nil
 }
 
+func ParseBlockHeightFromKey(key string) (int64, error) {
+	return strconv.ParseInt(key, 10, 64)
+}
+
 func ParseSnapshotFromKey(key string) (height int64, chunkIndex int64, err error) {
 	// if key is empty we are at height 0
 	if key == "" {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/blocksync"
 	"github.com/KYVENetwork/ksync/bootstrap"
-	bootstrapHelpers "github.com/KYVENetwork/ksync/bootstrap/helpers"
 	"github.com/KYVENetwork/ksync/collectors/pool"
 	"github.com/KYVENetwork/ksync/collectors/snapshots"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db"
@@ -60,11 +59,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		)
 	}
 
-	height, err := bootstrapHelpers.GetBlockHeightFromDB(homePath)
-	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("could not get node height: %s", err))
-		os.Exit(1)
-	}
+	height := engine.GetHeight()
 
 	var snapshotHeight int64
 

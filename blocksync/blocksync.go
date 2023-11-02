@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/KYVENetwork/ksync/bootstrap"
-	"github.com/KYVENetwork/ksync/collectors/pool"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/supervisor"
@@ -31,19 +30,9 @@ func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blo
 	logger.Info().Msg(fmt.Sprintf("loaded current block height of node: %d", continuationHeight-1))
 
 	// perform boundary checks
-	poolInfo, err := pool.GetPoolInfo(chainRest, blockPoolId)
+	_, startHeight, endHeight, err := db.GetBlockBoundaries(chainRest, blockPoolId)
 	if err != nil {
-		return fmt.Errorf("failed to get pool info: %w", err)
-	}
-
-	startHeight, err := engine.ParseHeightFromKey(poolInfo.Pool.Data.StartKey)
-	if err != nil {
-		return fmt.Errorf("failed to get start height from start key %s: %w", poolInfo.Pool.Data.StartKey, err)
-	}
-
-	endHeight, err := engine.ParseHeightFromKey(poolInfo.Pool.Data.CurrentKey)
-	if err != nil {
-		return fmt.Errorf("failed to get end height from current key %s: %w", poolInfo.Pool.Data.CurrentKey, err)
+		return fmt.Errorf("failed to get block boundaries: %w", err)
 	}
 
 	logger.Info().Msg(fmt.Sprintf("retrieved block boundaries, earliest block height = %d, latest block height %d", startHeight, endHeight))

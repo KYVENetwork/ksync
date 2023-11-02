@@ -15,7 +15,7 @@ var (
 	logger = log.KsyncLogger("collector")
 )
 
-func StartBlockCollector(engine types.Engine, itemCh chan<- types.DataItem, errorCh chan<- error, chainRest, storageRest string, blockPool types.PoolResponse, continuationHeight, targetHeight int64, mustExit bool) {
+func StartBlockCollector(itemCh chan<- types.DataItem, errorCh chan<- error, chainRest, storageRest string, blockPool types.PoolResponse, continuationHeight, targetHeight int64, mustExit bool) {
 	paginationKey := ""
 
 BundleCollector:
@@ -54,7 +54,7 @@ BundleCollector:
 			}
 
 			for _, dataItem := range bundle {
-				itemHeight, err := engine.ParseHeightFromKey(dataItem.Key)
+				itemHeight, err := utils.ParseBlockHeightFromKey(dataItem.Key)
 				if err != nil {
 					errorCh <- fmt.Errorf("failed parse block height from key %s: %w", dataItem.Key, err)
 					return

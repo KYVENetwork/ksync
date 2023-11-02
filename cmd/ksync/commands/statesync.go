@@ -48,26 +48,26 @@ var stateSyncCmd = &cobra.Command{
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
 
-		var ksyncEngine types.Engine
+		var consensusEngine types.Engine
 
 		switch engine {
 		case utils.EngineTendermint:
-			ksyncEngine = &tendermint.TmEngine{}
+			consensusEngine = &tendermint.TmEngine{}
 		case utils.EngineCometBFT:
-			ksyncEngine = &tendermint.TmEngine{}
+			consensusEngine = &tendermint.TmEngine{}
 		default:
 			logger.Error().Msg(fmt.Sprintf("engine %s not found", engine))
 			return
 		}
 
-		if err := ksyncEngine.StartEngine(homePath); err != nil {
+		if err := consensusEngine.Start(homePath); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to start engine: %s", err))
 			os.Exit(1)
 		}
 
-		statesync.StartStateSyncWithBinary(ksyncEngine, binaryPath, homePath, chainRest, storageRest, snapshotPoolId, targetHeight, !y)
+		statesync.StartStateSyncWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, snapshotPoolId, targetHeight, !y)
 
-		if err := ksyncEngine.StopEngine(); err != nil {
+		if err := consensusEngine.Stop(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to stop engine: %s", err))
 			os.Exit(1)
 		}
