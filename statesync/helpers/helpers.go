@@ -69,6 +69,10 @@ func GetSnapshotBoundaries(restEndpoint string, poolId int64) (*types.PoolRespon
 		}
 
 		latestBundleId--
+
+		if latestBundleId < 0 {
+			return poolResponse, 0, 0, nil
+		}
 	}
 
 	return poolResponse, startHeight, endHeight, nil
