@@ -131,3 +131,27 @@ type BackupConfig = struct {
 	Dest        string
 	Compression string
 }
+
+type SourceMetadata struct {
+	ChainID string `yaml:"chain_id"`
+	Hex     string `yaml:"hex"`
+	Title   string `yaml:"title"`
+}
+
+type KYVEInfo struct {
+	BlockPoolID    *int    `yaml:"block_pool_id,omitempty"`
+	StatePoolID    *int    `yaml:"state_pool_id,omitempty"`
+	LatestBlockKey *string `yaml:"latest_block_key"`
+	LatestStateKey *string `yaml:"latest_state_key"`
+}
+
+type Entry struct {
+	Source SourceMetadata `yaml:"source"`
+	Kaon   *KYVEInfo      `yaml:"kaon-1,omitempty"`
+	Kyve   *KYVEInfo      `yaml:"kyve-1,omitempty"`
+}
+
+type SourceRegistry struct {
+	Entries map[string]Entry `yaml:",inline"`
+	Version string           `yaml:"version"`
+}

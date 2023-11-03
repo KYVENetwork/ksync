@@ -3,15 +3,20 @@ package commands
 import (
 	_ "embed"
 	"fmt"
-	"github.com/KYVENetwork/ksync/chains"
+	"github.com/KYVENetwork/ksync/sources"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
 	"os"
+	"sort"
 )
+
+var registryUrl string
 
 func init() {
 	infoCmd.Flags().StringVar(&chainId, "chain-id", utils.DefaultChainId, fmt.Sprintf("KYVE chain id [\"%s\",\"%s\"]", utils.ChainIdMainnet, utils.ChainIdKaon))
+
+	infoCmd.Flags().StringVar(&registryUrl, "registry-url", utils.DefaultRegistryURL, "URL to fetch latest KYVE Source-Registry")
 
 	rootCmd.AddCommand(infoCmd)
 }
@@ -25,21 +30,44 @@ var infoCmd = &cobra.Command{
 			return
 		}
 
-		supportedChains, err := chains.GetSupportedChains(chainId)
+		sourceRegistry, err := sources.GetSourceRegistry(registryUrl)
 		if err != nil {
-			logger.Error().Str("err", err.Error()).Msg("failed to get supported chains")
+			logger.Error().Str("err", err.Error()).Msg("failed to get source registry")
 			return
 		}
 
+		// Sort SourceRegistry
+		sortFunc := func(keys []string) {
+			sort.Slice(keys, func(i, j int) bool {
+				return sourceRegistry.Entries[keys[i]].Source.ChainID < sourceRegistry.Entries[keys[j]].Source.ChainID
+			})
+		}
+		keys := make([]string, 0, len(sourceRegistry.Entries))
+		for key := range sourceRegistry.Entries {
+			keys = append(keys, key)
+		}
+		sortFunc(keys)
+
 		t := table.NewWriter()
 		t.SetOutputMirror(os.Stdout)
-		t.AppendHeader(table.Row{"Chain", "Block height [ID]", "State height [ID]", "BLOCK-SYNC", "STATE-SYNC", "HEIGHT-SYNC"})
+		t.AppendHeader(table.Row{"Source", "Block height [ID]", "State height [ID]", "BLOCK-SYNC", "STATE-SYNC", "HEIGHT-SYNC"})
 
-		for _, c := range *supportedChains {
-			blockKey, stateKey, blockSync, stateSync, heightSync := chains.FormatOutput(&c)
+		for _, key := range keys {
+			entry := sourceRegistry.Entries[key]
+
+			if chainId == utils.ChainIdMainnet {
+				if (entry.Kyve.StatePoolID == nil) && (entry.Kyve.BlockPoolID == nil) {
+					continue
+				}
+			} else if chainId == utils.ChainIdKaon {
+				if (entry.Kaon.StatePoolID == nil) && (entry.Kaon.BlockPoolID == nil) {
+					continue
+				}
+			}
+			blockKey, stateKey, blockSync, stateSync, heightSync := sources.FormatOutput(&entry, chainId)
 			t.AppendRows([]table.Row{
 				{
-					c.Name,
+					entry.Source.Title,
 					blockKey,
 					stateKey,
 					blockSync,
