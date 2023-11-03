@@ -77,7 +77,7 @@ func GetBlockstoreDBs(config *Config) (dbm.DB, *store.BlockStore, error) {
 }
 
 func CreateAndStartProxyAppConns(config *Config) (proxy.AppConns, error) {
-	proxyApp := proxy.NewAppConns(proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()), &proxy.Metrics{})
+	proxyApp := proxy.NewAppConns(proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()), proxy.NopMetrics())
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
@@ -102,12 +102,20 @@ func DoHandshake(
 	eventBus cometTypes.BlockEventPublisher,
 	proxyApp proxy.AppConns,
 ) error {
+	fmt.Println("cs.NewHandshaker")
 	handshaker := cs.NewHandshaker(stateStore, state, blockStore, genDoc)
 	handshaker.SetLogger(logger.With("module", "consensus"))
 	handshaker.SetEventBus(eventBus)
+	fmt.Println("handshaker.Handshake")
+	res, err := proxyApp.Query().InfoSync(proxy.RequestInfo)
+	if err != nil {
+		return fmt.Errorf("error calling Info: %v", err)
+	}
+	fmt.Println(res)
 	if err := handshaker.Handshake(proxyApp); err != nil {
 		return fmt.Errorf("error during handshake: %v", err)
 	}
+	fmt.Println("performed handshake")
 	return nil
 }
 
@@ -117,7 +125,7 @@ func CreateMempool(config *Config, proxyApp proxy.AppConns, state sm.State) memp
 		config.Mempool,
 		proxyApp.Mempool(),
 		state.LastBlockHeight,
-		memplv0.WithMetrics(&mempl.Metrics{}),
+		memplv0.WithMetrics(mempl.NopMetrics()),
 		memplv0.WithPreCheck(sm.TxPreCheck(state)),
 		memplv0.WithPostCheck(sm.TxPostCheck(state)),
 	)

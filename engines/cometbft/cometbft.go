@@ -120,6 +120,7 @@ func (comet *CometEngine) GetContinuationHeight() (int64, error) {
 }
 
 func (comet *CometEngine) DoHandshake() error {
+	fmt.Println("doing handshake")
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(comet.config)
 	state, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(comet.stateDB, defaultDocProvider)
 	if err != nil {
@@ -135,6 +136,8 @@ func (comet *CometEngine) DoHandshake() error {
 	if err != nil {
 		return fmt.Errorf("failed to start event bus: %w", err)
 	}
+
+	fmt.Println("DoHandshake")
 
 	if err := DoHandshake(comet.stateStore, state, comet.blockStore, genDoc, eventBus, proxyApp); err != nil {
 		return fmt.Errorf("failed to do handshake: %w", err)
