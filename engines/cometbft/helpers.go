@@ -2,25 +2,49 @@ package cometbft
 
 import (
 	"fmt"
-	log "github.com/KYVENetwork/ksync/logger"
-	cs "github.com/tendermint/tendermint/consensus"
-	"github.com/tendermint/tendermint/evidence"
-	mempl "github.com/tendermint/tendermint/mempool"
-	"github.com/tendermint/tendermint/proxy"
-	"github.com/tendermint/tendermint/state"
-	sm "github.com/tendermint/tendermint/state"
-	"github.com/tendermint/tendermint/store"
-	tmTypes "github.com/tendermint/tendermint/types"
-	dbm "github.com/tendermint/tm-db"
+	dbm "github.com/cometbft/cometbft-db"
+	cfg "github.com/cometbft/cometbft/config"
+	cs "github.com/cometbft/cometbft/consensus"
+	"github.com/cometbft/cometbft/evidence"
+	mempl "github.com/cometbft/cometbft/mempool"
+	memplv0 "github.com/cometbft/cometbft/mempool/v0"
+	"github.com/cometbft/cometbft/proxy"
+	"github.com/cometbft/cometbft/state"
+	sm "github.com/cometbft/cometbft/state"
+	"github.com/cometbft/cometbft/store"
+	cometTypes "github.com/cometbft/cometbft/types"
+	"github.com/spf13/viper"
+	"path/filepath"
 )
 
 var (
-	logger = log.KLogger()
+	logger = KLogger()
 )
 
 type DBContext struct {
 	ID     string
 	Config *Config
+}
+
+func LoadConfig(homePath string) (*cfg.Config, error) {
+	config := cfg.DefaultConfig()
+
+	viper.SetConfigName("config")
+	viper.SetConfigType("toml")
+	viper.AddConfigPath(homePath)
+	viper.AddConfigPath(filepath.Join(homePath, "config"))
+
+	if err := viper.ReadInConfig(); err != nil {
+		return nil, err
+	}
+
+	if err := viper.Unmarshal(config); err != nil {
+		return nil, err
+	}
+
+	config.SetRoot(homePath)
+
+	return config, nil
 }
 
 func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
@@ -34,7 +58,9 @@ func GetStateDBs(config *Config) (dbm.DB, state.Store, error) {
 		return nil, nil, err
 	}
 
-	stateStore := state.NewStore(stateDB)
+	stateStore := state.NewStore(stateDB, sm.StoreOptions{
+		DiscardABCIResponses: config.Storage.DiscardABCIResponses,
+	})
 
 	return stateDB, stateStore, nil
 }
@@ -51,7 +77,7 @@ func GetBlockstoreDBs(config *Config) (dbm.DB, *store.BlockStore, error) {
 }
 
 func CreateAndStartProxyAppConns(config *Config) (proxy.AppConns, error) {
-	proxyApp := proxy.NewAppConns(proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()))
+	proxyApp := proxy.NewAppConns(proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()), &proxy.Metrics{})
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
@@ -59,8 +85,8 @@ func CreateAndStartProxyAppConns(config *Config) (proxy.AppConns, error) {
 	return proxyApp, nil
 }
 
-func CreateAndStartEventBus() (*tmTypes.EventBus, error) {
-	eventBus := tmTypes.NewEventBus()
+func CreateAndStartEventBus() (*cometTypes.EventBus, error) {
+	eventBus := cometTypes.NewEventBus()
 	eventBus.SetLogger(logger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
 		return nil, err
@@ -73,7 +99,7 @@ func DoHandshake(
 	state sm.State,
 	blockStore sm.BlockStore,
 	genDoc *GenesisDoc,
-	eventBus tmTypes.BlockEventPublisher,
+	eventBus cometTypes.BlockEventPublisher,
 	proxyApp proxy.AppConns,
 ) error {
 	handshaker := cs.NewHandshaker(stateStore, state, blockStore, genDoc)
@@ -85,24 +111,23 @@ func DoHandshake(
 	return nil
 }
 
-func CreateMempoolAndMempoolReactor(config *Config, proxyApp proxy.AppConns,
-	state sm.State) (*mempl.Reactor, *mempl.CListMempool) {
-
-	mempool := mempl.NewCListMempool(
+func CreateMempool(config *Config, proxyApp proxy.AppConns, state sm.State) mempl.Mempool {
+	logger = logger.With("module", "mempool")
+	mp := memplv0.NewCListMempool(
 		config.Mempool,
 		proxyApp.Mempool(),
 		state.LastBlockHeight,
-		mempl.WithPreCheck(sm.TxPreCheck(state)),
-		mempl.WithPostCheck(sm.TxPostCheck(state)),
+		memplv0.WithMetrics(&mempl.Metrics{}),
+		memplv0.WithPreCheck(sm.TxPreCheck(state)),
+		memplv0.WithPostCheck(sm.TxPostCheck(state)),
 	)
-	mempoolLogger := logger.With("module", "mempool")
-	mempoolReactor := mempl.NewReactor(config.Mempool, mempool)
-	mempoolReactor.SetLogger(mempoolLogger)
 
+	mp.SetLogger(logger)
 	if config.Consensus.WaitForTxs() {
-		mempool.EnableTxsAvailable()
+		mp.EnableTxsAvailable()
 	}
-	return mempoolReactor, mempool
+
+	return mp
 }
 
 func CreateEvidenceReactor(config *Config, stateStore sm.Store, blockStore *store.BlockStore) (*evidence.Reactor, *evidence.Pool, error) {

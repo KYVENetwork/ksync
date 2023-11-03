@@ -3,11 +3,10 @@ package p2p
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/collectors/bundles"
-	tendermint "github.com/KYVENetwork/ksync/engines/tendermint"
+	"github.com/KYVENetwork/ksync/engines/tendermint"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db"
 	p2pHelpers "github.com/KYVENetwork/ksync/executors/blocksync/p2p/helpers"
 	"github.com/KYVENetwork/ksync/executors/blocksync/p2p/reactor"
-	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/tendermint/tendermint/crypto/ed25519"
@@ -19,8 +18,8 @@ import (
 )
 
 var (
-	kLogger = log.KLogger().With("module", "p2p")
-	logger  = log.KsyncLogger("p2p")
+	kLogger = tendermint.KLogger().With("module", "p2p")
+	logger  = tendermint.KsyncLogger("p2p")
 )
 
 func retrieveBlock(pool *types.PoolResponse, chainRest, storageRest string, height int64) (*tendermint.Block, error) {
@@ -101,7 +100,7 @@ func StartP2PExecutor(homePath string, poolId int64, chainRest, storageRest stri
 	logger.Info().Msg("starting p2p sync")
 
 	// load config
-	config, err := utils.LoadConfig(homePath)
+	config, err := tendermint.LoadConfig(homePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}

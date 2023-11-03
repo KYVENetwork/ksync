@@ -2,7 +2,7 @@ package supervisor
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/utils"
+	"github.com/KYVENetwork/ksync/engines/tendermint"
 	"os"
 	"os/exec"
 	"strings"
@@ -22,7 +22,7 @@ func StartBinaryProcessForDB(binaryPath string, homePath string, args []string) 
 		startArgs = append(startArgs, "run")
 	}
 
-	config, err := utils.LoadConfig(homePath)
+	config, err := tendermint.LoadConfig(homePath)
 	if err != nil {
 		return processId, fmt.Errorf("failed to load config.toml: %w", err)
 	}

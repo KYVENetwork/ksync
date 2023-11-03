@@ -5,7 +5,7 @@ import (
 	"github.com/KYVENetwork/ksync/backup"
 	"github.com/KYVENetwork/ksync/collectors/blocks"
 	"github.com/KYVENetwork/ksync/collectors/pool"
-	log "github.com/KYVENetwork/ksync/logger"
+	log "github.com/KYVENetwork/ksync/engines/tendermint"
 	"github.com/KYVENetwork/ksync/server"
 	stateSyncHelpers "github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"

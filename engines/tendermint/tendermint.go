@@ -2,9 +2,7 @@ package tendermint
 
 import (
 	"fmt"
-	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
-	"github.com/KYVENetwork/ksync/utils"
 	abciClient "github.com/tendermint/tendermint/abci/client"
 	abciTypes "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
@@ -20,7 +18,7 @@ import (
 )
 
 var (
-	kLogger = log.KLogger()
+	kLogger = KLogger()
 )
 
 type TmEngine struct {
@@ -38,7 +36,7 @@ type TmEngine struct {
 }
 
 func (tm *TmEngine) Start(homePath string) error {
-	config, err := utils.LoadConfig(homePath)
+	config, err := LoadConfig(homePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
 	}

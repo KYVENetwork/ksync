@@ -3,7 +3,6 @@ package reactor
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/engines/tendermint"
-	log "github.com/KYVENetwork/ksync/logger"
 	bc "github.com/tendermint/tendermint/blockchain"
 	"github.com/tendermint/tendermint/p2p"
 	bcproto "github.com/tendermint/tendermint/proto/tendermint/blockchain"
@@ -15,7 +14,7 @@ const (
 )
 
 var (
-	logger = log.KsyncLogger("reactor")
+	logger = tendermint.KsyncLogger("reactor")
 )
 
 type BlockchainReactor struct {

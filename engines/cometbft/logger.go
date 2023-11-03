@@ -1,9 +1,9 @@
-package logger
+package cometbft
 
 import (
 	"fmt"
+	"github.com/cometbft/cometbft/libs/log"
 	"github.com/rs/zerolog"
-	"github.com/tendermint/tendermint/libs/log"
 	"io"
 	"os"
 )

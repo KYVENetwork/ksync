@@ -3,8 +3,8 @@ package bootstrap
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/bootstrap/helpers"
+	"github.com/KYVENetwork/ksync/engines/tendermint"
 	"github.com/KYVENetwork/ksync/executors/blocksync/p2p"
-	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/supervisor"
 	"github.com/KYVENetwork/ksync/utils"
 	nm "github.com/tendermint/tendermint/node"
@@ -12,13 +12,13 @@ import (
 )
 
 var (
-	logger = log.KsyncLogger("bootstrap")
+	logger = tendermint.KsyncLogger("bootstrap")
 )
 
 func StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest string, poolId int64) error {
 	logger.Info().Msg("starting bootstrap")
 
-	config, err := utils.LoadConfig(homePath)
+	config, err := tendermint.LoadConfig(homePath)
 	if err != nil {
 		return err
 	}

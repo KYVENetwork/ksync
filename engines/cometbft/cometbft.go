@@ -2,25 +2,23 @@ package cometbft
 
 import (
 	"fmt"
-	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
-	"github.com/KYVENetwork/ksync/utils"
-	abciClient "github.com/tendermint/tendermint/abci/client"
-	abciTypes "github.com/tendermint/tendermint/abci/types"
-	cfg "github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/libs/json"
-	nm "github.com/tendermint/tendermint/node"
-	"github.com/tendermint/tendermint/p2p"
-	tmProtoState "github.com/tendermint/tendermint/proto/tendermint/state"
-	tmState "github.com/tendermint/tendermint/state"
-	tmStore "github.com/tendermint/tendermint/store"
-	tmTypes "github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/version"
-	db "github.com/tendermint/tm-db"
+	db "github.com/cometbft/cometbft-db"
+	abciClient "github.com/cometbft/cometbft/abci/client"
+	abciTypes "github.com/cometbft/cometbft/abci/types"
+	cfg "github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/libs/json"
+	nm "github.com/cometbft/cometbft/node"
+	"github.com/cometbft/cometbft/p2p"
+	tmProtoState "github.com/cometbft/cometbft/proto/tendermint/state"
+	tmState "github.com/cometbft/cometbft/state"
+	tmStore "github.com/cometbft/cometbft/store"
+	tmTypes "github.com/cometbft/cometbft/types"
+	"github.com/cometbft/cometbft/version"
 )
 
 var (
-	kLogger = log.KLogger()
+	kLogger = KLogger()
 )
 
 type CometEngine struct {
@@ -38,7 +36,7 @@ type CometEngine struct {
 }
 
 func (comet *CometEngine) Start(homePath string) error {
-	config, err := utils.LoadConfig(homePath)
+	config, err := LoadConfig(homePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
 	}
@@ -149,7 +147,7 @@ func (comet *CometEngine) DoHandshake() error {
 
 	comet.state = state
 
-	_, mempool := CreateMempoolAndMempoolReactor(comet.config, proxyApp, state)
+	mempool := CreateMempool(comet.config, proxyApp, state)
 
 	_, evidencePool, err := CreateEvidenceReactor(comet.config, comet.stateStore, comet.blockStore)
 	if err != nil {
@@ -184,7 +182,11 @@ func (comet *CometEngine) ApplyBlock(value []byte) error {
 	}
 
 	// get block data
-	blockParts := comet.prevBlock.MakePartSet(tmTypes.BlockPartSizeBytes)
+	blockParts, err := comet.prevBlock.MakePartSet(tmTypes.BlockPartSizeBytes)
+	if err != nil {
+		return fmt.Errorf("failed make part set of block: %w", err)
+	}
+
 	blockId := tmTypes.BlockID{Hash: comet.prevBlock.Hash(), PartSetHeader: blockParts.Header()}
 
 	// verify block
@@ -447,15 +449,19 @@ func (comet *CometEngine) BootstrapState(value []byte) error {
 
 	err := comet.stateStore.Bootstrap(*bundle[0].Value.State)
 	if err != nil {
-		return fmt.Errorf("failed to bootstrap state: %s\"", err)
+		return fmt.Errorf("failed to bootstrap state: %w", err)
 	}
 
 	err = comet.blockStore.SaveSeenCommit(bundle[0].Value.State.LastBlockHeight, bundle[0].Value.SeenCommit)
 	if err != nil {
-		return fmt.Errorf("failed to save seen commit: %s\"", err)
+		return fmt.Errorf("failed to save seen commit: %w", err)
 	}
 
-	blockParts := bundle[0].Value.Block.MakePartSet(tmTypes.BlockPartSizeBytes)
+	blockParts, err := bundle[0].Value.Block.MakePartSet(tmTypes.BlockPartSizeBytes)
+	if err != nil {
+		return fmt.Errorf("failed make part set of block: %w", err)
+	}
+
 	comet.blockStore.SaveBlock(bundle[0].Value.Block, blockParts, bundle[0].Value.SeenCommit)
 
 	return nil

@@ -2,7 +2,8 @@ package tendermint
 
 import (
 	"fmt"
-	log "github.com/KYVENetwork/ksync/logger"
+	"github.com/spf13/viper"
+	cfg "github.com/tendermint/tendermint/config"
 	cs "github.com/tendermint/tendermint/consensus"
 	"github.com/tendermint/tendermint/evidence"
 	mempl "github.com/tendermint/tendermint/mempool"
@@ -12,15 +13,37 @@ import (
 	"github.com/tendermint/tendermint/store"
 	tmTypes "github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
+	"path/filepath"
 )
 
 var (
-	logger = log.KLogger()
+	logger = KLogger()
 )
 
 type DBContext struct {
 	ID     string
 	Config *Config
+}
+
+func LoadConfig(homePath string) (*cfg.Config, error) {
+	config := cfg.DefaultConfig()
+
+	viper.SetConfigName("config")
+	viper.SetConfigType("toml")
+	viper.AddConfigPath(homePath)
+	viper.AddConfigPath(filepath.Join(homePath, "config"))
+
+	if err := viper.ReadInConfig(); err != nil {
+		return nil, err
+	}
+
+	if err := viper.Unmarshal(config); err != nil {
+		return nil, err
+	}
+
+	config.SetRoot(homePath)
+
+	return config, nil
 }
 
 func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
