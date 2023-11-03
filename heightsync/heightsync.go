@@ -123,6 +123,29 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 		}
 	}
 
+	// ignore error, since process gets terminated anyway afterwards
+	e := engine.Stop()
+	_ = e
+
+	if err := supervisor.StopProcessByProcessId(processId); err != nil {
+		panic(err)
+	}
+
+	processId, err = supervisor.StartBinaryProcessForDB(binaryPath, homePath, []string{})
+	if err != nil {
+		panic(err)
+	}
+
+	if err := engine.Start(homePath); err != nil {
+		logger.Error().Msg(fmt.Sprintf("failed to start engine: %s", err))
+
+		// stop binary process thread
+		if err := supervisor.StopProcessByProcessId(processId); err != nil {
+			panic(err)
+		}
+		os.Exit(1)
+	}
+
 	// if we have not reached our target height yet we block-sync the remaining ones
 	if remaining := targetHeight - snapshotHeight; remaining > 0 {
 		logger.Info().Msg(fmt.Sprintf("block-syncing remaining %d blocks", remaining))

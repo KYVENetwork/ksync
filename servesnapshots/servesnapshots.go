@@ -109,6 +109,29 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 			}
 			os.Exit(1)
 		}
+
+		// ignore error, since process gets terminated anyway afterwards
+		e := engine.Stop()
+		_ = e
+
+		if err := supervisor.StopProcessByProcessId(processId); err != nil {
+			panic(err)
+		}
+
+		processId, err = supervisor.StartBinaryProcessForDB(binaryPath, homePath, []string{})
+		if err != nil {
+			panic(err)
+		}
+
+		if err := engine.Start(homePath); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to start engine: %s", err))
+
+			// stop binary process thread
+			if err := supervisor.StopProcessByProcessId(processId); err != nil {
+				panic(err)
+			}
+			os.Exit(1)
+		}
 	} else {
 		// if we have to sync from genesis we first bootstrap the node
 		if err := bootstrap.StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest, blockPoolId); err != nil {
