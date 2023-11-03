@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/backup"
 	"github.com/KYVENetwork/ksync/blocksync"
+	"github.com/KYVENetwork/ksync/engines/cometbft"
 	"github.com/KYVENetwork/ksync/engines/tendermint"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
@@ -69,7 +70,7 @@ var blockSyncCmd = &cobra.Command{
 		case utils.EngineTendermint:
 			consensusEngine = &tendermint.TmEngine{}
 		case utils.EngineCometBFT:
-			consensusEngine = &tendermint.TmEngine{}
+			consensusEngine = &cometbft.CometEngine{}
 		default:
 			logger.Error().Msg(fmt.Sprintf("engine %s not found", engine))
 			return

@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/engines/cometbft"
 	"github.com/KYVENetwork/ksync/engines/tendermint"
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/types"
@@ -54,7 +55,7 @@ var stateSyncCmd = &cobra.Command{
 		case utils.EngineTendermint:
 			consensusEngine = &tendermint.TmEngine{}
 		case utils.EngineCometBFT:
-			consensusEngine = &tendermint.TmEngine{}
+			consensusEngine = &cometbft.CometEngine{}
 		default:
 			logger.Error().Msg(fmt.Sprintf("engine %s not found", engine))
 			return
