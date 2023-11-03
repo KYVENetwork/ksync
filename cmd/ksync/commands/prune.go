@@ -2,7 +2,7 @@ package commands
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
+	helpers "github.com/KYVENetwork/ksync/engines/tendermint"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"os"
@@ -37,7 +37,7 @@ var pruneCmd = &cobra.Command{
 			panic(fmt.Errorf("failed to load config: %w", err))
 		}
 
-		blockStoreDB, blockStore, err := store.GetBlockstoreDBs(config)
+		blockStoreDB, blockStore, err := helpers.GetBlockstoreDBs(config)
 		defer blockStoreDB.Close()
 
 		if err != nil {

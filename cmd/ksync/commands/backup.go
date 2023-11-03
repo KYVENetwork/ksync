@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/backup"
-	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
+	helpers "github.com/KYVENetwork/ksync/engines/tendermint"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	nm "github.com/tendermint/tendermint/node"
@@ -36,7 +36,7 @@ var backupCmd = &cobra.Command{
 		}
 
 		// load block store
-		blockStoreDB, blockStore, err := store.GetBlockstoreDBs(config)
+		blockStoreDB, blockStore, err := helpers.GetBlockstoreDBs(config)
 		defer blockStoreDB.Close()
 
 		if err != nil {
@@ -45,7 +45,7 @@ var backupCmd = &cobra.Command{
 		}
 
 		// load state store
-		stateDB, _, err := store.GetStateDBs(config)
+		stateDB, _, err := helpers.GetStateDBs(config)
 		defer stateDB.Close()
 
 		if err != nil {

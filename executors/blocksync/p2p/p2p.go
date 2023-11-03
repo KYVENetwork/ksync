@@ -3,6 +3,7 @@ package p2p
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/collectors/bundles"
+	tendermint "github.com/KYVENetwork/ksync/engines/tendermint"
 	"github.com/KYVENetwork/ksync/executors/blocksync/db"
 	p2pHelpers "github.com/KYVENetwork/ksync/executors/blocksync/p2p/helpers"
 	"github.com/KYVENetwork/ksync/executors/blocksync/p2p/reactor"
@@ -22,7 +23,7 @@ var (
 	logger  = log.KsyncLogger("p2p")
 )
 
-func retrieveBlock(pool *types.PoolResponse, chainRest, storageRest string, height int64) (*types.Block, error) {
+func retrieveBlock(pool *types.PoolResponse, chainRest, storageRest string, height int64) (*tendermint.Block, error) {
 	paginationKey := ""
 
 	for {
@@ -52,7 +53,7 @@ func retrieveBlock(pool *types.PoolResponse, chainRest, storageRest string, heig
 			// depending on runtime the data items can look differently
 			if pool.Pool.Data.Runtime == utils.KSyncRuntimeTendermint {
 				// parse bundle
-				var bundle types.TendermintBundle
+				var bundle tendermint.TendermintBundle
 
 				if err := json.Unmarshal(deflated, &bundle); err != nil {
 					return nil, fmt.Errorf("failed to unmarshal tendermint bundle: %w", err)
@@ -68,7 +69,7 @@ func retrieveBlock(pool *types.PoolResponse, chainRest, storageRest string, heig
 				}
 			} else if pool.Pool.Data.Runtime == utils.KSyncRuntimeTendermintBsync {
 				// parse bundle
-				var bundle types.TendermintBsyncBundle
+				var bundle tendermint.TendermintBsyncBundle
 
 				if err := json.Unmarshal(deflated, &bundle); err != nil {
 					return nil, fmt.Errorf("failed to unmarshal tendermint bsync bundle: %w", err)

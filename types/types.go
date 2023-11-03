@@ -2,25 +2,8 @@ package types
 
 import (
 	"encoding/json"
-	abciTypes "github.com/tendermint/tendermint/abci/types"
-	tmCfg "github.com/tendermint/tendermint/config"
-	tmTypes "github.com/tendermint/tendermint/types"
-	"sync"
 	"time"
 )
-
-type Config = tmCfg.Config
-
-type GenesisDoc = tmTypes.GenesisDoc
-
-type BlockPair struct {
-	First  *Block
-	Second *Block
-}
-
-type Block = tmTypes.Block
-type LightBlock = tmTypes.LightBlock
-type Snapshot = abciTypes.Snapshot
 
 type HeightResponse struct {
 	Result struct {
@@ -48,38 +31,12 @@ type TendermintSSyncConfig = struct {
 	Interval int64  `json:"interval"`
 }
 
-type SyncProcess struct {
-	Name      string
-	Goroutine chan struct{}
-	QuitCh    chan<- int
-	Running   bool
-	wg        sync.WaitGroup
-}
-
 type DataItem struct {
 	Key   string          `json:"key"`
 	Value json.RawMessage `json:"value"`
 }
 
 type Bundle = []DataItem
-
-type TendermintDataItem struct {
-	Key   string `json:"key"`
-	Value struct {
-		Block struct {
-			Block *Block `json:"block"`
-		} `json:"block"`
-	} `json:"value"`
-}
-
-type TendermintBundle = []TendermintDataItem
-
-type TendermintBsyncDataItem struct {
-	Key   string `json:"key"`
-	Value *Block `json:"value"`
-}
-
-type TendermintBsyncBundle = []TendermintBsyncDataItem
 
 type Pagination struct {
 	NextKey []byte `json:"next_key"`

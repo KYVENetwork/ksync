@@ -1,13 +1,13 @@
-package helpers
+package tendermint
 
 import (
 	"fmt"
 	log "github.com/KYVENetwork/ksync/logger"
-	tmCfg "github.com/tendermint/tendermint/config"
 	cs "github.com/tendermint/tendermint/consensus"
 	"github.com/tendermint/tendermint/evidence"
 	mempl "github.com/tendermint/tendermint/mempool"
 	"github.com/tendermint/tendermint/proxy"
+	"github.com/tendermint/tendermint/state"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/store"
 	tmTypes "github.com/tendermint/tendermint/types"
@@ -18,7 +18,39 @@ var (
 	logger = log.KLogger()
 )
 
-func CreateAndStartProxyAppConns(config *tmCfg.Config) (proxy.AppConns, error) {
+type DBContext struct {
+	ID     string
+	Config *Config
+}
+
+func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
+	dbType := dbm.BackendType(ctx.Config.DBBackend)
+	return dbm.NewDB(ctx.ID, dbType, ctx.Config.DBDir())
+}
+
+func GetStateDBs(config *Config) (dbm.DB, state.Store, error) {
+	stateDB, err := DefaultDBProvider(&DBContext{"state", config})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	stateStore := state.NewStore(stateDB)
+
+	return stateDB, stateStore, nil
+}
+
+func GetBlockstoreDBs(config *Config) (dbm.DB, *store.BlockStore, error) {
+	blockStoreDB, err := DefaultDBProvider(&DBContext{"blockstore", config})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	blockStore := store.NewBlockStore(blockStoreDB)
+
+	return blockStoreDB, blockStore, nil
+}
+
+func CreateAndStartProxyAppConns(config *Config) (proxy.AppConns, error) {
 	proxyApp := proxy.NewAppConns(proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()))
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
@@ -40,7 +72,7 @@ func DoHandshake(
 	stateStore sm.Store,
 	state sm.State,
 	blockStore sm.BlockStore,
-	genDoc *tmTypes.GenesisDoc,
+	genDoc *GenesisDoc,
 	eventBus tmTypes.BlockEventPublisher,
 	proxyApp proxy.AppConns,
 ) error {
@@ -53,7 +85,7 @@ func DoHandshake(
 	return nil
 }
 
-func CreateMempoolAndMempoolReactor(config *tmCfg.Config, proxyApp proxy.AppConns,
+func CreateMempoolAndMempoolReactor(config *Config, proxyApp proxy.AppConns,
 	state sm.State) (*mempl.Reactor, *mempl.CListMempool) {
 
 	mempool := mempl.NewCListMempool(
@@ -73,17 +105,7 @@ func CreateMempoolAndMempoolReactor(config *tmCfg.Config, proxyApp proxy.AppConn
 	return mempoolReactor, mempool
 }
 
-type DBContext struct {
-	ID     string
-	Config *tmCfg.Config
-}
-
-func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
-	dbType := dbm.BackendType(ctx.Config.DBBackend)
-	return dbm.NewDB(ctx.ID, dbType, ctx.Config.DBDir())
-}
-
-func CreateEvidenceReactor(config *tmCfg.Config, stateStore sm.Store, blockStore *store.BlockStore) (*evidence.Reactor, *evidence.Pool, error) {
+func CreateEvidenceReactor(config *Config, stateStore sm.Store, blockStore *store.BlockStore) (*evidence.Reactor, *evidence.Pool, error) {
 	evidenceDB, err := DefaultDBProvider(&DBContext{ID: "evidence", Config: config})
 	if err != nil {
 		return nil, nil, err

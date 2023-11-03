@@ -2,7 +2,7 @@ package helpers
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
+	helpers "github.com/KYVENetwork/ksync/engines/tendermint"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/tendermint/tendermint/libs/json"
@@ -46,7 +46,7 @@ func GetBlockHeightFromDB(homePath string) (int64, error) {
 		return 0, err
 	}
 
-	blockStoreDB, blockStore, err := store.GetBlockstoreDBs(config)
+	blockStoreDB, blockStore, err := helpers.GetBlockstoreDBs(config)
 	defer blockStoreDB.Close()
 
 	if err != nil {
@@ -55,25 +55,4 @@ func GetBlockHeightFromDB(homePath string) (int64, error) {
 
 	height := blockStore.Height()
 	return height, nil
-}
-
-func GetStateHeightFromDB(homePath string) (int64, error) {
-	config, err := utils.LoadConfig(homePath)
-	if err != nil {
-		return 0, err
-	}
-
-	stateDB, stateStore, err := store.GetStateDBs(config)
-	defer stateDB.Close()
-
-	if err != nil {
-		return 0, err
-	}
-
-	state, err := stateStore.Load()
-	if err != nil {
-		return 0, err
-	}
-
-	return state.LastBlockHeight, nil
 }

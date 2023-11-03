@@ -2,8 +2,6 @@ package tendermint
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/executors/blocksync/db/helpers"
-	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
 	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
@@ -47,7 +45,7 @@ func (tm *TmEngine) Start(homePath string) error {
 
 	tm.config = config
 
-	blockDB, blockStore, err := store.GetBlockstoreDBs(config)
+	blockDB, blockStore, err := GetBlockstoreDBs(config)
 	if err != nil {
 		return fmt.Errorf("failed to open blockDB: %w", err)
 	}
@@ -55,7 +53,7 @@ func (tm *TmEngine) Start(homePath string) error {
 	tm.blockDB = blockDB
 	tm.blockStore = blockStore
 
-	stateDB, stateStore, err := store.GetStateDBs(config)
+	stateDB, stateStore, err := GetStateDBs(config)
 	if err != nil {
 		return fmt.Errorf("failed to open stateDB: %w", err)
 	}
@@ -130,17 +128,17 @@ func (tm *TmEngine) DoHandshake() error {
 		return fmt.Errorf("failed to load state and genDoc: %w", err)
 	}
 
-	proxyApp, err := helpers.CreateAndStartProxyAppConns(tm.config)
+	proxyApp, err := CreateAndStartProxyAppConns(tm.config)
 	if err != nil {
 		return fmt.Errorf("failed to start proxy app: %w", err)
 	}
 
-	eventBus, err := helpers.CreateAndStartEventBus()
+	eventBus, err := CreateAndStartEventBus()
 	if err != nil {
 		return fmt.Errorf("failed to start event bus: %w", err)
 	}
 
-	if err := helpers.DoHandshake(tm.stateStore, state, tm.blockStore, genDoc, eventBus, proxyApp); err != nil {
+	if err := DoHandshake(tm.stateStore, state, tm.blockStore, genDoc, eventBus, proxyApp); err != nil {
 		return fmt.Errorf("failed to do handshake: %w", err)
 	}
 
@@ -151,9 +149,9 @@ func (tm *TmEngine) DoHandshake() error {
 
 	tm.state = state
 
-	_, mempool := helpers.CreateMempoolAndMempoolReactor(tm.config, proxyApp, state)
+	_, mempool := CreateMempoolAndMempoolReactor(tm.config, proxyApp, state)
 
-	_, evidencePool, err := helpers.CreateEvidenceReactor(tm.config, tm.stateStore, tm.blockStore)
+	_, evidencePool, err := CreateEvidenceReactor(tm.config, tm.stateStore, tm.blockStore)
 	if err != nil {
 		return fmt.Errorf("failed to create evidence reactor: %w", err)
 	}
@@ -259,7 +257,7 @@ func (tm *TmEngine) GetSnapshots() ([]byte, error) {
 	}
 
 	if len(res.Snapshots) == 0 {
-		return json.Marshal([]types.Snapshot{})
+		return json.Marshal([]Snapshot{})
 	}
 
 	return json.Marshal(res.Snapshots)

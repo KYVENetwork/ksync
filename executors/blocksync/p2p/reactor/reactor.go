@@ -2,8 +2,8 @@ package reactor
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/engines/tendermint"
 	log "github.com/KYVENetwork/ksync/logger"
-	"github.com/KYVENetwork/ksync/types"
 	bc "github.com/tendermint/tendermint/blockchain"
 	"github.com/tendermint/tendermint/p2p"
 	bcproto "github.com/tendermint/tendermint/proto/tendermint/blockchain"
@@ -21,11 +21,11 @@ var (
 type BlockchainReactor struct {
 	p2p.BaseReactor
 
-	block     *types.Block
-	nextBlock *types.Block
+	block     *tendermint.Block
+	nextBlock *tendermint.Block
 }
 
-func NewBlockchainReactor(block *types.Block, nextBlock *types.Block) *BlockchainReactor {
+func NewBlockchainReactor(block *tendermint.Block, nextBlock *tendermint.Block) *BlockchainReactor {
 	bcR := &BlockchainReactor{
 		block:     block,
 		nextBlock: nextBlock,
