@@ -102,20 +102,12 @@ func DoHandshake(
 	eventBus cometTypes.BlockEventPublisher,
 	proxyApp proxy.AppConns,
 ) error {
-	fmt.Println("cs.NewHandshaker")
 	handshaker := cs.NewHandshaker(stateStore, state, blockStore, genDoc)
 	handshaker.SetLogger(logger.With("module", "consensus"))
 	handshaker.SetEventBus(eventBus)
-	fmt.Println("handshaker.Handshake")
-	res, err := proxyApp.Query().InfoSync(proxy.RequestInfo)
-	if err != nil {
-		return fmt.Errorf("error calling Info: %v", err)
-	}
-	fmt.Println(res)
 	if err := handshaker.Handshake(proxyApp); err != nil {
 		return fmt.Errorf("error during handshake: %v", err)
 	}
-	fmt.Println("performed handshake")
 	return nil
 }
 
