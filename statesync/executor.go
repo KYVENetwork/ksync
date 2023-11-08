@@ -4,16 +4,11 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/collectors/bundles"
 	"github.com/KYVENetwork/ksync/collectors/snapshots"
-	log "github.com/KYVENetwork/ksync/engines/tendermint"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"
 )
 
-var (
-	logger = log.KsyncLogger("state-sync")
-)
-
-func StartStateSyncExecutor(engine types.Engine, homePath, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64) error {
+func StartStateSyncExecutor(engine types.Engine, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64) error {
 	logger.Info().Msg(fmt.Sprintf("applying state-sync snapshot"))
 
 	appHeight, err := engine.GetAppHeight()

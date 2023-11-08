@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/collectors/snapshots"
 	log "github.com/KYVENetwork/ksync/engines/tendermint"
-	"github.com/KYVENetwork/ksync/executors/statesync"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/supervisor"
 	"github.com/KYVENetwork/ksync/types"
@@ -17,8 +16,8 @@ var (
 	logger = log.KsyncLogger("state-sync")
 )
 
-func StartStateSync(engine types.Engine, homePath, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64) error {
-	return statesync.StartStateSyncExecutor(engine, homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight)
+func StartStateSync(engine types.Engine, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64) error {
+	return StartStateSyncExecutor(engine, chainRest, storageRest, snapshotPoolId, snapshotHeight)
 }
 
 func PerformStateSyncValidationChecks(chainRest string, snapshotPoolId, snapshotHeight int64, userInput bool) error {
@@ -87,7 +86,7 @@ func StartStateSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 		panic(err)
 	}
 
-	if err := StartStateSync(engine, homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight); err != nil {
+	if err := StartStateSync(engine, chainRest, storageRest, snapshotPoolId, snapshotHeight); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to start state-sync: %s", err))
 
 		// stop binary process thread

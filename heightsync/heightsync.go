@@ -3,10 +3,10 @@ package heightsync
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/blocksync"
+	blocksyncHelpers "github.com/KYVENetwork/ksync/blocksync/helpers"
 	"github.com/KYVENetwork/ksync/bootstrap"
 	"github.com/KYVENetwork/ksync/collectors/snapshots"
 	log "github.com/KYVENetwork/ksync/engines/tendermint"
-	blocksync2 "github.com/KYVENetwork/ksync/executors/blocksync"
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/supervisor"
@@ -22,7 +22,7 @@ var (
 func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, snapshotPoolId, blockPoolId, targetHeight int64, userInput bool) {
 	logger.Info().Msg("starting height-sync")
 
-	_, _, blockEndHeight, err := blocksync2.GetBlockBoundaries(chainRest, blockPoolId)
+	_, _, blockEndHeight, err := blocksyncHelpers.GetBlockBoundaries(chainRest, blockPoolId)
 	if err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to get block boundaries: %s", err))
 		os.Exit(1)
@@ -100,7 +100,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 		}
 
 		// apply state sync snapshot
-		if err := statesync.StartStateSync(engine, homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight); err != nil {
+		if err := statesync.StartStateSync(engine, chainRest, storageRest, snapshotPoolId, snapshotHeight); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to apply state-sync: %s", err))
 
 			// stop binary process thread
@@ -149,7 +149,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 	// if we have not reached our target height yet we block-sync the remaining ones
 	if remaining := targetHeight - snapshotHeight; remaining > 0 {
 		logger.Info().Msg(fmt.Sprintf("block-syncing remaining %d blocks", remaining))
-		if err := blocksync.StartBlockSync(engine, homePath, chainRest, storageRest, blockPoolId, targetHeight, false, 0, nil); err != nil {
+		if err := blocksync.StartBlockSync(engine, chainRest, storageRest, blockPoolId, targetHeight, false, 0, nil); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to apply block-sync: %s", err))
 
 			// stop binary process thread

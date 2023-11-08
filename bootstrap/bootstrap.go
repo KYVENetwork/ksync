@@ -2,10 +2,10 @@ package bootstrap
 
 import (
 	"fmt"
+	blocksyncHelpers "github.com/KYVENetwork/ksync/blocksync/helpers"
 	"github.com/KYVENetwork/ksync/bootstrap/helpers"
 	"github.com/KYVENetwork/ksync/collectors/blocks"
 	"github.com/KYVENetwork/ksync/engines/tendermint"
-	"github.com/KYVENetwork/ksync/executors/blocksync"
 	"github.com/KYVENetwork/ksync/supervisor"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
@@ -42,7 +42,7 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 	}
 
 	// if we reached this point we have to sync over p2p
-	poolResponse, startHeight, endHeight, err := blocksync.GetBlockBoundaries(chainRest, poolId)
+	poolResponse, startHeight, endHeight, err := blocksyncHelpers.GetBlockBoundaries(chainRest, poolId)
 	if err != nil {
 		return fmt.Errorf("failed to get block boundaries: %w", err)
 	}
@@ -76,8 +76,7 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 	// wait until binary has properly started by testing if the /abci
 	// endpoint is up
 	for {
-		_, err := helpers.GetAppHeightFromRPC(homePath)
-		if err != nil {
+		if _, err := helpers.GetAppHeightFromRPC(homePath); err != nil {
 			time.Sleep(5 * time.Second)
 			continue
 		}

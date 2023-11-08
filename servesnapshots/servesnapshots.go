@@ -8,7 +8,6 @@ import (
 	"github.com/KYVENetwork/ksync/collectors/pool"
 	"github.com/KYVENetwork/ksync/collectors/snapshots"
 	log "github.com/KYVENetwork/ksync/engines/tendermint"
-	blocksync2 "github.com/KYVENetwork/ksync/executors/blocksync"
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/supervisor"
@@ -102,7 +101,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		}
 
 		// found snapshot, applying it and continuing block-sync from here
-		if statesync.StartStateSync(engine, homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight) != nil {
+		if statesync.StartStateSync(engine, chainRest, storageRest, snapshotPoolId, snapshotHeight) != nil {
 			// stop binary process thread
 			if err := supervisor.StopProcessByProcessId(processId); err != nil {
 				panic(err)
@@ -147,7 +146,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 	}
 
 	// db executes blocks against app indefinitely
-	if err := blocksync2.StartDBExecutor(engine, homePath, chainRest, storageRest, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning, nil); err != nil {
+	if err := blocksync.StartDBExecutor(engine, chainRest, storageRest, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning, nil); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to start db executor: %s", err))
 
 		// stop binary process thread

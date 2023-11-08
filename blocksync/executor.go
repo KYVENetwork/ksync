@@ -17,34 +17,9 @@ var (
 	itemCh  = make(chan types.DataItem, utils.BlockBuffer)
 	errorCh = make(chan error)
 	kLogger = log.KLogger()
-	logger  = log.KsyncLogger("db")
 )
 
-func GetBlockBoundaries(restEndpoint string, poolId int64) (*types.PoolResponse, int64, int64, error) {
-	// load start and latest height
-	poolResponse, err := pool.GetPoolInfo(restEndpoint, poolId)
-	if err != nil {
-		return nil, 0, 0, fmt.Errorf("failed to get pool info: %w", err)
-	}
-
-	if poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermint && poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermintBsync {
-		return nil, 0, 0, fmt.Errorf("found invalid runtime on pool %d: Expected = %s,%s Found = %s", poolId, utils.KSyncRuntimeTendermint, utils.KSyncRuntimeTendermintBsync, poolResponse.Pool.Data.Runtime)
-	}
-
-	startHeight, err := utils.ParseBlockHeightFromKey(poolResponse.Pool.Data.StartKey)
-	if err != nil {
-		return nil, 0, 0, fmt.Errorf("could not parse int from %s", poolResponse.Pool.Data.StartKey)
-	}
-
-	endHeight, err := utils.ParseBlockHeightFromKey(poolResponse.Pool.Data.CurrentKey)
-	if err != nil {
-		return nil, 0, 0, fmt.Errorf("could not parse int from %s", poolResponse.Pool.Data.CurrentKey)
-	}
-
-	return poolResponse, startHeight, endHeight, nil
-}
-
-func StartDBExecutor(engine types.Engine, homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool, backupCfg *types.BackupConfig) error {
+func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool, backupCfg *types.BackupConfig) error {
 	continuationHeight, err := engine.GetContinuationHeight()
 	if err != nil {
 		return fmt.Errorf("failed to get continuation height from engine: %w", err)
