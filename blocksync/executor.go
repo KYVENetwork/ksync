@@ -89,7 +89,7 @@ func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPo
 
 			fmt.Println(fmt.Sprintf("apply block %d", height))
 
-			if err := engine.ApplyBlock(item.Value); err != nil {
+			if err := engine.ApplyBlock(poolResponse.Pool.Data.Runtime, item.Value); err != nil {
 				return fmt.Errorf("failed to apply block in engine: %w", err)
 			}
 

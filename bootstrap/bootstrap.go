@@ -86,7 +86,7 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 	logger.Info().Msg("loaded genesis file and completed ABCI handshake between app and tendermint")
 
 	// start p2p executors and try to execute the first block on the app
-	if err := engine.ApplyFirstBlockOverP2P(item.Value, nextItem.Value); err != nil {
+	if err := engine.ApplyFirstBlockOverP2P(poolResponse.Pool.Data.Runtime, item.Value, nextItem.Value); err != nil {
 		// stop binary process thread
 		if err := supervisor.StopProcessByProcessId(processId); err != nil {
 			panic(err)

@@ -24,12 +24,12 @@ type TendermintDataItem struct {
 	Value TendermintValue `json:"value"`
 }
 
-type TendermintBundle = []TendermintDataItem
-
 type TendermintBsyncDataItem struct {
 	Key   string `json:"key"`
 	Value *Block `json:"value"`
 }
+
+type TendermintBundle = []TendermintDataItem
 
 type TendermintBsyncBundle = []TendermintBsyncDataItem
 

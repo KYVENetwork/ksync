@@ -3,6 +3,7 @@ package cometbft
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/types"
+	"github.com/KYVENetwork/ksync/utils"
 	db "github.com/cometbft/cometbft-db"
 	abciClient "github.com/cometbft/cometbft/abci/client"
 	abciTypes "github.com/cometbft/cometbft/abci/types"
@@ -169,15 +170,24 @@ func (comet *CometEngine) DoHandshake() error {
 	return nil
 }
 
-func (comet *CometEngine) ApplyBlock(value []byte) error {
-	// TODO: add support for tendermint-bsync runtime
-	var parsed TendermintValue
+func (comet *CometEngine) ApplyBlock(runtime string, value []byte) error {
+	var block *Block
 
-	if err := json.Unmarshal(value, &parsed); err != nil {
-		return fmt.Errorf("failed to unmarshal value: %w", err)
+	if runtime == utils.KSyncRuntimeTendermint {
+		var parsed TendermintValue
+
+		if err := json.Unmarshal(value, &parsed); err != nil {
+			return fmt.Errorf("failed to unmarshal value: %w", err)
+		}
+
+		block = parsed.Block.Block
+	} else if runtime == utils.KSyncRuntimeTendermintBsync {
+		if err := json.Unmarshal(value, &block); err != nil {
+			return fmt.Errorf("failed to unmarshal value: %w", err)
+		}
+	} else {
+		return fmt.Errorf("runtime %s unknown", runtime)
 	}
-
-	block := parsed.Block.Block
 
 	// if the previous block is not defined we continue
 	if comet.prevBlock == nil {
@@ -219,21 +229,33 @@ func (comet *CometEngine) ApplyBlock(value []byte) error {
 	return nil
 }
 
-func (comet *CometEngine) ApplyFirstBlockOverP2P(value, nextValue []byte) error {
-	// TODO: add support for tendermint-bsync runtime
-	var parsed TendermintValue
-	var nextParsed TendermintValue
+func (comet *CometEngine) ApplyFirstBlockOverP2P(runtime string, value, nextValue []byte) error {
+	var block, nextBlock *Block
 
-	if err := json.Unmarshal(value, &parsed); err != nil {
-		return fmt.Errorf("failed to unmarshal value: %w", err)
+	if runtime == utils.KSyncRuntimeTendermint {
+		var parsed, nextParsed TendermintValue
+
+		if err := json.Unmarshal(value, &parsed); err != nil {
+			return fmt.Errorf("failed to unmarshal value: %w", err)
+		}
+
+		if err := json.Unmarshal(nextValue, &nextParsed); err != nil {
+			return fmt.Errorf("failed to unmarshal next value: %w", err)
+		}
+
+		block = parsed.Block.Block
+		nextBlock = nextParsed.Block.Block
+	} else if runtime == utils.KSyncRuntimeTendermintBsync {
+		if err := json.Unmarshal(value, &block); err != nil {
+			return fmt.Errorf("failed to unmarshal value: %w", err)
+		}
+
+		if err := json.Unmarshal(nextValue, &nextBlock); err != nil {
+			return fmt.Errorf("failed to unmarshal next value: %w", err)
+		}
+	} else {
+		return fmt.Errorf("runtime %s unknown", runtime)
 	}
-
-	if err := json.Unmarshal(nextValue, &nextParsed); err != nil {
-		return fmt.Errorf("failed to unmarshal next value: %w", err)
-	}
-
-	block := parsed.Block.Block
-	nextBlock := nextParsed.Block.Block
 
 	genDoc, err := nm.DefaultGenesisDocProviderFunc(comet.config)()
 	if err != nil {
