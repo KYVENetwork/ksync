@@ -28,6 +28,12 @@ type Engine interface {
 	// the app
 	ApplyBlock(value []byte) error
 
+	ApplyFirstBlockOverP2P(value, nextValue []byte) error
+
+	GetGenesisPath() string
+
+	GetGenesisHeight() (int64, error)
+
 	GetHeight() int64
 
 	GetBaseHeight() int64

@@ -6,15 +6,18 @@ import (
 	abciClient "github.com/tendermint/tendermint/abci/client"
 	abciTypes "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/json"
 	nm "github.com/tendermint/tendermint/node"
-	"github.com/tendermint/tendermint/p2p"
+	tmP2P "github.com/tendermint/tendermint/p2p"
 	tmProtoState "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmState "github.com/tendermint/tendermint/state"
 	tmStore "github.com/tendermint/tendermint/store"
 	tmTypes "github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tendermint/version"
 	db "github.com/tendermint/tm-db"
+	"net/url"
+	"strconv"
 )
 
 var (
@@ -209,6 +212,105 @@ func (tm *TmEngine) ApplyBlock(value []byte) error {
 	tm.prevBlock = block
 
 	return nil
+}
+
+func (tm *TmEngine) ApplyFirstBlockOverP2P(value, nextValue []byte) error {
+	// TODO: add support for tendermint-bsync runtime
+	var parsed TendermintValue
+	var nextParsed TendermintValue
+
+	if err := json.Unmarshal(value, &parsed); err != nil {
+		return fmt.Errorf("failed to unmarshal value: %w", err)
+	}
+
+	if err := json.Unmarshal(nextValue, &nextParsed); err != nil {
+		return fmt.Errorf("failed to unmarshal next value: %w", err)
+	}
+
+	block := parsed.Block.Block
+	nextBlock := nextParsed.Block.Block
+
+	genDoc, err := nm.DefaultGenesisDocProviderFunc(tm.config)()
+	if err != nil {
+		return fmt.Errorf("failed to load state and genDoc: %w", err)
+	}
+
+	peerAddress := tm.config.P2P.ListenAddress
+	peerHost, err := url.Parse(peerAddress)
+	if err != nil {
+		return fmt.Errorf("invalid peer address: %w", err)
+	}
+
+	port, err := strconv.ParseInt(peerHost.Port(), 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid peer port: %w", err)
+	}
+
+	// this peer should listen to different port to avoid port collision
+	tm.config.P2P.ListenAddress = fmt.Sprintf("tcp://%s:%d", peerHost.Hostname(), port-1)
+
+	nodeKey, err := tmP2P.LoadNodeKey(tm.config.NodeKeyFile())
+	if err != nil {
+		return fmt.Errorf("failed to load node key file: %w", err)
+	}
+
+	// generate new node key for this peer
+	ksyncNodeKey := &tmP2P.NodeKey{
+		PrivKey: ed25519.GenPrivKey(),
+	}
+
+	nodeInfo, err := MakeNodeInfo(tm.config, ksyncNodeKey, genDoc)
+	transport := tmP2P.NewMultiplexTransport(nodeInfo, *ksyncNodeKey, tmP2P.MConnConfig(tm.config.P2P))
+	bcR := NewBlockchainReactor(block, nextBlock)
+	sw := CreateSwitch(tm.config, transport, bcR, nodeInfo, ksyncNodeKey, kLogger)
+
+	// start the transport
+	addr, err := tmP2P.NewNetAddressString(tmP2P.IDAddressString(ksyncNodeKey.ID(), tm.config.P2P.ListenAddress))
+	if err != nil {
+		return fmt.Errorf("failed to start transport: %w", err)
+	}
+	if err := transport.Listen(*addr); err != nil {
+		return fmt.Errorf("failed to start transport: %w", err)
+	}
+
+	persistentPeers := make([]string, 0)
+	peerString := fmt.Sprintf("%s@%s:%s", nodeKey.ID(), peerHost.Hostname(), peerHost.Port())
+	persistentPeers = append(persistentPeers, peerString)
+
+	if err := sw.AddPersistentPeers(persistentPeers); err != nil {
+		return fmt.Errorf("could not add persistent peers: %w", err)
+	}
+
+	// start switch
+	if err := sw.Start(); err != nil {
+		return fmt.Errorf("failed to start switch: %w", err)
+	}
+
+	// get peer
+	peer, err := tmP2P.NewNetAddressString(peerString)
+	if err != nil {
+		return fmt.Errorf("invalid peer address: %w", err)
+	}
+
+	if err := sw.DialPeerWithAddress(peer); err != nil {
+		return fmt.Errorf("failed to dial peer: %w", err)
+	}
+
+	return nil
+}
+
+func (tm *TmEngine) GetGenesisPath() string {
+	return tm.config.GenesisFile()
+}
+
+func (tm *TmEngine) GetGenesisHeight() (int64, error) {
+	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(tm.config)
+	genDoc, err := defaultDocProvider()
+	if err != nil {
+		return 0, err
+	}
+
+	return genDoc.InitialHeight, nil
 }
 
 func (tm *TmEngine) GetHeight() int64 {
@@ -408,7 +510,7 @@ func (tm *TmEngine) ApplySnapshotChunk(chunkIndex uint32, value []byte) (string,
 		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
 	}
 
-	nodeKey, err := p2p.LoadNodeKey(tm.config.NodeKeyFile())
+	nodeKey, err := tmP2P.LoadNodeKey(tm.config.NodeKeyFile())
 	if err != nil {
 		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("loading node key file failed: %w", err)
 	}

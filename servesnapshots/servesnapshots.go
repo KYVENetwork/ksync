@@ -8,7 +8,7 @@ import (
 	"github.com/KYVENetwork/ksync/collectors/pool"
 	"github.com/KYVENetwork/ksync/collectors/snapshots"
 	log "github.com/KYVENetwork/ksync/engines/tendermint"
-	"github.com/KYVENetwork/ksync/executors/blocksync/db"
+	blocksync2 "github.com/KYVENetwork/ksync/executors/blocksync"
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/supervisor"
@@ -134,7 +134,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		}
 	} else {
 		// if we have to sync from genesis we first bootstrap the node
-		if err := bootstrap.StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest, blockPoolId); err != nil {
+		if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, blockPoolId); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
 			os.Exit(1)
 		}
@@ -147,7 +147,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 	}
 
 	// db executes blocks against app indefinitely
-	if err := db.StartDBExecutor(engine, homePath, chainRest, storageRest, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning, nil); err != nil {
+	if err := blocksync2.StartDBExecutor(engine, homePath, chainRest, storageRest, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning, nil); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to start db executor: %s", err))
 
 		// stop binary process thread

@@ -3,11 +3,12 @@ package bootstrap
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/bootstrap/helpers"
+	"github.com/KYVENetwork/ksync/collectors/blocks"
 	"github.com/KYVENetwork/ksync/engines/tendermint"
-	"github.com/KYVENetwork/ksync/executors/blocksync/p2p"
+	"github.com/KYVENetwork/ksync/executors/blocksync"
 	"github.com/KYVENetwork/ksync/supervisor"
+	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
-	nm "github.com/tendermint/tendermint/node"
 	"time"
 )
 
@@ -15,15 +16,10 @@ var (
 	logger = tendermint.KsyncLogger("bootstrap")
 )
 
-func StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest string, poolId int64) error {
+func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, poolId int64) error {
 	logger.Info().Msg("starting bootstrap")
 
-	config, err := tendermint.LoadConfig(homePath)
-	if err != nil {
-		return err
-	}
-
-	gt100, err := utils.IsFileGreaterThanOrEqualTo100MB(config.GenesisFile())
+	gt100, err := utils.IsFileGreaterThanOrEqualTo100MB(engine.GetGenesisPath())
 	if err != nil {
 		return err
 	}
@@ -34,24 +30,40 @@ func StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest strin
 		return nil
 	}
 
-	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
-	genDoc, err := defaultDocProvider()
-	if err != nil {
-		return err
-	}
-
-	height, err := helpers.GetBlockHeightFromDB(homePath)
+	genesisHeight, err := engine.GetGenesisHeight()
 	if err != nil {
 		return err
 	}
 
 	// if the app already has mined at least one block we can skip further bootstrapping
-	if height > genDoc.InitialHeight {
+	if engine.GetHeight() > genesisHeight {
 		logger.Info().Msg("KSYNC is successfully bootstrapped!")
 		return nil
 	}
 
 	// if we reached this point we have to sync over p2p
+	poolResponse, startHeight, endHeight, err := blocksync.GetBlockBoundaries(chainRest, poolId)
+	if err != nil {
+		return fmt.Errorf("failed to get block boundaries: %w", err)
+	}
+
+	if genesisHeight < startHeight {
+		return fmt.Errorf(fmt.Sprintf("genesis height %d smaller than pool start height %d", genesisHeight, startHeight))
+	}
+
+	if genesisHeight+1 > endHeight {
+		return fmt.Errorf(fmt.Sprintf("genesis height %d bigger than latest pool height %d", genesisHeight+1, endHeight))
+	}
+
+	item, err := blocks.RetrieveBlock(chainRest, storageRest, *poolResponse, genesisHeight)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve block %d from pool", genesisHeight)
+	}
+
+	nextItem, err := blocks.RetrieveBlock(chainRest, storageRest, *poolResponse, genesisHeight+1)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve block %d from pool", genesisHeight+1)
+	}
 
 	// start binary process thread
 	processId, err := supervisor.StartBinaryProcessForP2P(binaryPath, homePath, []string{})
@@ -75,8 +87,7 @@ func StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest strin
 	logger.Info().Msg("loaded genesis file and completed ABCI handshake between app and tendermint")
 
 	// start p2p executors and try to execute the first block on the app
-	sw, err := p2p.StartP2PExecutor(homePath, poolId, chainRest, storageRest)
-	if err != nil {
+	if err := engine.ApplyFirstBlockOverP2P(item.Value, nextItem.Value); err != nil {
 		// stop binary process thread
 		if err := supervisor.StopProcessByProcessId(processId); err != nil {
 			panic(err)
@@ -93,7 +104,7 @@ func StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest strin
 			return err
 		}
 
-		if height != genDoc.InitialHeight {
+		if height != genesisHeight {
 			time.Sleep(5 * time.Second)
 			continue
 		}
@@ -108,10 +119,11 @@ func StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest strin
 		return err
 	}
 
+	// TODO: check if this is needed
 	// stop switch from p2p executors
-	if err := sw.Stop(); err != nil {
-		return err
-	}
+	//if err := sw.Stop(); err != nil {
+	//	return err
+	//}
 
 	// wait until process has properly shut down
 	time.Sleep(10 * time.Second)

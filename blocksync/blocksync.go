@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/bootstrap"
 	log "github.com/KYVENetwork/ksync/engines/tendermint"
-	"github.com/KYVENetwork/ksync/executors/blocksync/db"
+	"github.com/KYVENetwork/ksync/executors/blocksync"
 	"github.com/KYVENetwork/ksync/supervisor"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
@@ -18,7 +18,7 @@ var (
 )
 
 func StartBlockSync(engine types.Engine, homePath, chainRest, storageRest string, poolId, targetHeight int64, metrics bool, port int64, backupCfg *types.BackupConfig) error {
-	return db.StartDBExecutor(engine, homePath, chainRest, storageRest, poolId, targetHeight, metrics, port, 0, 0, utils.DefaultSnapshotServerPort, false, backupCfg)
+	return blocksync.StartDBExecutor(engine, homePath, chainRest, storageRest, poolId, targetHeight, metrics, port, 0, 0, utils.DefaultSnapshotServerPort, false, backupCfg)
 }
 
 func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blockPoolId, targetHeight int64, userInput bool) error {
@@ -30,7 +30,7 @@ func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blo
 	logger.Info().Msg(fmt.Sprintf("loaded current block height of node: %d", continuationHeight-1))
 
 	// perform boundary checks
-	_, startHeight, endHeight, err := db.GetBlockBoundaries(chainRest, blockPoolId)
+	_, startHeight, endHeight, err := blocksync.GetBlockBoundaries(chainRest, blockPoolId)
 	if err != nil {
 		return fmt.Errorf("failed to get block boundaries: %w", err)
 	}
@@ -87,7 +87,7 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 		os.Exit(1)
 	}
 
-	if err := bootstrap.StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest, blockPoolId); err != nil {
+	if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, blockPoolId); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
 		os.Exit(1)
 	}

@@ -6,7 +6,7 @@ import (
 	"github.com/KYVENetwork/ksync/bootstrap"
 	"github.com/KYVENetwork/ksync/collectors/snapshots"
 	log "github.com/KYVENetwork/ksync/engines/tendermint"
-	"github.com/KYVENetwork/ksync/executors/blocksync/db"
+	blocksync2 "github.com/KYVENetwork/ksync/executors/blocksync"
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/supervisor"
@@ -22,7 +22,7 @@ var (
 func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, snapshotPoolId, blockPoolId, targetHeight int64, userInput bool) {
 	logger.Info().Msg("starting height-sync")
 
-	_, _, blockEndHeight, err := db.GetBlockBoundaries(chainRest, blockPoolId)
+	_, _, blockEndHeight, err := blocksync2.GetBlockBoundaries(chainRest, blockPoolId)
 	if err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to get block boundaries: %s", err))
 		os.Exit(1)
@@ -111,7 +111,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 		}
 	} else {
 		// if we have to sync from genesis we first bootstrap the node
-		if err := bootstrap.StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest, blockPoolId); err != nil {
+		if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, blockPoolId); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
 			os.Exit(1)
 		}
