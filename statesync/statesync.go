@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/collectors/snapshots"
 	log "github.com/KYVENetwork/ksync/engines/tendermint"
-	"github.com/KYVENetwork/ksync/executors/statesync/db"
+	"github.com/KYVENetwork/ksync/executors/statesync"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/supervisor"
 	"github.com/KYVENetwork/ksync/types"
@@ -18,7 +18,7 @@ var (
 )
 
 func StartStateSync(engine types.Engine, homePath, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64) error {
-	return db.StartStateSyncExecutor(engine, homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight)
+	return statesync.StartStateSyncExecutor(engine, homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight)
 }
 
 func PerformStateSyncValidationChecks(chainRest string, snapshotPoolId, snapshotHeight int64, userInput bool) error {

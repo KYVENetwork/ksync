@@ -1,4 +1,4 @@
-package db
+package statesync
 
 import (
 	"fmt"
