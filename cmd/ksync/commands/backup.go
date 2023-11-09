@@ -10,6 +10,11 @@ import (
 )
 
 func init() {
+	backupCmd.Flags().StringVar(&binaryPath, "binary", "", "binary path of node to be synced")
+	if err := backupCmd.MarkFlagRequired("binary"); err != nil {
+		panic(fmt.Errorf("flag 'binary' should be required: %w", err))
+	}
+
 	backupCmd.Flags().StringVar(&homePath, "home", "", "home directory")
 
 	backupCmd.Flags().StringVar(&backupDest, "backup-dest", "", fmt.Sprintf("path where backups should be stored (default = %s)", utils.DefaultBackupPath))

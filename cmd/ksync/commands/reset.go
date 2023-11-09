@@ -13,6 +13,11 @@ var (
 )
 
 func init() {
+	resetCmd.Flags().StringVar(&binaryPath, "binary", "", "binary path of node to be synced")
+	if err := resetCmd.MarkFlagRequired("binary"); err != nil {
+		panic(fmt.Errorf("flag 'binary' should be required: %w", err))
+	}
+
 	resetCmd.Flags().StringVar(&homePath, "home", "", "home directory")
 
 	rootCmd.AddCommand(resetCmd)
