@@ -3,35 +3,23 @@ package statesync
 import (
 	"errors"
 	"fmt"
-	bootstrapHelpers "github.com/KYVENetwork/ksync/bootstrap/helpers"
 	"github.com/KYVENetwork/ksync/collectors/snapshots"
-	"github.com/KYVENetwork/ksync/executors/statesync/db"
-	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
-	"github.com/KYVENetwork/ksync/supervisor"
+	"github.com/KYVENetwork/ksync/types"
+	"github.com/KYVENetwork/ksync/utils"
 	"os"
 	"strings"
 )
 
 var (
-	logger = log.KsyncLogger("state-sync")
+	logger = utils.KsyncLogger("state-sync")
 )
 
-func StartStateSync(homePath, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64) error {
-	return db.StartStateSyncExecutor(homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight)
+func StartStateSync(engine types.Engine, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64) error {
+	return StartStateSyncExecutor(engine, chainRest, storageRest, snapshotPoolId, snapshotHeight)
 }
 
-func PerformStateSyncValidationChecks(homePath, chainRest string, snapshotPoolId, snapshotHeight int64, userInput bool) error {
-	// check if block height is zero
-	height, err := bootstrapHelpers.GetBlockHeightFromDB(homePath)
-	if err != nil {
-		return fmt.Errorf("failed get height from blockstore: %w", err)
-	}
-
-	if height > 0 {
-		return fmt.Errorf("block height %d is not zero, please reset with \"ksync unsafe-reset-all\"", height)
-	}
-
+func PerformStateSyncValidationChecks(chainRest string, snapshotPoolId, snapshotHeight int64, userInput bool) error {
 	// perform boundary checks
 	_, startHeight, endHeight, err := helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
 	if err != nil {
@@ -82,33 +70,33 @@ func PerformStateSyncValidationChecks(homePath, chainRest string, snapshotPoolId
 	return nil
 }
 
-func StartStateSyncWithBinary(binaryPath, homePath, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64, userInput bool) {
+func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64, userInput bool) {
 	logger.Info().Msg("starting state-sync")
 
 	// perform validation checks before booting state-sync process
-	if err := PerformStateSyncValidationChecks(homePath, chainRest, snapshotPoolId, snapshotHeight, userInput); err != nil {
+	if err := PerformStateSyncValidationChecks(chainRest, snapshotPoolId, snapshotHeight, userInput); err != nil {
 		logger.Error().Msg(fmt.Sprintf("state-sync validation checks failed: %s", err))
 		os.Exit(1)
 	}
 
 	// start binary process thread
-	processId, err := supervisor.StartBinaryProcessForDB(binaryPath, homePath, []string{})
+	processId, err := utils.StartBinaryProcessForDB(engine, binaryPath, []string{})
 	if err != nil {
 		panic(err)
 	}
 
-	if err := StartStateSync(homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight); err != nil {
+	if err := StartStateSync(engine, chainRest, storageRest, snapshotPoolId, snapshotHeight); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to start state-sync: %s", err))
 
 		// stop binary process thread
-		if err := supervisor.StopProcessByProcessId(processId); err != nil {
+		if err := utils.StopProcessByProcessId(processId); err != nil {
 			panic(err)
 		}
 		os.Exit(1)
 	}
 
 	// stop binary process thread
-	if err := supervisor.StopProcessByProcessId(processId); err != nil {
+	if err := utils.StopProcessByProcessId(processId); err != nil {
 		panic(err)
 	}
 

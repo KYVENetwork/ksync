@@ -6,6 +6,7 @@ import (
 )
 
 var (
+	engine            string
 	binaryPath        string
 	homePath          string
 	chainId           string

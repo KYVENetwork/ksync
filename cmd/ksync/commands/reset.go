@@ -2,7 +2,7 @@ package commands
 
 import (
 	"fmt"
-	log "github.com/KYVENetwork/ksync/logger"
+	log "github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"

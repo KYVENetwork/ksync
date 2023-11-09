@@ -1,28 +1,77 @@
-package helpers
+package tendermint
 
 import (
 	"fmt"
-	log "github.com/KYVENetwork/ksync/logger"
-	abciClient "github.com/tendermint/tendermint/abci/client"
-	"github.com/tendermint/tendermint/abci/types"
-	tmCfg "github.com/tendermint/tendermint/config"
+	"github.com/spf13/viper"
+	cfg "github.com/tendermint/tendermint/config"
 	cs "github.com/tendermint/tendermint/consensus"
 	"github.com/tendermint/tendermint/evidence"
 	mempl "github.com/tendermint/tendermint/mempool"
 	"github.com/tendermint/tendermint/proxy"
+	"github.com/tendermint/tendermint/state"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/store"
 	tmTypes "github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
+	"path/filepath"
 )
 
-var (
-	logger = log.KLogger()
-)
+type DBContext struct {
+	ID     string
+	Config *Config
+}
 
-func CreateAndStartProxyAppConns(config *tmCfg.Config) (proxy.AppConns, error) {
+func LoadConfig(homePath string) (*cfg.Config, error) {
+	config := cfg.DefaultConfig()
+
+	viper.SetConfigName("config")
+	viper.SetConfigType("toml")
+	viper.AddConfigPath(homePath)
+	viper.AddConfigPath(filepath.Join(homePath, "config"))
+
+	if err := viper.ReadInConfig(); err != nil {
+		return nil, err
+	}
+
+	if err := viper.Unmarshal(config); err != nil {
+		return nil, err
+	}
+
+	config.SetRoot(homePath)
+
+	return config, nil
+}
+
+func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
+	dbType := dbm.BackendType(ctx.Config.DBBackend)
+	return dbm.NewDB(ctx.ID, dbType, ctx.Config.DBDir())
+}
+
+func GetStateDBs(config *Config) (dbm.DB, state.Store, error) {
+	stateDB, err := DefaultDBProvider(&DBContext{"state", config})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	stateStore := state.NewStore(stateDB)
+
+	return stateDB, stateStore, nil
+}
+
+func GetBlockstoreDBs(config *Config) (dbm.DB, *store.BlockStore, error) {
+	blockStoreDB, err := DefaultDBProvider(&DBContext{"blockstore", config})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	blockStore := store.NewBlockStore(blockStoreDB)
+
+	return blockStoreDB, blockStore, nil
+}
+
+func CreateAndStartProxyAppConns(config *Config) (proxy.AppConns, error) {
 	proxyApp := proxy.NewAppConns(proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()))
-	proxyApp.SetLogger(logger.With("module", "proxy"))
+	proxyApp.SetLogger(tmLogger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
 	}
@@ -31,7 +80,7 @@ func CreateAndStartProxyAppConns(config *tmCfg.Config) (proxy.AppConns, error) {
 
 func CreateAndStartEventBus() (*tmTypes.EventBus, error) {
 	eventBus := tmTypes.NewEventBus()
-	eventBus.SetLogger(logger.With("module", "events"))
+	eventBus.SetLogger(tmLogger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
 		return nil, err
 	}
@@ -42,12 +91,12 @@ func DoHandshake(
 	stateStore sm.Store,
 	state sm.State,
 	blockStore sm.BlockStore,
-	genDoc *tmTypes.GenesisDoc,
+	genDoc *GenesisDoc,
 	eventBus tmTypes.BlockEventPublisher,
 	proxyApp proxy.AppConns,
 ) error {
 	handshaker := cs.NewHandshaker(stateStore, state, blockStore, genDoc)
-	handshaker.SetLogger(logger.With("module", "consensus"))
+	handshaker.SetLogger(tmLogger.With("module", "consensus"))
 	handshaker.SetEventBus(eventBus)
 	if err := handshaker.Handshake(proxyApp); err != nil {
 		return fmt.Errorf("error during handshake: %v", err)
@@ -55,7 +104,7 @@ func DoHandshake(
 	return nil
 }
 
-func CreateMempoolAndMempoolReactor(config *tmCfg.Config, proxyApp proxy.AppConns,
+func CreateMempoolAndMempoolReactor(config *Config, proxyApp proxy.AppConns,
 	state sm.State) (*mempl.Reactor, *mempl.CListMempool) {
 
 	mempool := mempl.NewCListMempool(
@@ -65,7 +114,7 @@ func CreateMempoolAndMempoolReactor(config *tmCfg.Config, proxyApp proxy.AppConn
 		mempl.WithPreCheck(sm.TxPreCheck(state)),
 		mempl.WithPostCheck(sm.TxPostCheck(state)),
 	)
-	mempoolLogger := logger.With("module", "mempool")
+	mempoolLogger := tmLogger.With("module", "mempool")
 	mempoolReactor := mempl.NewReactor(config.Mempool, mempool)
 	mempoolReactor.SetLogger(mempoolLogger)
 
@@ -75,22 +124,12 @@ func CreateMempoolAndMempoolReactor(config *tmCfg.Config, proxyApp proxy.AppConn
 	return mempoolReactor, mempool
 }
 
-type DBContext struct {
-	ID     string
-	Config *tmCfg.Config
-}
-
-func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
-	dbType := dbm.BackendType(ctx.Config.DBBackend)
-	return dbm.NewDB(ctx.ID, dbType, ctx.Config.DBDir())
-}
-
-func CreateEvidenceReactor(config *tmCfg.Config, stateStore sm.Store, blockStore *store.BlockStore) (*evidence.Reactor, *evidence.Pool, error) {
+func CreateEvidenceReactor(config *Config, stateStore sm.Store, blockStore *store.BlockStore) (*evidence.Reactor, *evidence.Pool, error) {
 	evidenceDB, err := DefaultDBProvider(&DBContext{ID: "evidence", Config: config})
 	if err != nil {
 		return nil, nil, err
 	}
-	evidenceLogger := logger.With("module", "evidence")
+	evidenceLogger := tmLogger.With("module", "evidence")
 	evidencePool, err := evidence.NewPool(evidenceDB, stateStore, blockStore)
 	if err != nil {
 		return nil, nil, err
@@ -98,30 +137,4 @@ func CreateEvidenceReactor(config *tmCfg.Config, stateStore sm.Store, blockStore
 	evidenceReactor := evidence.NewReactor(evidencePool)
 	evidenceReactor.SetLogger(evidenceLogger)
 	return evidenceReactor, evidencePool, nil
-}
-
-func IsSnapshotAvailableAtHeight(config *tmCfg.Config, height int64) (found bool, err error) {
-	socketClient := abciClient.NewSocketClient(config.ProxyApp, false)
-	found = false
-
-	if err := socketClient.Start(); err != nil {
-		return found, err
-	}
-
-	res, err := socketClient.ListSnapshotsSync(types.RequestListSnapshots{})
-	if err != nil {
-		return found, err
-	}
-
-	if err := socketClient.Stop(); err != nil {
-		return found, err
-	}
-
-	for _, snapshot := range res.Snapshots {
-		if snapshot.Height == uint64(height) {
-			return true, nil
-		}
-	}
-
-	return false, nil
 }

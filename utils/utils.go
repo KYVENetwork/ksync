@@ -5,43 +5,18 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"fmt"
-	log "github.com/KYVENetwork/ksync/logger"
-	"github.com/spf13/viper"
-	cfg "github.com/tendermint/tendermint/config"
 	"io"
 	"math"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 )
 
 var (
-	logger = log.KsyncLogger("utils")
+	logger = KsyncLogger("utils")
 )
-
-func LoadConfig(homePath string) (*cfg.Config, error) {
-	config := cfg.DefaultConfig()
-
-	viper.SetConfigName("config")
-	viper.SetConfigType("toml")
-	viper.AddConfigPath(homePath)
-	viper.AddConfigPath(filepath.Join(homePath, "config"))
-
-	if err := viper.ReadInConfig(); err != nil {
-		return nil, err
-	}
-
-	if err := viper.Unmarshal(config); err != nil {
-		return nil, err
-	}
-
-	config.SetRoot(homePath)
-
-	return config, nil
-}
 
 // GetFromUrl tries to fetch data from url
 func GetFromUrl(url string) ([]byte, error) {
@@ -126,6 +101,10 @@ func IsFileGreaterThanOrEqualTo100MB(filePath string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func ParseBlockHeightFromKey(key string) (int64, error) {
+	return strconv.ParseInt(key, 10, 64)
 }
 
 func ParseSnapshotFromKey(key string) (height int64, chunkIndex int64, err error) {

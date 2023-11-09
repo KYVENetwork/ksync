@@ -1,25 +1,9 @@
 package types
 
 import (
-	abciTypes "github.com/tendermint/tendermint/abci/types"
-	tmCfg "github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/state"
-	tmTypes "github.com/tendermint/tendermint/types"
-	"sync"
+	"encoding/json"
+	"time"
 )
-
-type Config = tmCfg.Config
-
-type GenesisDoc = tmTypes.GenesisDoc
-
-type BlockPair struct {
-	First  *Block
-	Second *Block
-}
-
-type Block = tmTypes.Block
-type LightBlock = tmTypes.LightBlock
-type Snapshot = abciTypes.Snapshot
 
 type HeightResponse struct {
 	Result struct {
@@ -47,31 +31,12 @@ type TendermintSSyncConfig = struct {
 	Interval int64  `json:"interval"`
 }
 
-type SyncProcess struct {
-	Name      string
-	Goroutine chan struct{}
-	QuitCh    chan<- int
-	Running   bool
-	wg        sync.WaitGroup
+type DataItem struct {
+	Key   string          `json:"key"`
+	Value json.RawMessage `json:"value"`
 }
 
-type TendermintDataItem struct {
-	Key   string `json:"key"`
-	Value struct {
-		Block struct {
-			Block *Block `json:"block"`
-		} `json:"block"`
-	} `json:"value"`
-}
-
-type TendermintBundle = []TendermintDataItem
-
-type TendermintBsyncDataItem struct {
-	Key   string `json:"key"`
-	Value *Block `json:"value"`
-}
-
-type TendermintBsyncBundle = []TendermintBsyncDataItem
+type Bundle = []DataItem
 
 type Pagination struct {
 	NextKey []byte `json:"next_key"`
@@ -110,26 +75,24 @@ type SupportedChains = struct {
 	Kaon    []SupportedChain `json:"kaon-1"`
 }
 
-type TendermintSsyncBundle = []TendermintSsyncDataItem
-
-type TendermintSsyncDataItem struct {
-	Key   string `json:"key"`
-	Value struct {
-		Snapshot   *Snapshot       `json:"snapshot"`
-		Block      *Block          `json:"block"`
-		SeenCommit *tmTypes.Commit `json:"seenCommit"`
-		State      *state.State    `json:"state"`
-		ChunkIndex uint32          `json:"chunkIndex"`
-		Chunk      []byte          `json:"chunk"`
-	} `json:"value"`
-}
-
 type BackupConfig = struct {
 	Interval    int64
 	KeepRecent  int64
 	Src         string
 	Dest        string
 	Compression string
+}
+
+type Metrics struct {
+	LatestBlockHash     string    `json:"latest_block_hash"`
+	LatestAppHash       string    `json:"latest_app_hash"`
+	LatestBlockHeight   int64     `json:"latest_block_height"`
+	LatestBlockTime     time.Time `json:"latest_block_time"`
+	EarliestBlockHash   string    `json:"earliest_block_hash"`
+	EarliestAppHash     string    `json:"earliest_app_hash"`
+	EarliestBlockHeight int64     `json:"earliest_block_height"`
+	EarliestBlockTime   time.Time `json:"earliest_block_time"`
+	CatchingUp          bool      `json:"catching_up"`
 }
 
 type SourceMetadata struct {

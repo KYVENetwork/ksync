@@ -3,25 +3,26 @@ package heightsync
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/blocksync"
+	blocksyncHelpers "github.com/KYVENetwork/ksync/blocksync/helpers"
 	"github.com/KYVENetwork/ksync/bootstrap"
 	"github.com/KYVENetwork/ksync/collectors/snapshots"
-	"github.com/KYVENetwork/ksync/executors/blocksync/db"
-	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
-	"github.com/KYVENetwork/ksync/supervisor"
+	"github.com/KYVENetwork/ksync/types"
+	"github.com/KYVENetwork/ksync/utils"
 	"os"
 	"strings"
+	"time"
 )
 
 var (
-	logger = log.KsyncLogger("height-sync")
+	logger = utils.KsyncLogger("height-sync")
 )
 
-func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest string, snapshotPoolId, blockPoolId, targetHeight int64, userInput bool) {
+func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, snapshotPoolId, blockPoolId, targetHeight int64, userInput bool) {
 	logger.Info().Msg("starting height-sync")
 
-	_, _, blockEndHeight, err := db.GetBlockBoundaries(chainRest, blockPoolId)
+	_, _, blockEndHeight, err := blocksyncHelpers.GetBlockBoundaries(chainRest, blockPoolId)
 	if err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to get block boundaries: %s", err))
 		os.Exit(1)
@@ -39,7 +40,7 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 		logger.Info().Msg(fmt.Sprintf("target height not specified, searching for latest available block height"))
 	}
 
-	if err := blocksync.PerformBlockSyncValidationChecks(homePath, chainRest, blockPoolId, targetHeight, false); err != nil {
+	if err := blocksync.PerformBlockSyncValidationChecks(engine, chainRest, blockPoolId, targetHeight, false); err != nil {
 		logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
 		os.Exit(1)
 	}
@@ -63,7 +64,7 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 
 	// perform state-sync validation checks before snapshot gets applied
 	if snapshotHeight > 0 {
-		if err := statesync.PerformStateSyncValidationChecks(homePath, chainRest, snapshotPoolId, snapshotHeight, false); err != nil {
+		if err := statesync.PerformStateSyncValidationChecks(chainRest, snapshotPoolId, snapshotHeight, false); err != nil {
 			logger.Error().Msg(fmt.Sprintf("state-sync validation checks failed: %s", err))
 			os.Exit(1)
 		}
@@ -93,43 +94,73 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 	// if there are snapshots available before the requested height we apply the nearest
 	if snapshotHeight > 0 {
 		// start binary process thread
-		processId, err = supervisor.StartBinaryProcessForDB(binaryPath, homePath, []string{})
+		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, []string{})
 		if err != nil {
 			panic(err)
 		}
 
 		// apply state sync snapshot
-		if err := statesync.StartStateSync(homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight); err != nil {
+		if err := statesync.StartStateSync(engine, chainRest, storageRest, snapshotPoolId, snapshotHeight); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to apply state-sync: %s", err))
 
 			// stop binary process thread
-			if err := supervisor.StopProcessByProcessId(processId); err != nil {
+			if err := utils.StopProcessByProcessId(processId); err != nil {
 				panic(err)
 			}
 			os.Exit(1)
 		}
 	} else {
 		// if we have to sync from genesis we first bootstrap the node
-		if err := bootstrap.StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest, blockPoolId); err != nil {
+		if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, blockPoolId); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
 			os.Exit(1)
 		}
 
 		// after the node is bootstrapped we start the binary process thread
-		processId, err = supervisor.StartBinaryProcessForDB(binaryPath, homePath, []string{})
+		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, []string{})
 		if err != nil {
 			panic(err)
 		}
 	}
 
+	// TODO: does app has to be restarted after a state-sync?
+	// ignore error, since process gets terminated anyway afterwards
+	e := engine.CloseDBs()
+	_ = e
+
+	if err := utils.StopProcessByProcessId(processId); err != nil {
+		panic(err)
+	}
+
+	// wait until process has properly shut down
+	time.Sleep(10 * time.Second)
+
+	processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, []string{})
+	if err != nil {
+		panic(err)
+	}
+
+	// wait until process has properly started
+	time.Sleep(10 * time.Second)
+
+	if err := engine.OpenDBs(homePath); err != nil {
+		logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
+
+		// stop binary process thread
+		if err := utils.StopProcessByProcessId(processId); err != nil {
+			panic(err)
+		}
+		os.Exit(1)
+	}
+
 	// if we have not reached our target height yet we block-sync the remaining ones
 	if remaining := targetHeight - snapshotHeight; remaining > 0 {
 		logger.Info().Msg(fmt.Sprintf("block-syncing remaining %d blocks", remaining))
-		if err := blocksync.StartBlockSync(homePath, chainRest, storageRest, blockPoolId, targetHeight, false, 0, nil); err != nil {
+		if err := blocksync.StartBlockSync(engine, chainRest, storageRest, blockPoolId, targetHeight, false, 0, nil); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to apply block-sync: %s", err))
 
 			// stop binary process thread
-			if err := supervisor.StopProcessByProcessId(processId); err != nil {
+			if err := utils.StopProcessByProcessId(processId); err != nil {
 				panic(err)
 			}
 			os.Exit(1)
@@ -137,7 +168,7 @@ func StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest stri
 	}
 
 	// stop binary process thread
-	if err := supervisor.StopProcessByProcessId(processId); err != nil {
+	if err := utils.StopProcessByProcessId(processId); err != nil {
 		panic(err)
 	}
 

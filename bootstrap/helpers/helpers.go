@@ -2,7 +2,7 @@ package helpers
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/executors/blocksync/db/store"
+	"github.com/KYVENetwork/ksync/engines/tendermint"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/tendermint/tendermint/libs/json"
@@ -11,7 +11,7 @@ import (
 )
 
 func GetAppHeightFromRPC(homePath string) (height int64, err error) {
-	config, err := utils.LoadConfig(homePath)
+	config, err := tendermint.LoadConfig(homePath)
 	if err != nil {
 		panic(fmt.Errorf("failed to load config.toml: %w", err))
 	}
@@ -41,12 +41,12 @@ func GetAppHeightFromRPC(homePath string) (height int64, err error) {
 }
 
 func GetBlockHeightFromDB(homePath string) (int64, error) {
-	config, err := utils.LoadConfig(homePath)
+	config, err := tendermint.LoadConfig(homePath)
 	if err != nil {
 		return 0, err
 	}
 
-	blockStoreDB, blockStore, err := store.GetBlockstoreDBs(config)
+	blockStoreDB, blockStore, err := tendermint.GetBlockstoreDBs(config)
 	defer blockStoreDB.Close()
 
 	if err != nil {
@@ -55,25 +55,4 @@ func GetBlockHeightFromDB(homePath string) (int64, error) {
 
 	height := blockStore.Height()
 	return height, nil
-}
-
-func GetStateHeightFromDB(homePath string) (int64, error) {
-	config, err := utils.LoadConfig(homePath)
-	if err != nil {
-		return 0, err
-	}
-
-	stateDB, stateStore, err := store.GetStateDBs(config)
-	defer stateDB.Close()
-
-	if err != nil {
-		return 0, err
-	}
-
-	state, err := stateStore.Load()
-	if err != nil {
-		return 0, err
-	}
-
-	return state.LastBlockHeight, nil
 }

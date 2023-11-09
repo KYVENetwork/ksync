@@ -5,25 +5,22 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/blocksync"
 	"github.com/KYVENetwork/ksync/bootstrap"
-	bootstrapHelpers "github.com/KYVENetwork/ksync/bootstrap/helpers"
 	"github.com/KYVENetwork/ksync/collectors/pool"
 	"github.com/KYVENetwork/ksync/collectors/snapshots"
-	"github.com/KYVENetwork/ksync/executors/blocksync/db"
-	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
-	"github.com/KYVENetwork/ksync/supervisor"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"os"
 	"strconv"
+	"time"
 )
 
 var (
-	logger = log.KsyncLogger("serve-snapshots")
+	logger = utils.KsyncLogger("serve-snapshots")
 )
 
-func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort, startHeight int64, pruning bool) {
+func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort, startHeight int64, pruning bool) {
 	logger.Info().Msg("starting serve-snapshots")
 
 	// get snapshot interval from pool
@@ -60,11 +57,7 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest 
 		)
 	}
 
-	height, err := bootstrapHelpers.GetBlockHeightFromDB(homePath)
-	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("could not get node height: %s", err))
-		os.Exit(1)
-	}
+	height := engine.GetHeight()
 
 	var snapshotHeight int64
 
@@ -86,7 +79,7 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest 
 		}
 	}
 
-	if err := blocksync.PerformBlockSyncValidationChecks(homePath, chainRest, blockPoolId, 0, false); err != nil {
+	if err := blocksync.PerformBlockSyncValidationChecks(engine, chainRest, blockPoolId, 0, false); err != nil {
 		logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
 		os.Exit(1)
 	}
@@ -95,52 +88,82 @@ func StartServeSnapshotsWithBinary(binaryPath, homePath, chainRest, storageRest 
 
 	if height == 0 && snapshotHeight > 0 {
 		// if we can perform a state-sync we first make the validation checks
-		if err := statesync.PerformStateSyncValidationChecks(homePath, chainRest, snapshotPoolId, snapshotHeight, false); err != nil {
+		if err := statesync.PerformStateSyncValidationChecks(chainRest, snapshotPoolId, snapshotHeight, false); err != nil {
 			logger.Error().Msg(fmt.Sprintf("state-sync validation checks failed: %s", err))
 			os.Exit(1)
 		}
 
 		// start binary process thread
-		processId, err = supervisor.StartBinaryProcessForDB(binaryPath, homePath, snapshotArgs)
+		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, snapshotArgs)
 		if err != nil {
 			panic(err)
 		}
 
 		// found snapshot, applying it and continuing block-sync from here
-		if statesync.StartStateSync(homePath, chainRest, storageRest, snapshotPoolId, snapshotHeight) != nil {
+		if statesync.StartStateSync(engine, chainRest, storageRest, snapshotPoolId, snapshotHeight) != nil {
 			// stop binary process thread
-			if err := supervisor.StopProcessByProcessId(processId); err != nil {
+			if err := utils.StopProcessByProcessId(processId); err != nil {
+				panic(err)
+			}
+			os.Exit(1)
+		}
+
+		// TODO: does app has to be restarted after a state-sync?
+		// ignore error, since process gets terminated anyway afterwards
+		e := engine.CloseDBs()
+		_ = e
+
+		if err := utils.StopProcessByProcessId(processId); err != nil {
+			panic(err)
+		}
+
+		// wait until process has properly shut down
+		time.Sleep(10 * time.Second)
+
+		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, []string{})
+		if err != nil {
+			panic(err)
+		}
+
+		// wait until process has properly started
+		time.Sleep(10 * time.Second)
+
+		if err := engine.OpenDBs(homePath); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
+
+			// stop binary process thread
+			if err := utils.StopProcessByProcessId(processId); err != nil {
 				panic(err)
 			}
 			os.Exit(1)
 		}
 	} else {
 		// if we have to sync from genesis we first bootstrap the node
-		if err := bootstrap.StartBootstrapWithBinary(binaryPath, homePath, chainRest, storageRest, blockPoolId); err != nil {
+		if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, blockPoolId); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
 			os.Exit(1)
 		}
 
 		// after the node is bootstrapped we start the binary process thread
-		processId, err = supervisor.StartBinaryProcessForDB(binaryPath, homePath, snapshotArgs)
+		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, snapshotArgs)
 		if err != nil {
 			panic(err)
 		}
 	}
 
 	// db executes blocks against app indefinitely
-	if err := db.StartDBExecutor(homePath, chainRest, storageRest, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning, nil); err != nil {
+	if err := blocksync.StartDBExecutor(engine, chainRest, storageRest, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning, nil); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to start db executor: %s", err))
 
 		// stop binary process thread
-		if err := supervisor.StopProcessByProcessId(processId); err != nil {
+		if err := utils.StopProcessByProcessId(processId); err != nil {
 			panic(err)
 		}
 		os.Exit(1)
 	}
 
 	// stop binary process thread
-	if err := supervisor.StopProcessByProcessId(processId); err != nil {
+	if err := utils.StopProcessByProcessId(processId); err != nil {
 		panic(err)
 	}
 

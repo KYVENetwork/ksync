@@ -2,13 +2,19 @@ package commands
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/engines/cometbft"
+	"github.com/KYVENetwork/ksync/engines/tendermint"
 	"github.com/KYVENetwork/ksync/heightsync"
+	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
+	"os"
 	"strings"
 )
 
 func init() {
+	heightSyncCmd.Flags().StringVar(&engine, "engine", utils.DefaultEngine, fmt.Sprintf("KSYNC engines [\"%s\",\"%s\"]", utils.EngineTendermint, utils.EngineCometBFT))
+
 	heightSyncCmd.Flags().StringVar(&binaryPath, "binary", "", "binary path of node to be synced")
 	if err := heightSyncCmd.MarkFlagRequired("binary"); err != nil {
 		panic(fmt.Errorf("flag 'binary' should be required: %w", err))
@@ -47,6 +53,29 @@ var heightSyncCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
-		heightsync.StartHeightSyncWithBinary(binaryPath, homePath, chainRest, storageRest, snapshotPoolId, blockPoolId, targetHeight, !y)
+
+		var consensusEngine types.Engine
+
+		switch engine {
+		case utils.EngineTendermint:
+			consensusEngine = &tendermint.TmEngine{}
+		case utils.EngineCometBFT:
+			consensusEngine = &cometbft.CometEngine{}
+		default:
+			logger.Error().Msg(fmt.Sprintf("engine %s not found", engine))
+			return
+		}
+
+		if err := consensusEngine.OpenDBs(homePath); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
+			os.Exit(1)
+		}
+
+		heightsync.StartHeightSyncWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, snapshotPoolId, blockPoolId, targetHeight, !y)
+
+		if err := consensusEngine.CloseDBs(); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
+			os.Exit(1)
+		}
 	},
 }

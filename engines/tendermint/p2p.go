@@ -1,12 +1,15 @@
-package reactor
+package tendermint
 
 import (
 	"fmt"
-	log "github.com/KYVENetwork/ksync/logger"
-	"github.com/KYVENetwork/ksync/types"
+	log "github.com/KYVENetwork/ksync/utils"
 	bc "github.com/tendermint/tendermint/blockchain"
+	bcv0 "github.com/tendermint/tendermint/blockchain/v0"
+	tmLog "github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
 	bcproto "github.com/tendermint/tendermint/proto/tendermint/blockchain"
+	sm "github.com/tendermint/tendermint/state"
+	"github.com/tendermint/tendermint/version"
 	"reflect"
 )
 
@@ -15,17 +18,17 @@ const (
 )
 
 var (
-	logger = log.KsyncLogger("reactor")
+	logger = log.KsyncLogger("p2p")
 )
 
 type BlockchainReactor struct {
 	p2p.BaseReactor
 
-	block     *types.Block
-	nextBlock *types.Block
+	block     *Block
+	nextBlock *Block
 }
 
-func NewBlockchainReactor(block *types.Block, nextBlock *types.Block) *BlockchainReactor {
+func NewBlockchainReactor(block *Block, nextBlock *Block) *BlockchainReactor {
 	bcR := &BlockchainReactor{
 		block:     block,
 		nextBlock: nextBlock,
@@ -121,4 +124,60 @@ func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 	default:
 		logger.Error().Msg(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
 	}
+}
+
+func MakeNodeInfo(
+	config *Config,
+	nodeKey *p2p.NodeKey,
+	genDoc *GenesisDoc,
+) (p2p.NodeInfo, error) {
+	nodeInfo := p2p.DefaultNodeInfo{
+		ProtocolVersion: p2p.NewProtocolVersion(
+			version.P2PProtocol,
+			sm.InitStateVersion.Consensus.Block,
+			sm.InitStateVersion.Consensus.App,
+		),
+		DefaultNodeID: nodeKey.ID(),
+		Network:       genDoc.ChainID,
+		Version:       version.TMCoreSemVer,
+		Channels:      []byte{bcv0.BlockchainChannel},
+		Moniker:       config.Moniker,
+		Other: p2p.DefaultNodeInfoOther{
+			TxIndex:    "off",
+			RPCAddress: config.RPC.ListenAddress,
+		},
+	}
+
+	lAddr := config.P2P.ExternalAddress
+
+	if lAddr == "" {
+		lAddr = config.P2P.ListenAddress
+	}
+
+	nodeInfo.ListenAddr = lAddr
+
+	err := nodeInfo.Validate()
+	return nodeInfo, err
+}
+
+func CreateSwitch(config *Config,
+	transport p2p.Transport,
+	bcReactor p2p.Reactor,
+	nodeInfo p2p.NodeInfo,
+	nodeKey *p2p.NodeKey,
+	logger tmLog.Logger) *p2p.Switch {
+
+	sw := p2p.NewSwitch(
+		config.P2P,
+		transport,
+	)
+	sw.SetLogger(logger)
+	bcReactor.SetLogger(logger)
+	sw.AddReactor("BLOCKCHAIN", bcReactor)
+
+	sw.SetNodeInfo(nodeInfo)
+	sw.SetNodeKey(nodeKey)
+
+	logger.Info("P2P Node ID", "ID", nodeKey.ID())
+	return sw
 }
