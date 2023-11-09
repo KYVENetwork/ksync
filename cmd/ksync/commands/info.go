@@ -50,7 +50,7 @@ var infoCmd = &cobra.Command{
 
 		t := table.NewWriter()
 		t.SetOutputMirror(os.Stdout)
-		t.AppendHeader(table.Row{"Source", "Block height [ID]", "State height [ID]", "BLOCK-SYNC", "STATE-SYNC", "HEIGHT-SYNC"})
+		t.AppendHeader(table.Row{"Source", "BLOCK-SYNC", "STATE-SYNC", "HEIGHT-SYNC"})
 
 		for _, key := range keys {
 			entry := sourceRegistry.Entries[key]
@@ -64,12 +64,10 @@ var infoCmd = &cobra.Command{
 					continue
 				}
 			}
-			blockKey, stateKey, blockSync, stateSync, heightSync := sources.FormatOutput(&entry, chainId)
+			blockSync, stateSync, heightSync := sources.FormatOutput(&entry, chainId)
 			t.AppendRows([]table.Row{
 				{
 					entry.Source.Title,
-					blockKey,
-					stateKey,
 					blockSync,
 					stateSync,
 					heightSync,

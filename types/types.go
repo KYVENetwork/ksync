@@ -139,10 +139,12 @@ type SourceMetadata struct {
 }
 
 type KYVEInfo struct {
-	BlockPoolID    *int    `yaml:"block_pool_id,omitempty"`
-	StatePoolID    *int    `yaml:"state_pool_id,omitempty"`
-	LatestBlockKey *string `yaml:"latest_block_key"`
-	LatestStateKey *string `yaml:"latest_state_key"`
+	BlockPoolID    *int `yaml:"block_pool_id,omitempty"`
+	StatePoolID    *int `yaml:"state_pool_id,omitempty"`
+	LatestBlockKey *string
+	LatestStateKey *string
+	BlockStartKey  *string
+	StateStartKey  *string
 }
 
 type Entry struct {
