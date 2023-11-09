@@ -2,7 +2,7 @@ package cometbft
 
 import (
 	"fmt"
-	klogger "github.com/KYVENetwork/ksync/logger"
+	klogger "github.com/KYVENetwork/ksync/utils"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/rs/zerolog"
 )

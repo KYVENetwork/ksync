@@ -5,15 +5,13 @@ import (
 	blocksyncHelpers "github.com/KYVENetwork/ksync/blocksync/helpers"
 	"github.com/KYVENetwork/ksync/bootstrap/helpers"
 	"github.com/KYVENetwork/ksync/collectors/blocks"
-	log "github.com/KYVENetwork/ksync/logger"
-	"github.com/KYVENetwork/ksync/supervisor"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"time"
 )
 
 var (
-	logger = log.KsyncLogger("bootstrap")
+	logger = utils.KsyncLogger("bootstrap")
 )
 
 func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, poolId int64) error {
@@ -70,7 +68,7 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 	}
 
 	// start binary process thread
-	processId, err := supervisor.StartBinaryProcessForP2P(binaryPath, homePath, []string{})
+	processId, err := utils.StartBinaryProcessForP2P(engine, binaryPath, []string{})
 	if err != nil {
 		return err
 	}
@@ -92,7 +90,7 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 	// start p2p executors and try to execute the first block on the app
 	if err := engine.ApplyFirstBlockOverP2P(poolResponse.Pool.Data.Runtime, item.Value, nextItem.Value); err != nil {
 		// stop binary process thread
-		if err := supervisor.StopProcessByProcessId(processId); err != nil {
+		if err := utils.StopProcessByProcessId(processId); err != nil {
 			panic(err)
 		}
 
@@ -118,7 +116,7 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 	logger.Info().Msg("node was bootstrapped. Cleaning up")
 
 	// stop process by sending signal SIGTERM
-	if err := supervisor.StopProcessByProcessId(processId); err != nil {
+	if err := utils.StopProcessByProcessId(processId); err != nil {
 		return err
 	}
 

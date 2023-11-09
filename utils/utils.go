@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"fmt"
-	log "github.com/KYVENetwork/ksync/logger"
 	"io"
 	"math"
 	"net/http"
@@ -16,7 +15,7 @@ import (
 )
 
 var (
-	logger = log.KsyncLogger("utils")
+	logger = KsyncLogger("utils")
 )
 
 // GetFromUrl tries to fetch data from url

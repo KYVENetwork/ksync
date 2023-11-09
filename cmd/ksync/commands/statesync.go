@@ -66,7 +66,7 @@ var stateSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		statesync.StartStateSyncWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, snapshotPoolId, targetHeight, !y)
+		statesync.StartStateSyncWithBinary(consensusEngine, binaryPath, chainRest, storageRest, snapshotPoolId, targetHeight, !y)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))

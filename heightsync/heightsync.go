@@ -6,18 +6,17 @@ import (
 	blocksyncHelpers "github.com/KYVENetwork/ksync/blocksync/helpers"
 	"github.com/KYVENetwork/ksync/bootstrap"
 	"github.com/KYVENetwork/ksync/collectors/snapshots"
-	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
-	"github.com/KYVENetwork/ksync/supervisor"
 	"github.com/KYVENetwork/ksync/types"
+	"github.com/KYVENetwork/ksync/utils"
 	"os"
 	"strings"
 	"time"
 )
 
 var (
-	logger = log.KsyncLogger("height-sync")
+	logger = utils.KsyncLogger("height-sync")
 )
 
 func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, snapshotPoolId, blockPoolId, targetHeight int64, userInput bool) {
@@ -95,7 +94,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 	// if there are snapshots available before the requested height we apply the nearest
 	if snapshotHeight > 0 {
 		// start binary process thread
-		processId, err = supervisor.StartBinaryProcessForDB(binaryPath, homePath, []string{})
+		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, []string{})
 		if err != nil {
 			panic(err)
 		}
@@ -105,7 +104,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 			logger.Error().Msg(fmt.Sprintf("failed to apply state-sync: %s", err))
 
 			// stop binary process thread
-			if err := supervisor.StopProcessByProcessId(processId); err != nil {
+			if err := utils.StopProcessByProcessId(processId); err != nil {
 				panic(err)
 			}
 			os.Exit(1)
@@ -118,7 +117,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 		}
 
 		// after the node is bootstrapped we start the binary process thread
-		processId, err = supervisor.StartBinaryProcessForDB(binaryPath, homePath, []string{})
+		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, []string{})
 		if err != nil {
 			panic(err)
 		}
@@ -128,11 +127,11 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 	e := engine.CloseDBs()
 	_ = e
 
-	if err := supervisor.StopProcessByProcessId(processId); err != nil {
+	if err := utils.StopProcessByProcessId(processId); err != nil {
 		panic(err)
 	}
 
-	processId, err = supervisor.StartBinaryProcessForDB(binaryPath, homePath, []string{})
+	processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, []string{})
 	if err != nil {
 		panic(err)
 	}
@@ -144,7 +143,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 		logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 
 		// stop binary process thread
-		if err := supervisor.StopProcessByProcessId(processId); err != nil {
+		if err := utils.StopProcessByProcessId(processId); err != nil {
 			panic(err)
 		}
 		os.Exit(1)
@@ -157,7 +156,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 			logger.Error().Msg(fmt.Sprintf("failed to apply block-sync: %s", err))
 
 			// stop binary process thread
-			if err := supervisor.StopProcessByProcessId(processId); err != nil {
+			if err := utils.StopProcessByProcessId(processId); err != nil {
 				panic(err)
 			}
 			os.Exit(1)
@@ -165,7 +164,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 	}
 
 	// stop binary process thread
-	if err := supervisor.StopProcessByProcessId(processId); err != nil {
+	if err := utils.StopProcessByProcessId(processId); err != nil {
 		panic(err)
 	}
 

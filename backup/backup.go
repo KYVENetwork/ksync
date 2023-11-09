@@ -3,8 +3,8 @@ package backup
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/backup/helpers"
-	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
+	log "github.com/KYVENetwork/ksync/utils"
 	"path/filepath"
 )
 

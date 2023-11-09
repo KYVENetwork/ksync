@@ -9,6 +9,12 @@ type Engine interface {
 	// CloseDBs closes the relevant blockstore and state DBs
 	CloseDBs() error
 
+	// GetHomePath gets the home path of the config and data folder
+	GetHomePath() string
+
+	// GetProxyApp gets the proxy app address of the TSP connection
+	GetProxyApp() string
+
 	// GetChainId gets the chain id of the app
 	GetChainId() (string, error)
 

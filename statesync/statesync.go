@@ -4,16 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"github.com/KYVENetwork/ksync/collectors/snapshots"
-	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
-	"github.com/KYVENetwork/ksync/supervisor"
 	"github.com/KYVENetwork/ksync/types"
+	"github.com/KYVENetwork/ksync/utils"
 	"os"
 	"strings"
 )
 
 var (
-	logger = log.KsyncLogger("state-sync")
+	logger = utils.KsyncLogger("state-sync")
 )
 
 func StartStateSync(engine types.Engine, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64) error {
@@ -71,7 +70,7 @@ func PerformStateSyncValidationChecks(chainRest string, snapshotPoolId, snapshot
 	return nil
 }
 
-func StartStateSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64, userInput bool) {
+func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64, userInput bool) {
 	logger.Info().Msg("starting state-sync")
 
 	// perform validation checks before booting state-sync process
@@ -81,7 +80,7 @@ func StartStateSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 	}
 
 	// start binary process thread
-	processId, err := supervisor.StartBinaryProcessForDB(binaryPath, homePath, []string{})
+	processId, err := utils.StartBinaryProcessForDB(engine, binaryPath, []string{})
 	if err != nil {
 		panic(err)
 	}
@@ -90,14 +89,14 @@ func StartStateSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 		logger.Error().Msg(fmt.Sprintf("failed to start state-sync: %s", err))
 
 		// stop binary process thread
-		if err := supervisor.StopProcessByProcessId(processId); err != nil {
+		if err := utils.StopProcessByProcessId(processId); err != nil {
 			panic(err)
 		}
 		os.Exit(1)
 	}
 
 	// stop binary process thread
-	if err := supervisor.StopProcessByProcessId(processId); err != nil {
+	if err := utils.StopProcessByProcessId(processId); err != nil {
 		panic(err)
 	}
 

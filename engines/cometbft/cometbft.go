@@ -27,7 +27,8 @@ var (
 )
 
 type CometEngine struct {
-	config *cfg.Config
+	homePath string
+	config   *cfg.Config
 
 	blockDB    db.DB
 	blockStore *tmStore.BlockStore
@@ -41,7 +42,9 @@ type CometEngine struct {
 }
 
 func (comet *CometEngine) OpenDBs(homePath string) error {
-	config, err := LoadConfig(homePath)
+	comet.homePath = homePath
+
+	config, err := LoadConfig(comet.homePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
 	}
@@ -77,6 +80,14 @@ func (comet *CometEngine) CloseDBs() error {
 	}
 
 	return nil
+}
+
+func (comet *CometEngine) GetHomePath() string {
+	return comet.homePath
+}
+
+func (comet *CometEngine) GetProxyApp() string {
+	return comet.config.ProxyApp
 }
 
 func (comet *CometEngine) GetChainId() (string, error) {

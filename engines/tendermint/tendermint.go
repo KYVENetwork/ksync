@@ -26,7 +26,8 @@ var (
 )
 
 type TmEngine struct {
-	config *cfg.Config
+	homePath string
+	config   *cfg.Config
 
 	blockDB    db.DB
 	blockStore *tmStore.BlockStore
@@ -40,7 +41,9 @@ type TmEngine struct {
 }
 
 func (tm *TmEngine) OpenDBs(homePath string) error {
-	config, err := LoadConfig(homePath)
+	tm.homePath = homePath
+
+	config, err := LoadConfig(tm.homePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
 	}
@@ -76,6 +79,14 @@ func (tm *TmEngine) CloseDBs() error {
 	}
 
 	return nil
+}
+
+func (tm *TmEngine) GetHomePath() string {
+	return tm.homePath
+}
+
+func (tm *TmEngine) GetProxyApp() string {
+	return tm.config.ProxyApp
 }
 
 func (tm *TmEngine) GetChainId() (string, error) {

@@ -1,15 +1,15 @@
-package supervisor
+package utils
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/engines/tendermint"
+	"github.com/KYVENetwork/ksync/types"
 	"os"
 	"os/exec"
 	"strings"
 	"syscall"
 )
 
-func StartBinaryProcessForDB(binaryPath string, homePath string, args []string) (processId int, err error) {
+func StartBinaryProcessForDB(engine types.Engine, binaryPath string, args []string) (processId int, err error) {
 	cmdPath, err := exec.LookPath(binaryPath)
 	if err != nil {
 		return processId, fmt.Errorf("failed to lookup binary path: %w", err)
@@ -22,18 +22,13 @@ func StartBinaryProcessForDB(binaryPath string, homePath string, args []string) 
 		startArgs = append(startArgs, "run")
 	}
 
-	config, err := tendermint.LoadConfig(homePath)
-	if err != nil {
-		return processId, fmt.Errorf("failed to load config.toml: %w", err)
-	}
-
 	baseArgs := append([]string{
 		"start",
 		"--home",
-		homePath,
+		engine.GetHomePath(),
 		"--with-tendermint=false",
 		"--address",
-		config.ProxyApp,
+		engine.GetProxyApp(),
 	}, args...)
 
 	cmd := exec.Command(cmdPath, append(startArgs, baseArgs...)...)
@@ -48,7 +43,7 @@ func StartBinaryProcessForDB(binaryPath string, homePath string, args []string) 
 	return
 }
 
-func StartBinaryProcessForP2P(binaryPath string, homePath string, args []string) (processId int, err error) {
+func StartBinaryProcessForP2P(engine types.Engine, binaryPath string, args []string) (processId int, err error) {
 	cmdPath, err := exec.LookPath(binaryPath)
 	if err != nil {
 		return processId, fmt.Errorf("failed to lookup binary path: %w", err)
@@ -64,7 +59,7 @@ func StartBinaryProcessForP2P(binaryPath string, homePath string, args []string)
 	baseArgs := append([]string{
 		"start",
 		"--home",
-		homePath,
+		engine.GetHomePath(),
 		"--p2p.pex=false",
 		"--p2p.persistent_peers",
 		"",

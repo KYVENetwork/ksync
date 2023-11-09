@@ -3,7 +3,6 @@ package blocks
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/collectors/bundles"
-	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/tendermint/tendermint/libs/json"
@@ -12,7 +11,7 @@ import (
 )
 
 var (
-	logger = log.KsyncLogger("collector")
+	logger = utils.KsyncLogger("collector")
 )
 
 func StartBlockCollector(itemCh chan<- types.DataItem, errorCh chan<- error, chainRest, storageRest string, blockPool types.PoolResponse, continuationHeight, targetHeight int64, mustExit bool) {

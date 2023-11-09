@@ -7,10 +7,8 @@ import (
 	"github.com/KYVENetwork/ksync/bootstrap"
 	"github.com/KYVENetwork/ksync/collectors/pool"
 	"github.com/KYVENetwork/ksync/collectors/snapshots"
-	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
-	"github.com/KYVENetwork/ksync/supervisor"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"os"
@@ -19,7 +17,7 @@ import (
 )
 
 var (
-	logger = log.KsyncLogger("serve-snapshots")
+	logger = utils.KsyncLogger("serve-snapshots")
 )
 
 func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort, startHeight int64, pruning bool) {
@@ -96,7 +94,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		}
 
 		// start binary process thread
-		processId, err = supervisor.StartBinaryProcessForDB(binaryPath, homePath, snapshotArgs)
+		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, snapshotArgs)
 		if err != nil {
 			panic(err)
 		}
@@ -104,7 +102,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		// found snapshot, applying it and continuing block-sync from here
 		if statesync.StartStateSync(engine, chainRest, storageRest, snapshotPoolId, snapshotHeight) != nil {
 			// stop binary process thread
-			if err := supervisor.StopProcessByProcessId(processId); err != nil {
+			if err := utils.StopProcessByProcessId(processId); err != nil {
 				panic(err)
 			}
 			os.Exit(1)
@@ -114,11 +112,11 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		e := engine.CloseDBs()
 		_ = e
 
-		if err := supervisor.StopProcessByProcessId(processId); err != nil {
+		if err := utils.StopProcessByProcessId(processId); err != nil {
 			panic(err)
 		}
 
-		processId, err = supervisor.StartBinaryProcessForDB(binaryPath, homePath, []string{})
+		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, []string{})
 		if err != nil {
 			panic(err)
 		}
@@ -130,7 +128,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 
 			// stop binary process thread
-			if err := supervisor.StopProcessByProcessId(processId); err != nil {
+			if err := utils.StopProcessByProcessId(processId); err != nil {
 				panic(err)
 			}
 			os.Exit(1)
@@ -143,7 +141,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		}
 
 		// after the node is bootstrapped we start the binary process thread
-		processId, err = supervisor.StartBinaryProcessForDB(binaryPath, homePath, snapshotArgs)
+		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, snapshotArgs)
 		if err != nil {
 			panic(err)
 		}
@@ -154,14 +152,14 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		logger.Error().Msg(fmt.Sprintf("failed to start db executor: %s", err))
 
 		// stop binary process thread
-		if err := supervisor.StopProcessByProcessId(processId); err != nil {
+		if err := utils.StopProcessByProcessId(processId); err != nil {
 			panic(err)
 		}
 		os.Exit(1)
 	}
 
 	// stop binary process thread
-	if err := supervisor.StopProcessByProcessId(processId); err != nil {
+	if err := utils.StopProcessByProcessId(processId); err != nil {
 		panic(err)
 	}
 

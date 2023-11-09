@@ -2,7 +2,7 @@ package tendermint
 
 import (
 	"fmt"
-	log "github.com/KYVENetwork/ksync/logger"
+	log "github.com/KYVENetwork/ksync/utils"
 	bc "github.com/tendermint/tendermint/blockchain"
 	bcv0 "github.com/tendermint/tendermint/blockchain/v0"
 	tmLog "github.com/tendermint/tendermint/libs/log"

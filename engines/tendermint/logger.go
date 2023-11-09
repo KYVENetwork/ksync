@@ -2,7 +2,7 @@ package tendermint
 
 import (
 	"fmt"
-	klogger "github.com/KYVENetwork/ksync/logger"
+	klogger "github.com/KYVENetwork/ksync/utils"
 	"github.com/rs/zerolog"
 	"github.com/tendermint/tendermint/libs/log"
 )

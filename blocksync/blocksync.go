@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/blocksync/helpers"
 	"github.com/KYVENetwork/ksync/bootstrap"
-	log "github.com/KYVENetwork/ksync/logger"
-	"github.com/KYVENetwork/ksync/supervisor"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"os"
@@ -14,7 +12,7 @@ import (
 )
 
 var (
-	logger = log.KsyncLogger("block-sync")
+	logger = utils.KsyncLogger("block-sync")
 )
 
 func StartBlockSync(engine types.Engine, chainRest, storageRest string, poolId, targetHeight int64, metrics bool, port int64, backupCfg *types.BackupConfig) error {
@@ -93,7 +91,7 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 	}
 
 	// start binary process thread
-	processId, err := supervisor.StartBinaryProcessForDB(binaryPath, homePath, []string{})
+	processId, err := utils.StartBinaryProcessForDB(engine, binaryPath, []string{})
 	if err != nil {
 		panic(err)
 	}
@@ -103,14 +101,14 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 		logger.Error().Msg(fmt.Sprintf("%s", err))
 
 		// stop binary process thread
-		if err := supervisor.StopProcessByProcessId(processId); err != nil {
+		if err := utils.StopProcessByProcessId(processId); err != nil {
 			panic(err)
 		}
 		os.Exit(1)
 	}
 
 	// stop binary process thread
-	if err := supervisor.StopProcessByProcessId(processId); err != nil {
+	if err := utils.StopProcessByProcessId(processId); err != nil {
 		panic(err)
 	}
 
