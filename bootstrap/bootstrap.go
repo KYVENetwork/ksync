@@ -122,10 +122,6 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 		return err
 	}
 
-	if err := engine.Start(homePath); err != nil {
-		return fmt.Errorf("failed to start engine: %w", err)
-	}
-
 	// TODO: check if this is needed
 	// stop switch from p2p executors
 	//if err := sw.Stop(); err != nil {
@@ -134,6 +130,10 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 
 	// wait until process has properly shut down
 	time.Sleep(10 * time.Second)
+
+	if err := engine.Start(homePath); err != nil {
+		return fmt.Errorf("failed to start engine: %w", err)
+	}
 
 	logger.Info().Msg("successfully bootstrapped node. Continuing with syncing blocks over DB")
 	return nil
