@@ -65,8 +65,8 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 		return fmt.Errorf("failed to retrieve block %d from pool", genesisHeight+1)
 	}
 
-	if err := engine.Stop(); err != nil {
-		return fmt.Errorf("failed to stop engine: %w", err)
+	if err := engine.CloseDBs(); err != nil {
+		return fmt.Errorf("failed to close dbs in engine: %w", err)
 	}
 
 	// start binary process thread
@@ -122,17 +122,11 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 		return err
 	}
 
-	// TODO: check if this is needed
-	// stop switch from p2p executors
-	//if err := sw.Stop(); err != nil {
-	//	return err
-	//}
-
 	// wait until process has properly shut down
 	time.Sleep(10 * time.Second)
 
-	if err := engine.Start(homePath); err != nil {
-		return fmt.Errorf("failed to start engine: %w", err)
+	if err := engine.OpenDBs(homePath); err != nil {
+		return fmt.Errorf("failed to open dbs in engine: %w", err)
 	}
 
 	logger.Info().Msg("successfully bootstrapped node. Continuing with syncing blocks over DB")

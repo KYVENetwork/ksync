@@ -3,13 +3,11 @@ package types
 // Engine is an interface defining common behaviour for each consensus engine.
 // Currently, both tendermint and cometbft are supported
 type Engine interface {
-	// Start starts the engine and performs setups,
-	// should be called before every other method
-	Start(homePath string) error
+	// OpenDBs opens the relevant blockstore and state DBs
+	OpenDBs(homePath string) error
 
-	// Stop stops the engine and should be called before
-	// KSYNC exits
-	Stop() error
+	// CloseDBs closes the relevant blockstore and state DBs
+	CloseDBs() error
 
 	// GetChainId gets the chain id of the app
 	GetChainId() (string, error)

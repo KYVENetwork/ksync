@@ -39,7 +39,7 @@ type TmEngine struct {
 	blockExecutor *tmState.BlockExecutor
 }
 
-func (tm *TmEngine) Start(homePath string) error {
+func (tm *TmEngine) OpenDBs(homePath string) error {
 	config, err := LoadConfig(homePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
@@ -66,7 +66,7 @@ func (tm *TmEngine) Start(homePath string) error {
 	return nil
 }
 
-func (tm *TmEngine) Stop() error {
+func (tm *TmEngine) CloseDBs() error {
 	if err := tm.blockDB.Close(); err != nil {
 		return fmt.Errorf("failed to close blockDB: %w", err)
 	}

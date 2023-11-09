@@ -22,9 +22,7 @@ func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPo
 	if err != nil {
 		return fmt.Errorf("failed to get continuation height from engine: %w", err)
 	}
-
-	fmt.Println(fmt.Sprintf("continuing at height %d", continuationHeight))
-
+	
 	if err := engine.DoHandshake(); err != nil {
 		return fmt.Errorf("failed to do handshake: %w", err)
 	}
@@ -84,8 +82,6 @@ func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPo
 			}
 
 			prevHeight := height - 1
-
-			fmt.Println(fmt.Sprintf("apply block %d", height))
 
 			if err := engine.ApplyBlock(poolResponse.Pool.Data.Runtime, item.Value); err != nil {
 				return fmt.Errorf("failed to apply block in engine: %w", err)

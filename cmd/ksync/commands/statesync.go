@@ -61,15 +61,15 @@ var stateSyncCmd = &cobra.Command{
 			return
 		}
 
-		if err := consensusEngine.Start(homePath); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to start engine: %s", err))
+		if err := consensusEngine.OpenDBs(homePath); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 			os.Exit(1)
 		}
 
 		statesync.StartStateSyncWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, snapshotPoolId, targetHeight, !y)
 
-		if err := consensusEngine.Stop(); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to stop engine: %s", err))
+		if err := consensusEngine.CloseDBs(); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
 			os.Exit(1)
 		}
 	},

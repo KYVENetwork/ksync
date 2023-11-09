@@ -37,6 +37,8 @@ func StartBinaryProcessForDB(binaryPath string, homePath string, args []string) 
 	}, args...)
 
 	cmd := exec.Command(cmdPath, append(startArgs, baseArgs...)...)
+	//cmd.Stdout = os.Stdout
+	//cmd.Stderr = os.Stderr
 
 	if err := cmd.Start(); err != nil {
 		return processId, fmt.Errorf("failed to start binary process: %w", err)
@@ -73,6 +75,8 @@ func StartBinaryProcessForP2P(binaryPath string, homePath string, args []string)
 	}, args...)
 
 	cmd := exec.Command(cmdPath, append(startArgs, baseArgs...)...)
+	//cmd.Stdout = os.Stdout
+	//cmd.Stderr = os.Stderr
 
 	if err := cmd.Start(); err != nil {
 		return processId, fmt.Errorf("failed to start binary process: %w", err)

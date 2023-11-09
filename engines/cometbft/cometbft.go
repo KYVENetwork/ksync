@@ -40,7 +40,7 @@ type CometEngine struct {
 	blockExecutor *tmState.BlockExecutor
 }
 
-func (comet *CometEngine) Start(homePath string) error {
+func (comet *CometEngine) OpenDBs(homePath string) error {
 	config, err := LoadConfig(homePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
@@ -67,7 +67,7 @@ func (comet *CometEngine) Start(homePath string) error {
 	return nil
 }
 
-func (comet *CometEngine) Stop() error {
+func (comet *CometEngine) CloseDBs() error {
 	if err := comet.blockDB.Close(); err != nil {
 		return fmt.Errorf("failed to close blockDB: %w", err)
 	}

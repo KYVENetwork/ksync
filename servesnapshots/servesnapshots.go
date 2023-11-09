@@ -15,6 +15,7 @@ import (
 	"github.com/KYVENetwork/ksync/utils"
 	"os"
 	"strconv"
+	"time"
 )
 
 var (
@@ -110,7 +111,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		}
 
 		// ignore error, since process gets terminated anyway afterwards
-		e := engine.Stop()
+		e := engine.CloseDBs()
 		_ = e
 
 		if err := supervisor.StopProcessByProcessId(processId); err != nil {
@@ -122,8 +123,11 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 			panic(err)
 		}
 
-		if err := engine.Start(homePath); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to start engine: %s", err))
+		// wait until process has properly started
+		time.Sleep(10 * time.Second)
+
+		if err := engine.OpenDBs(homePath); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 
 			// stop binary process thread
 			if err := supervisor.StopProcessByProcessId(processId); err != nil {
