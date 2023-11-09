@@ -2,24 +2,23 @@ package cometbft
 
 import (
 	"fmt"
+	klogger "github.com/KYVENetwork/ksync/logger"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/rs/zerolog"
-	"io"
-	"os"
 )
 
-func KLogger() (logger log.Logger) {
-	logger = KsyncTmLogger{logger: TmLogger("")}
+func CometLogger() (logger log.Logger) {
+	logger = KsyncCometLogger{logger: klogger.LogFormatter("")}
 	return
 }
 
-type KsyncTmLogger struct {
+type KsyncCometLogger struct {
 	logger zerolog.Logger
 }
 
-func (l KsyncTmLogger) Debug(msg string, keyvals ...interface{}) {}
+func (l KsyncCometLogger) Debug(msg string, keyvals ...interface{}) {}
 
-func (l KsyncTmLogger) Info(msg string, keyvals ...interface{}) {
+func (l KsyncCometLogger) Info(msg string, keyvals ...interface{}) {
 	logger := l.logger.Info()
 
 	for i := 0; i < len(keyvals); i = i + 2 {
@@ -29,7 +28,7 @@ func (l KsyncTmLogger) Info(msg string, keyvals ...interface{}) {
 	logger.Msg(msg)
 }
 
-func (l KsyncTmLogger) Error(msg string, keyvals ...interface{}) {
+func (l KsyncCometLogger) Error(msg string, keyvals ...interface{}) {
 	logger := l.logger.Error()
 
 	for i := 0; i < len(keyvals); i = i + 2 {
@@ -39,36 +38,7 @@ func (l KsyncTmLogger) Error(msg string, keyvals ...interface{}) {
 	logger.Msg(msg)
 }
 
-func (l KsyncTmLogger) With(keyvals ...interface{}) (logger log.Logger) {
-	logger = KsyncTmLogger{logger: TmLogger(keyvals)}
+func (l KsyncCometLogger) With(keyvals ...interface{}) (logger log.Logger) {
+	logger = KsyncCometLogger{logger: klogger.LogFormatter(keyvals)}
 	return
-}
-
-func KsyncLogger(moduleName string) zerolog.Logger {
-	writer := io.MultiWriter(os.Stdout)
-	customConsoleWriter := zerolog.ConsoleWriter{Out: writer}
-	customConsoleWriter.FormatCaller = func(i interface{}) string {
-		return "\x1b[36m[KSYNC]\x1b[0m"
-	}
-
-	logger := zerolog.New(customConsoleWriter).With().Str("module", moduleName).Timestamp().Logger()
-	return logger
-}
-
-func TmLogger(keyvals ...interface{}) zerolog.Logger {
-	writer := io.MultiWriter(os.Stdout)
-	customConsoleWriter := zerolog.ConsoleWriter{Out: writer}
-	customConsoleWriter.FormatCaller = func(i interface{}) string {
-		return "\x1b[36m[APP]\x1b[0m"
-	}
-
-	logger := zerolog.New(customConsoleWriter).With()
-
-	if len(keyvals) > 1 {
-		for i := 0; i < len(keyvals); i = i + 2 {
-			logger = logger.Str(fmt.Sprintf("%v", keyvals[i]), fmt.Sprintf("%v", keyvals[i+1]))
-		}
-	}
-
-	return logger.Timestamp().Logger()
 }

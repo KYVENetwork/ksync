@@ -5,7 +5,6 @@ import (
 	"github.com/KYVENetwork/ksync/backup"
 	"github.com/KYVENetwork/ksync/collectors/blocks"
 	"github.com/KYVENetwork/ksync/collectors/pool"
-	log "github.com/KYVENetwork/ksync/engines/tendermint"
 	"github.com/KYVENetwork/ksync/server"
 	stateSyncHelpers "github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"
@@ -16,7 +15,6 @@ import (
 var (
 	itemCh  = make(chan types.DataItem, utils.BlockBuffer)
 	errorCh = make(chan error)
-	kLogger = log.KLogger()
 )
 
 func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool, backupCfg *types.BackupConfig) error {

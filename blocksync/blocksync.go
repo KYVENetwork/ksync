@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/blocksync/helpers"
 	"github.com/KYVENetwork/ksync/bootstrap"
-	log "github.com/KYVENetwork/ksync/engines/tendermint"
+	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/supervisor"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"

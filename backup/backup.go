@@ -3,7 +3,7 @@ package backup
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/backup/helpers"
-	log "github.com/KYVENetwork/ksync/engines/tendermint"
+	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
 	"path/filepath"
 )

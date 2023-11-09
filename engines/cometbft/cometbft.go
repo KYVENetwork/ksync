@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	kLogger = KLogger()
+	cometLogger = CometLogger()
 )
 
 type CometEngine struct {
@@ -161,7 +161,7 @@ func (comet *CometEngine) DoHandshake() error {
 
 	comet.blockExecutor = tmState.NewBlockExecutor(
 		comet.stateStore,
-		kLogger.With("module", "state"),
+		cometLogger.With("module", "state"),
 		proxyApp.Consensus(),
 		mempool,
 		evidencePool,
@@ -289,7 +289,7 @@ func (comet *CometEngine) ApplyFirstBlockOverP2P(runtime string, value, nextValu
 	nodeInfo, err := MakeNodeInfo(comet.config, ksyncNodeKey, genDoc)
 	transport := cometP2P.NewMultiplexTransport(nodeInfo, *ksyncNodeKey, cometP2P.MConnConfig(comet.config.P2P))
 	bcR := NewBlockchainReactor(block, nextBlock)
-	sw := CreateSwitch(comet.config, transport, bcR, nodeInfo, ksyncNodeKey, kLogger)
+	sw := CreateSwitch(comet.config, transport, bcR, nodeInfo, ksyncNodeKey, cometLogger)
 
 	// start the transport
 	addr, err := cometP2P.NewNetAddressString(cometP2P.IDAddressString(ksyncNodeKey.ID(), comet.config.P2P.ListenAddress))

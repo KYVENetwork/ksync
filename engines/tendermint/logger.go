@@ -2,14 +2,13 @@ package tendermint
 
 import (
 	"fmt"
+	klogger "github.com/KYVENetwork/ksync/logger"
 	"github.com/rs/zerolog"
 	"github.com/tendermint/tendermint/libs/log"
-	"io"
-	"os"
 )
 
-func KLogger() (logger log.Logger) {
-	logger = KsyncTmLogger{logger: TmLogger("")}
+func TmLogger() (logger log.Logger) {
+	logger = KsyncTmLogger{logger: klogger.LogFormatter("")}
 	return
 }
 
@@ -40,35 +39,6 @@ func (l KsyncTmLogger) Error(msg string, keyvals ...interface{}) {
 }
 
 func (l KsyncTmLogger) With(keyvals ...interface{}) (logger log.Logger) {
-	logger = KsyncTmLogger{logger: TmLogger(keyvals)}
+	logger = KsyncTmLogger{logger: klogger.LogFormatter(keyvals)}
 	return
-}
-
-func KsyncLogger(moduleName string) zerolog.Logger {
-	writer := io.MultiWriter(os.Stdout)
-	customConsoleWriter := zerolog.ConsoleWriter{Out: writer}
-	customConsoleWriter.FormatCaller = func(i interface{}) string {
-		return "\x1b[36m[KSYNC]\x1b[0m"
-	}
-
-	logger := zerolog.New(customConsoleWriter).With().Str("module", moduleName).Timestamp().Logger()
-	return logger
-}
-
-func TmLogger(keyvals ...interface{}) zerolog.Logger {
-	writer := io.MultiWriter(os.Stdout)
-	customConsoleWriter := zerolog.ConsoleWriter{Out: writer}
-	customConsoleWriter.FormatCaller = func(i interface{}) string {
-		return "\x1b[36m[APP]\x1b[0m"
-	}
-
-	logger := zerolog.New(customConsoleWriter).With()
-
-	if len(keyvals) > 1 {
-		for i := 0; i < len(keyvals); i = i + 2 {
-			logger = logger.Str(fmt.Sprintf("%v", keyvals[i]), fmt.Sprintf("%v", keyvals[i+1]))
-		}
-	}
-
-	return logger.Timestamp().Logger()
 }

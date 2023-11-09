@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"fmt"
+	log "github.com/KYVENetwork/ksync/logger"
 	"io"
 	"math"
 	"net/http"
@@ -12,6 +13,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+)
+
+var (
+	logger = log.KsyncLogger("utils")
 )
 
 // GetFromUrl tries to fetch data from url
@@ -41,14 +46,20 @@ func GetFromUrlWithBackoff(url string) (data []byte, err error) {
 			delaySec := math.Pow(2, float64(i))
 			delay := time.Duration(delaySec) * time.Second
 
+			logger.Error().Msg(fmt.Sprintf("failed to fetch from url %s, retrying in %d seconds", url, int(delaySec)))
 			time.Sleep(delay)
 
 			continue
 		}
 
+		// only log success message if there were errors previously
+		if i > 0 {
+			logger.Info().Msg(fmt.Sprintf("successfully fetch data from url %s", url))
+		}
 		return
 	}
 
+	logger.Error().Msg(fmt.Sprintf("failed to fetch data from url within maximum retry limit of %d", BackoffMaxRetries))
 	return
 }
 

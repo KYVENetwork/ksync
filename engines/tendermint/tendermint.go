@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	kLogger = KLogger()
+	tmLogger = TmLogger()
 )
 
 type TmEngine struct {
@@ -160,7 +160,7 @@ func (tm *TmEngine) DoHandshake() error {
 
 	tm.blockExecutor = tmState.NewBlockExecutor(
 		tm.stateStore,
-		kLogger.With("module", "state"),
+		tmLogger.With("module", "state"),
 		proxyApp.Consensus(),
 		mempool,
 		evidencePool,
@@ -284,7 +284,7 @@ func (tm *TmEngine) ApplyFirstBlockOverP2P(runtime string, value, nextValue []by
 	nodeInfo, err := MakeNodeInfo(tm.config, ksyncNodeKey, genDoc)
 	transport := tmP2P.NewMultiplexTransport(nodeInfo, *ksyncNodeKey, tmP2P.MConnConfig(tm.config.P2P))
 	bcR := NewBlockchainReactor(block, nextBlock)
-	sw := CreateSwitch(tm.config, transport, bcR, nodeInfo, ksyncNodeKey, kLogger)
+	sw := CreateSwitch(tm.config, transport, bcR, nodeInfo, ksyncNodeKey, tmLogger)
 
 	// start the transport
 	addr, err := tmP2P.NewNetAddressString(tmP2P.IDAddressString(ksyncNodeKey.ID(), tm.config.P2P.ListenAddress))

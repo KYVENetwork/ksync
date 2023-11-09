@@ -17,10 +17,6 @@ import (
 	"path/filepath"
 )
 
-var (
-	logger = KLogger()
-)
-
 type DBContext struct {
 	ID     string
 	Config *Config
@@ -78,7 +74,7 @@ func GetBlockstoreDBs(config *Config) (dbm.DB, *store.BlockStore, error) {
 
 func CreateAndStartProxyAppConns(config *Config) (proxy.AppConns, error) {
 	proxyApp := proxy.NewAppConns(proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()), proxy.NopMetrics())
-	proxyApp.SetLogger(logger.With("module", "proxy"))
+	proxyApp.SetLogger(cometLogger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
 	}
@@ -87,7 +83,7 @@ func CreateAndStartProxyAppConns(config *Config) (proxy.AppConns, error) {
 
 func CreateAndStartEventBus() (*cometTypes.EventBus, error) {
 	eventBus := cometTypes.NewEventBus()
-	eventBus.SetLogger(logger.With("module", "events"))
+	eventBus.SetLogger(cometLogger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
 		return nil, err
 	}
@@ -103,7 +99,7 @@ func DoHandshake(
 	proxyApp proxy.AppConns,
 ) error {
 	handshaker := cs.NewHandshaker(stateStore, state, blockStore, genDoc)
-	handshaker.SetLogger(logger.With("module", "consensus"))
+	handshaker.SetLogger(cometLogger.With("module", "consensus"))
 	handshaker.SetEventBus(eventBus)
 	if err := handshaker.Handshake(proxyApp); err != nil {
 		return fmt.Errorf("error during handshake: %v", err)
@@ -112,7 +108,7 @@ func DoHandshake(
 }
 
 func CreateMempool(config *Config, proxyApp proxy.AppConns, state sm.State) mempl.Mempool {
-	logger = logger.With("module", "mempool")
+	logger := cometLogger.With("module", "mempool")
 	mp := memplv0.NewCListMempool(
 		config.Mempool,
 		proxyApp.Mempool(),
@@ -135,7 +131,7 @@ func CreateEvidenceReactor(config *Config, stateStore sm.Store, blockStore *stor
 	if err != nil {
 		return nil, nil, err
 	}
-	evidenceLogger := logger.With("module", "evidence")
+	evidenceLogger := cometLogger.With("module", "evidence")
 	evidencePool, err := evidence.NewPool(evidenceDB, stateStore, blockStore)
 	if err != nil {
 		return nil, nil, err

@@ -5,7 +5,7 @@ import (
 	blocksyncHelpers "github.com/KYVENetwork/ksync/blocksync/helpers"
 	"github.com/KYVENetwork/ksync/bootstrap/helpers"
 	"github.com/KYVENetwork/ksync/collectors/blocks"
-	"github.com/KYVENetwork/ksync/engines/tendermint"
+	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/supervisor"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	logger = tendermint.KsyncLogger("bootstrap")
+	logger = log.KsyncLogger("bootstrap")
 )
 
 func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, poolId int64) error {

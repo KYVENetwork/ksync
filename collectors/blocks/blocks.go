@@ -3,7 +3,7 @@ package blocks
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/collectors/bundles"
-	log "github.com/KYVENetwork/ksync/engines/tendermint"
+	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/tendermint/tendermint/libs/json"

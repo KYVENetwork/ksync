@@ -2,9 +2,10 @@ package tendermint
 
 import (
 	"fmt"
+	log "github.com/KYVENetwork/ksync/logger"
 	bc "github.com/tendermint/tendermint/blockchain"
 	bcv0 "github.com/tendermint/tendermint/blockchain/v0"
-	"github.com/tendermint/tendermint/libs/log"
+	tmLog "github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
 	bcproto "github.com/tendermint/tendermint/proto/tendermint/blockchain"
 	sm "github.com/tendermint/tendermint/state"
@@ -17,7 +18,7 @@ const (
 )
 
 var (
-	p2pLogger = KsyncLogger("reactor")
+	logger = log.KsyncLogger("p2p")
 )
 
 type BlockchainReactor struct {
@@ -53,11 +54,11 @@ func (bcR *BlockchainReactor) sendStatusToPeer(src p2p.Peer) (queued bool) {
 		Base:   bcR.block.Height,
 		Height: bcR.block.Height + 1})
 	if err != nil {
-		p2pLogger.Error().Str("could not convert msg to protobuf", err.Error())
+		logger.Error().Str("could not convert msg to protobuf", err.Error())
 		return
 	}
 
-	p2pLogger.Info().Int64("base", bcR.block.Height).Int64("height", bcR.block.Height+1).Msg("Sent status to peer")
+	logger.Info().Int64("base", bcR.block.Height).Int64("height", bcR.block.Height+1).Msg("Sent status to peer")
 
 	return src.Send(BlockchainChannel, msgBytes)
 }
@@ -66,17 +67,17 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 	if msg.Height == bcR.block.Height {
 		bl, err := bcR.block.ToProto()
 		if err != nil {
-			p2pLogger.Error().Str("could not convert msg to protobuf", err.Error())
+			logger.Error().Str("could not convert msg to protobuf", err.Error())
 			return false
 		}
 
 		msgBytes, err := bc.EncodeMsg(&bcproto.BlockResponse{Block: bl})
 		if err != nil {
-			p2pLogger.Error().Str("could not marshal msg", err.Error())
+			logger.Error().Str("could not marshal msg", err.Error())
 			return false
 		}
 
-		p2pLogger.Info().Msg(fmt.Sprintf("sent block with height %d to peer", bcR.block.Height))
+		logger.Info().Msg(fmt.Sprintf("sent block with height %d to peer", bcR.block.Height))
 
 		return src.TrySend(BlockchainChannel, msgBytes)
 	}
@@ -84,44 +85,44 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 	if msg.Height == bcR.nextBlock.Height {
 		bl, err := bcR.nextBlock.ToProto()
 		if err != nil {
-			p2pLogger.Error().Str("could not convert msg to protobuf", err.Error())
+			logger.Error().Str("could not convert msg to protobuf", err.Error())
 			return false
 		}
 
 		msgBytes, err := bc.EncodeMsg(&bcproto.BlockResponse{Block: bl})
 		if err != nil {
-			p2pLogger.Error().Str("could not marshal msg", err.Error())
+			logger.Error().Str("could not marshal msg", err.Error())
 			return false
 		}
 
-		p2pLogger.Info().Msg(fmt.Sprintf("sent block with height %d to peer", bcR.nextBlock.Height))
+		logger.Info().Msg(fmt.Sprintf("sent block with height %d to peer", bcR.nextBlock.Height))
 
 		return src.TrySend(BlockchainChannel, msgBytes)
 	}
 
-	p2pLogger.Error().Msg(fmt.Sprintf("peer asked for different block, expected = %d,%d, requested %d", bcR.block.Height, bcR.nextBlock.Height, msg.Height))
+	logger.Error().Msg(fmt.Sprintf("peer asked for different block, expected = %d,%d, requested %d", bcR.block.Height, bcR.nextBlock.Height, msg.Height))
 	return false
 }
 
 func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 	msg, err := bc.DecodeMsg(msgBytes)
 	if err != nil {
-		p2pLogger.Error().Msgf("Error decoding message", fmt.Sprintf("src: %s", src), fmt.Sprintf("chId: %b", chID), err)
+		logger.Error().Msgf("Error decoding message", fmt.Sprintf("src: %s", src), fmt.Sprintf("chId: %b", chID), err)
 		bcR.Switch.StopPeerForError(src, err)
 		return
 	}
 
 	switch msg := msg.(type) {
 	case *bcproto.StatusRequest:
-		p2pLogger.Info().Msg("Incoming status request")
+		logger.Info().Msg("Incoming status request")
 		bcR.sendStatusToPeer(src)
 	case *bcproto.BlockRequest:
-		p2pLogger.Info().Int64("height", msg.Height).Msg("Incoming block request")
+		logger.Info().Int64("height", msg.Height).Msg("Incoming block request")
 		bcR.sendBlockToPeer(msg, src)
 	case *bcproto.StatusResponse:
-		p2pLogger.Info().Int64("base", msg.Base).Int64("height", msg.Height).Msgf("Incoming status response")
+		logger.Info().Int64("base", msg.Base).Int64("height", msg.Height).Msgf("Incoming status response")
 	default:
-		p2pLogger.Error().Msg(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
+		logger.Error().Msg(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
 	}
 }
 
@@ -164,19 +165,19 @@ func CreateSwitch(config *Config,
 	bcReactor p2p.Reactor,
 	nodeInfo p2p.NodeInfo,
 	nodeKey *p2p.NodeKey,
-	p2pLogger log.Logger) *p2p.Switch {
+	logger tmLog.Logger) *p2p.Switch {
 
 	sw := p2p.NewSwitch(
 		config.P2P,
 		transport,
 	)
-	sw.SetLogger(p2pLogger)
-	bcReactor.SetLogger(p2pLogger)
+	sw.SetLogger(logger)
+	bcReactor.SetLogger(logger)
 	sw.AddReactor("BLOCKCHAIN", bcReactor)
 
 	sw.SetNodeInfo(nodeInfo)
 	sw.SetNodeKey(nodeKey)
 
-	p2pLogger.Info("P2P Node ID", "ID", nodeKey.ID())
+	logger.Info("P2P Node ID", "ID", nodeKey.ID())
 	return sw
 }

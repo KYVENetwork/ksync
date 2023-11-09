@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/KYVENetwork/ksync/collectors/snapshots"
-	log "github.com/KYVENetwork/ksync/engines/tendermint"
+	log "github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/supervisor"
 	"github.com/KYVENetwork/ksync/types"
