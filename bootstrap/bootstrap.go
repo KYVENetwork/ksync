@@ -65,6 +65,10 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 		return fmt.Errorf("failed to retrieve block %d from pool", genesisHeight+1)
 	}
 
+	if err := engine.Stop(); err != nil {
+		return fmt.Errorf("failed to stop engine: %w", err)
+	}
+
 	// start binary process thread
 	processId, err := supervisor.StartBinaryProcessForP2P(binaryPath, homePath, []string{})
 	if err != nil {
@@ -116,6 +120,10 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 	// stop process by sending signal SIGTERM
 	if err := supervisor.StopProcessByProcessId(processId); err != nil {
 		return err
+	}
+
+	if err := engine.Start(homePath); err != nil {
+		return fmt.Errorf("failed to start engine: %w", err)
 	}
 
 	// TODO: check if this is needed
