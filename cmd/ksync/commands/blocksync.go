@@ -22,9 +22,6 @@ func init() {
 	}
 
 	blockSyncCmd.Flags().StringVar(&homePath, "home", "", "home directory")
-	if err := blockSyncCmd.MarkFlagRequired("home"); err != nil {
-		panic(fmt.Errorf("flag 'home' should be required: %w", err))
-	}
 
 	blockSyncCmd.Flags().StringVar(&chainId, "chain-id", utils.DefaultChainId, fmt.Sprintf("KYVE chain id [\"%s\",\"%s\",\"%s\"]", utils.ChainIdMainnet, utils.ChainIdKaon, utils.ChainIdKorellia))
 
@@ -58,9 +55,14 @@ var blockSyncCmd = &cobra.Command{
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
 
+		// if no home path was given get the default one
+		if homePath == "" {
+			homePath = utils.GetHomePathFromBinary(binaryPath)
+		}
+
 		backupCfg, err := backup.GetBackupConfig(homePath, backupInterval, backupKeepRecent, backupCompression, backupDest)
 		if err != nil {
-			logger.Error().Str("err", err.Error()).Msg("failed to create backup config")
+			logger.Error().Msg(err.Error())
 			return
 		}
 

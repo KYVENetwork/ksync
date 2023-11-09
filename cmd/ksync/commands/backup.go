@@ -11,9 +11,6 @@ import (
 
 func init() {
 	backupCmd.Flags().StringVar(&homePath, "home", "", "home directory")
-	if err := backupCmd.MarkFlagRequired("home"); err != nil {
-		panic(fmt.Errorf("flag 'src-path' should be required: %w", err))
-	}
 
 	backupCmd.Flags().StringVar(&backupDest, "backup-dest", "", fmt.Sprintf("path where backups should be stored (default = %s)", utils.DefaultBackupPath))
 
@@ -28,6 +25,11 @@ var backupCmd = &cobra.Command{
 	Use:   "backup",
 	Short: "Backup data directory",
 	Run: func(cmd *cobra.Command, args []string) {
+		// if no home path was given get the default one
+		if homePath == "" {
+			homePath = utils.GetHomePathFromBinary(binaryPath)
+		}
+
 		// load tendermint config
 		config, err := tendermint.LoadConfig(homePath)
 		if err != nil {
