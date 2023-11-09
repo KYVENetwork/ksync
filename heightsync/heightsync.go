@@ -123,6 +123,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 		}
 	}
 
+	// TODO: does app has to be restarted after a state-sync?
 	// ignore error, since process gets terminated anyway afterwards
 	e := engine.CloseDBs()
 	_ = e
@@ -130,6 +131,9 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 	if err := utils.StopProcessByProcessId(processId); err != nil {
 		panic(err)
 	}
+
+	// wait until process has properly shut down
+	time.Sleep(10 * time.Second)
 
 	processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, []string{})
 	if err != nil {
