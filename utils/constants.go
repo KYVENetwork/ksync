@@ -41,3 +41,7 @@ const (
 	SnapshotPruningWindowFactor = 6
 	BackoffMaxRetries           = 10
 )
+
+const (
+	DefaultRegistryURL = "https://github.com/KYVENetwork/source-registry/releases/latest/download/registry.yml"
+)

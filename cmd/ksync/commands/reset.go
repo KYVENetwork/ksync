@@ -8,10 +8,6 @@ import (
 	"path/filepath"
 )
 
-var (
-	logger = utils.KsyncLogger("reset")
-)
-
 func init() {
 	resetCmd.Flags().StringVar(&binaryPath, "binary", "", "binary path of node to be synced")
 	if err := resetCmd.MarkFlagRequired("binary"); err != nil {

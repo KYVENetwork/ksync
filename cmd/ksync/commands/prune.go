@@ -2,7 +2,7 @@ package commands
 
 import (
 	"fmt"
-	tendermint "github.com/KYVENetwork/ksync/engines/tendermint"
+	"github.com/KYVENetwork/ksync/engines/tendermint"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"os"

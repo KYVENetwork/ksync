@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -25,6 +26,10 @@ var (
 	backupCompression string
 	backupDest        string
 	y                 bool
+)
+
+var (
+	logger = utils.KsyncLogger("commands")
 )
 
 // RootCmd is the root command for KSYNC.
