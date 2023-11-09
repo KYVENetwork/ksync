@@ -172,7 +172,7 @@ ksync state-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --snaps
 
 You can _state-sync_ a node if it has no height (either node has to be just initialized or reset with `ksync unsafe-reset-all`)
 to your desired target height. The target height has to be the exact height of the archived snapshot. If the specified
-height can not be found it prints out the nearest available snapshot height you can use.
+height can not be found it uses the nearest available snapshot before the requested height.
 
 ```bash
 ksync state-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --snapshot-pool-id=<pool-id> --target-height=<height>

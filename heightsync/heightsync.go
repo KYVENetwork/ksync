@@ -45,7 +45,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 		os.Exit(1)
 	}
 
-	var snapshotHeight = int64(0)
+	var snapshotHeight int64
 
 	// if snapshot is available to skip part of the block-syncing process we search for the nearest one
 	// before our target height
@@ -62,9 +62,10 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 		}
 	}
 
-	// perform state-sync validation checks before snapshot gets applied
+	// if a snapshot was found we perform state-sync validation checks
 	if snapshotHeight > 0 {
-		if err := statesync.PerformStateSyncValidationChecks(chainRest, snapshotPoolId, snapshotHeight, false); err != nil {
+		// we also ignore the nearest snapshot height since this was the input anyway
+		if _, err := statesync.PerformStateSyncValidationChecks(chainRest, snapshotPoolId, snapshotHeight, false); err != nil {
 			logger.Error().Msg(fmt.Sprintf("state-sync validation checks failed: %s", err))
 			os.Exit(1)
 		}
