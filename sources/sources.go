@@ -109,7 +109,7 @@ func formatKeys(blockStartKey, latestBlockKey, stateStartKey, latestStateKey *st
 			panic(err)
 		}
 
-		latestKey := fmt.Sprintf(" => %v - %v", formatNumberWithCommas(startHeight), formatNumberWithCommas(latestHeight))
+		latestKey := fmt.Sprintf("  %v - %v", formatNumberWithCommas(startHeight), formatNumberWithCommas(latestHeight))
 		if *latestBlockKey != "" {
 			blockSync = greenYes
 			blockSync += latestKey
@@ -131,13 +131,14 @@ func formatKeys(blockStartKey, latestBlockKey, stateStartKey, latestStateKey *st
 			panic(err)
 		}
 
-		latestKey := fmt.Sprintf(" => %v - %v/%v", formatNumberWithCommas(startHeight), formatNumberWithCommas(latestHeight), formatNumberWithCommas(interval))
+		latestKey := fmt.Sprintf("  %v - %v/%v", formatNumberWithCommas(startHeight), formatNumberWithCommas(latestHeight), formatNumberWithCommas(interval))
 		if *latestStateKey != "" {
 			stateSync = greenYes
 			heightSync = greenYes
 			stateSync += latestKey
 		}
 	}
+
 	return blockSync, stateSync, heightSync
 }
 
