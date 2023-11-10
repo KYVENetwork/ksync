@@ -21,9 +21,6 @@ func init() {
 	}
 
 	serveCmd.Flags().StringVar(&homePath, "home", "", "home directory")
-	if err := serveCmd.MarkFlagRequired("home"); err != nil {
-		panic(fmt.Errorf("flag 'home' should be required: %w", err))
-	}
 
 	serveCmd.Flags().StringVar(&chainId, "chain-id", utils.DefaultChainId, fmt.Sprintf("KYVE chain id [\"%s\",\"%s\",\"%s\"]", utils.ChainIdMainnet, utils.ChainIdKaon, utils.ChainIdKorellia))
 
@@ -58,6 +55,11 @@ var serveCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
+
+		// if no home path was given get the default one
+		if homePath == "" {
+			homePath = utils.GetHomePathFromBinary(binaryPath)
+		}
 
 		var consensusEngine types.Engine
 

@@ -112,7 +112,7 @@ Depending on your current node height (can be also 0  if you start syncing from 
 height available by the storage pool. KSYNC will automatically exit once that height is reached.
 
 ```bash
-ksync block-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --block-pool-id=<pool-id>
+ksync block-sync --binary="/path/to/<binaryd>" --block-pool-id=<pool-id>
 ```
 
 ### Syncing to specified target height
@@ -121,7 +121,7 @@ Depending on your current node height (can be also 0  if you start syncing from 
 target height. KSYNC will automatically exit once that height is reached.
 
 ```bash
-ksync block-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --block-pool-id=<pool-id> --target-height=<height>
+ksync block-sync --binary="/path/to/<binaryd>" --block-pool-id=<pool-id> --target-height=<height>
 ```
 
 ### Example
@@ -153,7 +153,7 @@ wget -O ~/.osmosisd/config/genesis.json https://github.com/osmosis-labs/networks
 Now that the binary is properly installed, KSYNC can already be started:
 
 ```bash
-ksync block-sync --binary="/Users/alice/osmosisd" --home="/Users/alice/.osmosisd" --block-pool-id=1 --target-height=42000
+ksync block-sync --binary="/Users/alice/osmosisd" --block-pool-id=1 --target-height=42000
 ```
 
 ## STATE-SYNC
@@ -165,7 +165,7 @@ to the latest available snapshot archived by the pool with the following command
 height this can be used to rapidly join this network.
 
 ```bash
-ksync state-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --snapshot-pool-id=<pool-id>
+ksync state-sync --binary="/path/to/<binaryd>" --snapshot-pool-id=<pool-id>
 ```
 
 ### Syncing to specified snapshot height
@@ -175,7 +175,7 @@ to your desired target height. The target height has to be the exact height of t
 height can not be found it uses the nearest available snapshot before the requested height.
 
 ```bash
-ksync state-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --snapshot-pool-id=<pool-id> --target-height=<height>
+ksync state-sync --binary="/path/to/<binaryd>" --snapshot-pool-id=<pool-id> --target-height=<height>
 ```
 
 ### Example
@@ -191,7 +191,7 @@ to the latest available height. This is especially useful for joining a new netw
 possible.
 
 ```bash
-ksync height-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --snapshot-pool-id=<pool-id> --block-pool-id=<pool-id>
+ksync height-sync --binary="/path/to/<binaryd>" --snapshot-pool-id=<pool-id> --block-pool-id=<pool-id>
 ```
 
 ### Syncing to specified target height
@@ -201,7 +201,7 @@ to your desired target height. The target height can be any height (but the bloc
 it will use available _state-sync_ snapshots and _block-sync_ to get to the target height as quickly as possible
 
 ```bash
-ksync height-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --snapshot-pool-id=<pool-id> --block-pool-id=<pool-id> --target-height=<height>
+ksync height-sync --binary="/path/to/<binaryd>" --snapshot-pool-id=<pool-id> --block-pool-id=<pool-id> --target-height=<height>
 ```
 
 ### Example
@@ -221,7 +221,7 @@ once created they are exposed over a REST API server which the protocol node can
 To start with default settings serve the snapshots with:
 
 ```bash
-ksync serve-snapshots --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --snapshot-pool-id=<pool-id> --block-pool-id=<pool-id>
+ksync serve-snapshots --binary="/path/to/<binaryd>" --snapshot-pool-id=<pool-id> --block-pool-id=<pool-id>
 ```
 
 Once you see that KSYNC is syncing blocks you can open `https://localhost:7878/list_snapshots`. In the beginning it should
@@ -256,7 +256,7 @@ With _block-sync_, nodes can be synced by KSYNC from any height up to the latest
 Backups can be created automatically at an interval, with the following parameters:
 
 ```bash
---home                 string   'home directory of the node (e.g. ~/.osmosisd)'
+--binary               string   'path to binary (e.g. ~/osmosisd)'
 --backup-interval      int      'block interval to write backups of data directory (set 0 to disable backups)'
 --backup-keep-recent   int      'number of latest backups to be keep (0 to keep all backups)'
 --backup-compression   string   'compression type used for backups ("tar.gz","zip"), if not compression given the backup will be stored uncompressed'
@@ -273,7 +273,7 @@ Since the creation of a backup takes steadily longer as the data size grows, it 
 
 Example command to run _block-sync_ with compressed backups:
 ```bash
-ksync block-sync --binary="/path/to/<binaryd>" --home="/path/to/.<home>" --block-pool-id=<pool-id> --target-height=<height>
+ksync block-sync --binary="/path/to/<binaryd>" --block-pool-id=<pool-id> --target-height=<height>
   --backup-interval=50000 --backup-compression="tar.gz"
 ```
 
@@ -283,7 +283,7 @@ The backup functionality can of course also be used with a standalone command. I
 where the following flags can be used:
 
 ```bash
---home                 string   'home directory of the node (e.g. ~/.osmosisd)'
+--binary               string   'path to binary (e.g. ~/osmosisd)'
 --backup-keep-recent   int      'number of latest backups to be keep (0 to keep all backups)'
 --backup-compression   string   'compression type used for backups ("tar.gz","zip"), if not compression given the backup will be stored uncompressed'
 --backup-dest          string   'path where backups should be stored [default = ~/.ksync/backups]'
@@ -292,7 +292,20 @@ where the following flags can be used:
 #### Usage
 
 ```bash
-ksync backup --home="/Users/christopher/.osmosisd" --compression="tar.gz"
+ksync backup --binary="/Users/christopher/osmosisd" --compression="tar.gz"
+```
+
+## Overwrite default home
+
+KSYNC uses by default the default home path of the binary. If the home directory lies
+under another path, every command takes the `--home` path, in order to overwrite the default path.
+
+### Example
+
+Use another home path for the binary:
+
+```bash
+ksync block-sync --binary="/Users/alice/osmosisd" --home="/Users/alice/custom/.osmosisd" --block-pool-id=1 --target-height=42000
 ```
 
 ## Overwrite default endpoints
@@ -320,7 +333,7 @@ For several reasons, you can overwrite the default endpoints with your preferred
 Use the KYVE chain US endpoint to _block_sync_ your Osmosis node:
 
 ```bash
-ksync block-sync --chain-rest="https://api-us-1.kyve.network" --binary="/Users/alice/osmosisd" --home="/Users/alice/.osmosisd" --block-pool-id=1 --target-height=42000
+ksync block-sync --chain-rest="https://api-us-1.kyve.network" --binary="/Users/alice/osmosisd" --block-pool-id=1 --target-height=42000
 ```
 
 ## Metrics

@@ -9,6 +9,38 @@ import (
 	"syscall"
 )
 
+func GetHomePathFromBinary(binaryPath string) string {
+	cmdPath, err := exec.LookPath(binaryPath)
+	if err != nil {
+		logger.Error().Msg(fmt.Sprintf("failed to lookup binary path: %s", err.Error()))
+		os.Exit(1)
+	}
+
+	out, err := exec.Command(cmdPath).Output()
+	if err != nil {
+		logger.Error().Msg("failed to get output of binary")
+		os.Exit(1)
+	}
+
+	// here we search for a specific line in the binary output when simply
+	// executed without arguments. In the output, the default home path
+	// is printed, which is parsed and used by KSYNC
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.Contains(line, "--home") {
+			if strings.Count(line, "\"") != 2 {
+				logger.Error().Msg(fmt.Sprintf("did not found default home path in help line: %s", line))
+				os.Exit(1)
+			}
+
+			return strings.Split(line, "\"")[1]
+		}
+	}
+
+	logger.Error().Msg("did not found default home path in entire binary output")
+	os.Exit(1)
+	return ""
+}
+
 func StartBinaryProcessForDB(engine types.Engine, binaryPath string, args []string) (processId int, err error) {
 	cmdPath, err := exec.LookPath(binaryPath)
 	if err != nil {

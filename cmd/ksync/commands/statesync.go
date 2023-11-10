@@ -49,6 +49,11 @@ var stateSyncCmd = &cobra.Command{
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
 
+		// if no home path was given get the default one
+		if homePath == "" {
+			homePath = utils.GetHomePathFromBinary(binaryPath)
+		}
+
 		var consensusEngine types.Engine
 
 		switch engine {

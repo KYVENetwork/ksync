@@ -2,21 +2,19 @@ package commands
 
 import (
 	"fmt"
-	log "github.com/KYVENetwork/ksync/utils"
+	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"
 )
 
-var (
-	logger = log.KsyncLogger("reset")
-)
-
 func init() {
-	resetCmd.Flags().StringVar(&homePath, "home", "", "home directory")
-	if err := resetCmd.MarkFlagRequired("home"); err != nil {
-		panic(fmt.Errorf("flag 'home' should be required: %w", err))
+	resetCmd.Flags().StringVar(&binaryPath, "binary", "", "binary path of node to be synced")
+	if err := resetCmd.MarkFlagRequired("binary"); err != nil {
+		panic(fmt.Errorf("flag 'binary' should be required: %w", err))
 	}
+
+	resetCmd.Flags().StringVar(&homePath, "home", "", "home directory")
 
 	rootCmd.AddCommand(resetCmd)
 }
@@ -25,6 +23,11 @@ var resetCmd = &cobra.Command{
 	Use:   "unsafe-reset-all",
 	Short: "Reset tendermint node data",
 	Run: func(cmd *cobra.Command, args []string) {
+		// if no home path was given get the default one
+		if homePath == "" {
+			homePath = utils.GetHomePathFromBinary(binaryPath)
+		}
+
 		logger.Info().Msg("resetting tendermint application")
 
 		// temp save priv_validator_state.json
