@@ -3,7 +3,7 @@ package utils
 const (
 	ChainIdMainnet  = "kyve-1"
 	ChainIdKaon     = "kaon-1"
-	ChainIdKorellia = "korellia"
+	ChainIdKorellia = "korellia-2"
 
 	RestEndpointMainnet  = "https://api-eu-1.kyve.network"
 	RestEndpointKaon     = "https://api-eu-1.kaon.kyve.network"
