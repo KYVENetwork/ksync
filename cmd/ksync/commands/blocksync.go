@@ -62,7 +62,7 @@ var blockSyncCmd = &cobra.Command{
 
 		backupCfg, err := backup.GetBackupConfig(homePath, backupInterval, backupKeepRecent, backupCompression, backupDest)
 		if err != nil {
-			logger.Error().Msg(err.Error())
+			logger.Error().Str("err", err.Error()).Msg("could not get backup config")
 			return
 		}
 
