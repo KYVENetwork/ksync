@@ -125,33 +125,35 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 	}
 
 	// TODO: does app has to be restarted after a state-sync?
-	// ignore error, since process gets terminated anyway afterwards
-	e := engine.CloseDBs()
-	_ = e
+	if engine.GetName() == utils.EngineCometBFT {
+		// ignore error, since process gets terminated anyway afterwards
+		e := engine.CloseDBs()
+		_ = e
 
-	if err := utils.StopProcessByProcessId(processId); err != nil {
-		panic(err)
-	}
-
-	// wait until process has properly shut down
-	time.Sleep(10 * time.Second)
-
-	processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, []string{})
-	if err != nil {
-		panic(err)
-	}
-
-	// wait until process has properly started
-	time.Sleep(10 * time.Second)
-
-	if err := engine.OpenDBs(homePath); err != nil {
-		logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
-
-		// stop binary process thread
 		if err := utils.StopProcessByProcessId(processId); err != nil {
 			panic(err)
 		}
-		os.Exit(1)
+
+		// wait until process has properly shut down
+		time.Sleep(10 * time.Second)
+
+		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, []string{})
+		if err != nil {
+			panic(err)
+		}
+
+		// wait until process has properly started
+		time.Sleep(10 * time.Second)
+
+		if err := engine.OpenDBs(homePath); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
+
+			// stop binary process thread
+			if err := utils.StopProcessByProcessId(processId); err != nil {
+				panic(err)
+			}
+			os.Exit(1)
+		}
 	}
 
 	// if we have not reached our target height yet we block-sync the remaining ones

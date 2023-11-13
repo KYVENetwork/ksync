@@ -3,6 +3,9 @@ package types
 // Engine is an interface defining common behaviour for each consensus engine.
 // Currently, both tendermint and cometbft are supported
 type Engine interface {
+	// GetName gets the engine name
+	GetName() string
+
 	// OpenDBs opens the relevant blockstore and state DBs
 	OpenDBs(homePath string) error
 
