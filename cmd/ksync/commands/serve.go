@@ -2,10 +2,8 @@ package commands
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/engines/cometbft"
-	"github.com/KYVENetwork/ksync/engines/tendermint"
+	"github.com/KYVENetwork/ksync/engines"
 	"github.com/KYVENetwork/ksync/servesnapshots"
-	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"os"
@@ -61,17 +59,7 @@ var serveCmd = &cobra.Command{
 			homePath = utils.GetHomePathFromBinary(binaryPath)
 		}
 
-		var consensusEngine types.Engine
-
-		switch engine {
-		case utils.EngineTendermint:
-			consensusEngine = &tendermint.TmEngine{}
-		case utils.EngineCometBFT:
-			consensusEngine = &cometbft.CometEngine{}
-		default:
-			logger.Error().Msg(fmt.Sprintf("engine %s not found", engine))
-			return
-		}
+		consensusEngine := engines.EngineFactory(engine)
 
 		if err := consensusEngine.OpenDBs(homePath); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs engine: %s", err))
