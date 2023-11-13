@@ -19,6 +19,7 @@ func StartSnapshotApiServer(engine types.Engine, port int64) *ApiServer {
 		port:   port,
 	}
 
+	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 
 	r.GET("/list_snapshots", apiServer.ListSnapshotsHandler)

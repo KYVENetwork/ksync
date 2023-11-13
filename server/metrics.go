@@ -18,6 +18,7 @@ func StartMetricsApiServer(engine types.Engine, port int64) *MetricsServer {
 		port:   port,
 	}
 
+	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 
 	r.GET("/metrics", metricsServer.MetricsHandler)
