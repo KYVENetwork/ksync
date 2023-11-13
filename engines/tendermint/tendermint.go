@@ -40,6 +40,10 @@ type TmEngine struct {
 	blockExecutor *tmState.BlockExecutor
 }
 
+func (tm *TmEngine) GetName() string {
+	return utils.EngineTendermint
+}
+
 func (tm *TmEngine) OpenDBs(homePath string) error {
 	tm.homePath = homePath
 

@@ -41,6 +41,10 @@ type CometEngine struct {
 	blockExecutor *tmState.BlockExecutor
 }
 
+func (comet *CometEngine) GetName() string {
+	return utils.EngineCometBFT
+}
+
 func (comet *CometEngine) OpenDBs(homePath string) error {
 	comet.homePath = homePath
 
