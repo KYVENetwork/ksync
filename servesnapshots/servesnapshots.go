@@ -20,7 +20,7 @@ var (
 	logger = utils.KsyncLogger("serve-snapshots")
 )
 
-func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort, startHeight int64, pruning bool) {
+func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort, startHeight int64, pruning, keepSnapshots bool) {
 	logger.Info().Msg("starting serve-snapshots")
 
 	// get snapshot interval from pool
@@ -42,11 +42,23 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 	if pruning {
 		snapshotArgs = append(
 			snapshotArgs,
-			"--state-sync.snapshot-keep-recent",
-			strconv.FormatInt(utils.SnapshotPruningWindowFactor, 10),
 			"--pruning-keep-recent",
 			strconv.FormatInt(utils.SnapshotPruningWindowFactor*config.Interval, 10),
 		)
+
+		if keepSnapshots {
+			snapshotArgs = append(
+				snapshotArgs,
+				"--state-sync.snapshot-keep-recent",
+				"0",
+			)
+		} else {
+			snapshotArgs = append(
+				snapshotArgs,
+				"--state-sync.snapshot-keep-recent",
+				strconv.FormatInt(utils.SnapshotPruningWindowFactor, 10),
+			)
+		}
 	} else {
 		snapshotArgs = append(
 			snapshotArgs,

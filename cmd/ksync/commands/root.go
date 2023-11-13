@@ -21,6 +21,7 @@ var (
 	metricsPort       int64
 	snapshotPort      int64
 	pruning           bool
+	keepSnapshots     bool
 	backupInterval    int64
 	backupKeepRecent  int64
 	backupCompression string

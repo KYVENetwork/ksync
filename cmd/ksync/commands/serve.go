@@ -44,7 +44,8 @@ func init() {
 
 	serveCmd.Flags().Int64Var(&startHeight, "start-height", 0, "start creating snapshots at this height. note that pruning should be false when using start height")
 
-	serveCmd.Flags().BoolVar(&pruning, "pruning", true, "prune application, state and blockstore db")
+	serveCmd.Flags().BoolVar(&pruning, "pruning", true, "prune application.db, state.db, blockstore db and snapshots")
+	serveCmd.Flags().BoolVar(&keepSnapshots, "keep-snapshots", false, "keep snapshots, although pruning might be enabled")
 
 	rootCmd.AddCommand(serveCmd)
 }
@@ -78,7 +79,7 @@ var serveCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		servesnapshots.StartServeSnapshotsWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, blockPoolId, metrics, metricsPort, snapshotPoolId, snapshotPort, startHeight, pruning)
+		servesnapshots.StartServeSnapshotsWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, blockPoolId, metrics, metricsPort, snapshotPoolId, snapshotPort, startHeight, pruning, keepSnapshots)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
