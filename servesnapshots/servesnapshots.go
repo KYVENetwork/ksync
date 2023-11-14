@@ -20,7 +20,7 @@ var (
 	logger = utils.KsyncLogger("serve-snapshots")
 )
 
-func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort, startHeight int64, pruning, keepSnapshots bool) {
+func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort, startHeight int64, pruning, keepSnapshots, debug bool) {
 	logger.Info().Msg("starting serve-snapshots")
 
 	// get snapshot interval from pool
@@ -107,7 +107,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		}
 
 		// start binary process thread
-		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, snapshotArgs)
+		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, snapshotArgs)
 		if err != nil {
 			panic(err)
 		}
@@ -134,7 +134,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 			// wait until process has properly shut down
 			time.Sleep(10 * time.Second)
 
-			processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, []string{})
+			processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, []string{})
 			if err != nil {
 				panic(err)
 			}
@@ -154,13 +154,13 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		}
 	} else {
 		// if we have to sync from genesis we first bootstrap the node
-		if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, blockPoolId); err != nil {
+		if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, blockPoolId, debug); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
 			os.Exit(1)
 		}
 
 		// after the node is bootstrapped we start the binary process thread
-		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, snapshotArgs)
+		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, snapshotArgs)
 		if err != nil {
 			panic(err)
 		}

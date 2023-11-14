@@ -26,6 +26,7 @@ var (
 	backupKeepRecent  int64
 	backupCompression string
 	backupDest        string
+	debug             bool
 	y                 bool
 )
 

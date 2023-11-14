@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 	"github.com/spf13/cobra"
-	"runtime/debug"
+	runtime "runtime/debug"
 	"strings"
 )
 
@@ -12,7 +12,7 @@ func init() {
 }
 
 func getVersion() string {
-	version, ok := debug.ReadBuildInfo()
+	version, ok := runtime.ReadBuildInfo()
 	if !ok {
 		panic("failed to get ksync version")
 	}

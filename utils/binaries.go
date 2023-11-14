@@ -41,7 +41,7 @@ func GetHomePathFromBinary(binaryPath string) string {
 	return ""
 }
 
-func StartBinaryProcessForDB(engine types.Engine, binaryPath string, args []string) (processId int, err error) {
+func StartBinaryProcessForDB(engine types.Engine, binaryPath string, debug bool, args []string) (processId int, err error) {
 	cmdPath, err := exec.LookPath(binaryPath)
 	if err != nil {
 		return processId, fmt.Errorf("failed to lookup binary path: %w", err)
@@ -64,8 +64,11 @@ func StartBinaryProcessForDB(engine types.Engine, binaryPath string, args []stri
 	}, args...)
 
 	cmd := exec.Command(cmdPath, append(startArgs, baseArgs...)...)
-	//cmd.Stdout = os.Stdout
-	//cmd.Stderr = os.Stderr
+
+	if debug {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 
 	if err := cmd.Start(); err != nil {
 		return processId, fmt.Errorf("failed to start binary process: %w", err)
@@ -75,7 +78,7 @@ func StartBinaryProcessForDB(engine types.Engine, binaryPath string, args []stri
 	return
 }
 
-func StartBinaryProcessForP2P(engine types.Engine, binaryPath string, args []string) (processId int, err error) {
+func StartBinaryProcessForP2P(engine types.Engine, binaryPath string, debug bool, args []string) (processId int, err error) {
 	cmdPath, err := exec.LookPath(binaryPath)
 	if err != nil {
 		return processId, fmt.Errorf("failed to lookup binary path: %w", err)
@@ -102,8 +105,11 @@ func StartBinaryProcessForP2P(engine types.Engine, binaryPath string, args []str
 	}, args...)
 
 	cmd := exec.Command(cmdPath, append(startArgs, baseArgs...)...)
-	//cmd.Stdout = os.Stdout
-	//cmd.Stderr = os.Stderr
+
+	if debug {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 
 	if err := cmd.Start(); err != nil {
 		return processId, fmt.Errorf("failed to start binary process: %w", err)

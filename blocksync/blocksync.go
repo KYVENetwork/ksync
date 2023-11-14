@@ -76,7 +76,7 @@ func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blo
 	return nil
 }
 
-func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metrics bool, port int64, backupCfg *types.BackupConfig, userInput bool) {
+func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metrics bool, port int64, backupCfg *types.BackupConfig, debug, userInput bool) {
 	logger.Info().Msg("starting block-sync")
 
 	// perform validation checks before booting state-sync process
@@ -85,13 +85,13 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 		os.Exit(1)
 	}
 
-	if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, blockPoolId); err != nil {
+	if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, blockPoolId, debug); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
 		os.Exit(1)
 	}
 
 	// start binary process thread
-	processId, err := utils.StartBinaryProcessForDB(engine, binaryPath, []string{})
+	processId, err := utils.StartBinaryProcessForDB(engine, binaryPath, debug, []string{})
 	if err != nil {
 		panic(err)
 	}

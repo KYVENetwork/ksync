@@ -37,6 +37,7 @@ func init() {
 
 	heightSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target height (including), if not specified it will sync to the latest available block height")
 
+	heightSyncCmd.Flags().BoolVar(&debug, "debug", false, "show logs from tendermint app")
 	heightSyncCmd.Flags().BoolVarP(&y, "assumeyes", "y", false, "automatically answer yes for all questions")
 
 	rootCmd.AddCommand(heightSyncCmd)
@@ -61,7 +62,7 @@ var heightSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		heightsync.StartHeightSyncWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, snapshotPoolId, blockPoolId, targetHeight, !y)
+		heightsync.StartHeightSyncWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, snapshotPoolId, blockPoolId, targetHeight, debug, !y)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
