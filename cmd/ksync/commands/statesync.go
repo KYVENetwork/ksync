@@ -35,6 +35,7 @@ func init() {
 
 	stateSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "snapshot height, if not specified it will use the latest available snapshot height")
 
+	stateSyncCmd.Flags().BoolVar(&debug, "debug", false, "show logs from tendermint app")
 	stateSyncCmd.Flags().BoolVarP(&y, "assumeyes", "y", false, "automatically answer yes for all questions")
 
 	rootCmd.AddCommand(stateSyncCmd)
@@ -59,7 +60,7 @@ var stateSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		statesync.StartStateSyncWithBinary(consensusEngine, binaryPath, chainRest, storageRest, snapshotPoolId, targetHeight, !y)
+		statesync.StartStateSyncWithBinary(consensusEngine, binaryPath, chainRest, storageRest, snapshotPoolId, targetHeight, debug, !y)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))

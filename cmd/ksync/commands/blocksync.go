@@ -41,6 +41,7 @@ func init() {
 	blockSyncCmd.Flags().StringVar(&backupCompression, "backup-compression", "", "compression type used for backups (\"tar.gz\",\"zip\")")
 	blockSyncCmd.Flags().StringVar(&backupDest, "backup-dest", "", fmt.Sprintf("path where backups should be stored (default = %s)", utils.DefaultBackupPath))
 
+	blockSyncCmd.Flags().BoolVar(&debug, "debug", false, "show logs from tendermint app")
 	blockSyncCmd.Flags().BoolVarP(&y, "assumeyes", "y", false, "automatically answer yes for all questions")
 
 	rootCmd.AddCommand(blockSyncCmd)
@@ -71,7 +72,7 @@ var blockSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, blockPoolId, targetHeight, metrics, metricsPort, backupCfg, !y)
+		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, blockPoolId, targetHeight, metrics, metricsPort, backupCfg, debug, !y)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))

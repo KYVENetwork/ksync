@@ -77,7 +77,7 @@ func PerformStateSyncValidationChecks(chainRest string, snapshotPoolId, snapshot
 	return nearestHeight, nil
 }
 
-func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64, userInput bool) {
+func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64, debug, userInput bool) {
 	logger.Info().Msg("starting state-sync")
 
 	// perform validation checks before booting state-sync process
@@ -93,7 +93,7 @@ func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainRest, storag
 	}
 
 	// start binary process thread
-	processId, err := utils.StartBinaryProcessForDB(engine, binaryPath, []string{})
+	processId, err := utils.StartBinaryProcessForDB(engine, binaryPath, debug, []string{})
 	if err != nil {
 		panic(err)
 	}
