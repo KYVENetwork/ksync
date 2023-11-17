@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/engines"
 	"github.com/KYVENetwork/ksync/heightsync"
+	"github.com/KYVENetwork/ksync/sources"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"os"
@@ -25,15 +26,11 @@ func init() {
 	heightSyncCmd.Flags().StringVar(&chainRest, "chain-rest", "", "rest endpoint for KYVE chain")
 	heightSyncCmd.Flags().StringVar(&storageRest, "storage-rest", "", "storage endpoint for requesting bundle data")
 
-	heightSyncCmd.Flags().Int64Var(&snapshotPoolId, "snapshot-pool-id", 0, "pool id of the state-sync pool")
-	if err := heightSyncCmd.MarkFlagRequired("snapshot-pool-id"); err != nil {
-		panic(fmt.Errorf("flag 'snapshot-pool-id' should be required: %w", err))
-	}
+	heightSyncCmd.Flags().StringVar(&source, "source", "", "chain-id of the source")
+	heightSyncCmd.Flags().StringVar(&registryUrl, "registry-url", utils.DefaultRegistryURL, "URL to fetch latest KYVE Source-Registry")
 
-	heightSyncCmd.Flags().Int64Var(&blockPoolId, "block-pool-id", 0, "pool id of the block-sync pool")
-	if err := heightSyncCmd.MarkFlagRequired("block-pool-id"); err != nil {
-		panic(fmt.Errorf("flag 'block-pool-id' should be required: %w", err))
-	}
+	heightSyncCmd.Flags().StringVar(&snapshotPoolId, "snapshot-pool-id", "", "pool-id of the state-sync pool")
+	heightSyncCmd.Flags().StringVar(&blockPoolId, "block-pool-id", "", "pool-id of the block-sync pool")
 
 	heightSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target height (including), if not specified it will sync to the latest available block height")
 
@@ -55,6 +52,12 @@ var heightSyncCmd = &cobra.Command{
 			homePath = utils.GetHomePathFromBinary(binaryPath)
 		}
 
+		bId, sId, err := sources.GetPoolIds(chainId, source, blockPoolId, snapshotPoolId, registryUrl, true, true)
+		if err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to load pool-ids: %s", err))
+			os.Exit(1)
+		}
+
 		consensusEngine := engines.EngineFactory(engine)
 
 		if err := consensusEngine.OpenDBs(homePath); err != nil {
@@ -62,7 +65,7 @@ var heightSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		heightsync.StartHeightSyncWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, snapshotPoolId, blockPoolId, targetHeight, debug, !y)
+		heightsync.StartHeightSyncWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, sId, bId, targetHeight, debug, !y)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))

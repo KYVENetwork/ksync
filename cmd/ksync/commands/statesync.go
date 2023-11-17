@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/engines"
+	"github.com/KYVENetwork/ksync/sources"
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
@@ -28,10 +29,10 @@ func init() {
 	stateSyncCmd.Flags().StringVar(&chainRest, "chain-rest", "", "rest endpoint for KYVE chain")
 	stateSyncCmd.Flags().StringVar(&storageRest, "storage-rest", "", "storage endpoint for requesting bundle data")
 
-	stateSyncCmd.Flags().Int64Var(&snapshotPoolId, "snapshot-pool-id", 0, "id of snapshot pool")
-	if err := stateSyncCmd.MarkFlagRequired("snapshot-pool-id"); err != nil {
-		panic(fmt.Errorf("flag 'snapshot-pool-id' should be required: %w", err))
-	}
+	stateSyncCmd.Flags().StringVar(&source, "source", "", "chain-id of the source")
+	stateSyncCmd.Flags().StringVar(&registryUrl, "registry-url", utils.DefaultRegistryURL, "URL to fetch latest KYVE Source-Registry")
+
+	stateSyncCmd.Flags().StringVar(&snapshotPoolId, "snapshot-pool-id", "", "pool-id of the state-sync pool")
 
 	stateSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "snapshot height, if not specified it will use the latest available snapshot height")
 
@@ -53,6 +54,12 @@ var stateSyncCmd = &cobra.Command{
 			homePath = utils.GetHomePathFromBinary(binaryPath)
 		}
 
+		_, sId, err := sources.GetPoolIds(chainId, source, "", snapshotPoolId, registryUrl, false, true)
+		if err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to load pool-ids: %s", err))
+			os.Exit(1)
+		}
+
 		consensusEngine := engines.EngineFactory(engine)
 
 		if err := consensusEngine.OpenDBs(homePath); err != nil {
@@ -60,7 +67,7 @@ var stateSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		statesync.StartStateSyncWithBinary(consensusEngine, binaryPath, chainRest, storageRest, snapshotPoolId, targetHeight, debug, !y)
+		statesync.StartStateSyncWithBinary(consensusEngine, binaryPath, chainRest, storageRest, sId, targetHeight, debug, !y)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))

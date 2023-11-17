@@ -5,6 +5,7 @@ import (
 	"github.com/KYVENetwork/ksync/backup"
 	"github.com/KYVENetwork/ksync/blocksync"
 	"github.com/KYVENetwork/ksync/engines"
+	"github.com/KYVENetwork/ksync/sources"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"os"
@@ -26,10 +27,10 @@ func init() {
 	blockSyncCmd.Flags().StringVar(&chainRest, "chain-rest", "", "rest endpoint for KYVE chain")
 	blockSyncCmd.Flags().StringVar(&storageRest, "storage-rest", "", "storage endpoint for requesting bundle data")
 
-	blockSyncCmd.Flags().Int64Var(&blockPoolId, "block-pool-id", 0, "pool id")
-	if err := blockSyncCmd.MarkFlagRequired("block-pool-id"); err != nil {
-		panic(fmt.Errorf("flag 'block-pool-id' should be required: %w", err))
-	}
+	blockSyncCmd.Flags().StringVar(&source, "source", "", "chain-id of the source")
+	blockSyncCmd.Flags().StringVar(&registryUrl, "registry-url", utils.DefaultRegistryURL, "URL to fetch latest KYVE Source-Registry")
+
+	blockSyncCmd.Flags().StringVar(&blockPoolId, "block-pool-id", "", "pool-id of the block-sync pool")
 
 	blockSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target height (including)")
 
@@ -59,6 +60,12 @@ var blockSyncCmd = &cobra.Command{
 			homePath = utils.GetHomePathFromBinary(binaryPath)
 		}
 
+		bId, _, err := sources.GetPoolIds(chainId, source, blockPoolId, "", registryUrl, true, false)
+		if err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to load pool-ids: %s", err))
+			os.Exit(1)
+		}
+
 		backupCfg, err := backup.GetBackupConfig(homePath, backupInterval, backupKeepRecent, backupCompression, backupDest)
 		if err != nil {
 			logger.Error().Str("err", err.Error()).Msg("could not get backup config")
@@ -72,7 +79,7 @@ var blockSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, blockPoolId, targetHeight, metrics, metricsPort, backupCfg, debug, !y)
+		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, bId, targetHeight, metrics, metricsPort, backupCfg, debug, !y)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))

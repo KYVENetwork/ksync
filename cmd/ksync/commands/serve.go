@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/engines"
 	"github.com/KYVENetwork/ksync/servesnapshots"
+	"github.com/KYVENetwork/ksync/sources"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"os"
@@ -25,15 +26,11 @@ func init() {
 	serveCmd.Flags().StringVar(&chainRest, "chain-rest", "", "rest endpoint for KYVE chain")
 	serveCmd.Flags().StringVar(&storageRest, "storage-rest", "", "storage endpoint for requesting bundle data")
 
-	serveCmd.Flags().Int64Var(&blockPoolId, "block-pool-id", 0, "pool id of the block-sync pool")
-	if err := serveCmd.MarkFlagRequired("block-pool-id"); err != nil {
-		panic(fmt.Errorf("flag 'block-pool-id' should be required: %w", err))
-	}
+	serveCmd.Flags().StringVar(&source, "source", "", "chain-id of the source")
+	serveCmd.Flags().StringVar(&registryUrl, "registry-url", utils.DefaultRegistryURL, "URL to fetch latest KYVE Source-Registry")
 
-	serveCmd.Flags().Int64Var(&snapshotPoolId, "snapshot-pool-id", 0, "pool id of the state-sync pool")
-	if err := serveCmd.MarkFlagRequired("snapshot-pool-id"); err != nil {
-		panic(fmt.Errorf("flag 'snapshot-pool-id' should be required: %w", err))
-	}
+	serveCmd.Flags().StringVar(&snapshotPoolId, "snapshot-pool-id", "", "pool-id of the state-sync pool")
+	serveCmd.Flags().StringVar(&blockPoolId, "block-pool-id", "", "pool-id of the block-sync pool")
 
 	serveCmd.Flags().Int64Var(&snapshotPort, "snapshot-port", utils.DefaultSnapshotServerPort, "port for snapshot server")
 
@@ -62,6 +59,12 @@ var serveCmd = &cobra.Command{
 			homePath = utils.GetHomePathFromBinary(binaryPath)
 		}
 
+		bId, sId, err := sources.GetPoolIds(chainId, source, blockPoolId, snapshotPoolId, registryUrl, true, true)
+		if err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to load pool-ids: %s", err))
+			os.Exit(1)
+		}
+
 		consensusEngine := engines.EngineFactory(engine)
 
 		if err := consensusEngine.OpenDBs(homePath); err != nil {
@@ -69,7 +72,7 @@ var serveCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		servesnapshots.StartServeSnapshotsWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, blockPoolId, metrics, metricsPort, snapshotPoolId, snapshotPort, startHeight, pruning, keepSnapshots, debug)
+		servesnapshots.StartServeSnapshotsWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, bId, metrics, metricsPort, sId, snapshotPort, startHeight, pruning, keepSnapshots, debug)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
