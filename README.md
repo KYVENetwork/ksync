@@ -353,6 +353,18 @@ Use the KYVE chain US endpoint to _block_sync_ your Osmosis node:
 ksync block-sync --chain-rest="https://api-us-1.kyve.network" --binary="/path/to/osmosisd" --source="osmosis" --target-height=42000
 ```
 
+## Overwrite Pool IDs
+
+To use specific Pool IDs for any kind of syncing process, replace `--source=<source-name>` with `block-pool-id=<id>` and/or `--snapshot-pool-id=<id>`. 
+
+### Example
+
+Use Archway Pool IDs for HEIGHT-SYNC:
+
+```bash
+ksync height-sync --binary="/path/to/archwayd" --block-pool-id=2 --snapshot-pool-id=4
+```
+
 ## Metrics
 
 You can enable useful metrics through the `--metrics` flag for all syncing commands. By default, it's exposed on ``http://localhost:8080/metrics`` and you can specify a custom port with ``--metrics-port``.
