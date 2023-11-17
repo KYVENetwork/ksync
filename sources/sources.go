@@ -3,7 +3,7 @@ package sources
 import (
 	_ "embed"
 	"fmt"
-	"github.com/KYVENetwork/ksync/collectors/pool"
+	"github.com/KYVENetwork/ksync/sources/helpers"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"gopkg.in/yaml.v2"
@@ -13,19 +13,80 @@ import (
 	"strings"
 )
 
-const (
-	redNo    = "\033[31m" + "NO" + "\033[0m"
-	greenYes = "\033[32m" + "YES" + "\033[0m"
-)
-
 func FormatOutput(entry *types.Entry, chainId string) (string, string, string) {
 	var blockKey, stateKey, heightKey string
 	if chainId == utils.ChainIdMainnet {
-		blockKey, stateKey, heightKey = formatKeys(entry.Kyve.BlockStartKey, entry.Kyve.LatestBlockKey, entry.Kyve.StateStartKey, entry.Kyve.LatestStateKey)
+		blockKey, stateKey, heightKey = helpers.FormatKeys(entry.Kyve.BlockStartKey, entry.Kyve.LatestBlockKey, entry.Kyve.StateStartKey, entry.Kyve.LatestStateKey)
 	} else if chainId == utils.ChainIdKaon {
-		blockKey, stateKey, heightKey = formatKeys(entry.Kaon.BlockStartKey, entry.Kaon.LatestBlockKey, entry.Kaon.StateStartKey, entry.Kaon.LatestStateKey)
+		blockKey, stateKey, heightKey = helpers.FormatKeys(entry.Kaon.BlockStartKey, entry.Kaon.LatestBlockKey, entry.Kaon.StateStartKey, entry.Kaon.LatestStateKey)
 	}
 	return blockKey, stateKey, heightKey
+}
+
+func GetPoolIds(chainId, source, blockPoolId, snapshotPoolId, registryUrl string, blockPoolRequired, snapshotPoolRequired bool) (int64, int64, error) {
+	if source == "" && blockPoolId == "" && blockPoolRequired {
+		return 0, 0, fmt.Errorf("either --source or --block-pool-id are required")
+	}
+	if source == "" && snapshotPoolId == "" && snapshotPoolRequired {
+		return 0, 0, fmt.Errorf("either --source or --snapshot-pool-id are required")
+	}
+
+	var bId, sId int64
+
+	if source != "" {
+		bIdRaw, sIdRaw, err := getPoolsBySource(chainId, source, registryUrl)
+		if err != nil {
+			return 0, 0, fmt.Errorf("failed to load pool Ids for source %s from %s: %w", source, registryUrl, err)
+		}
+
+		if bIdRaw == nil {
+			return 0, 0, fmt.Errorf("source %s does not contain a block-pool", source)
+		}
+		if sIdRaw == nil && snapshotPoolRequired {
+			return 0, 0, fmt.Errorf("source %s does not contain a snapshot-pool", source)
+		}
+
+		bId, sId = int64(*bIdRaw), int64(*sIdRaw)
+	}
+
+	if blockPoolId != "" {
+		var err error
+		bId, err = strconv.ParseInt(blockPoolId, 10, 64)
+		if err != nil {
+			return 0, 0, err
+		}
+	}
+	if snapshotPoolId != "" {
+		var err error
+		sId, err = strconv.ParseInt(snapshotPoolId, 10, 64)
+		if err != nil {
+			return 0, 0, err
+		}
+	}
+	return bId, sId, nil
+}
+
+func getPoolsBySource(chainId, source, registryUrl string) (*int, *int, error) {
+	if chainId != utils.ChainIdMainnet && chainId != utils.ChainIdKaon {
+		return nil, nil, fmt.Errorf("chain ID %s is not supported", chainId)
+	}
+
+	sourceRegistry, err := GetSourceRegistry(registryUrl)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, entry := range sourceRegistry.Entries {
+		if strings.ToLower(entry.Source.Title) == strings.ToLower(source) ||
+			strings.ToLower(entry.Source.ChainID) == strings.ToLower(source) {
+			if chainId == utils.ChainIdMainnet {
+				return entry.Kyve.BlockPoolID, entry.Kyve.StatePoolID, nil
+			} else if chainId == utils.ChainIdKaon {
+				return entry.Kaon.BlockPoolID, entry.Kaon.StatePoolID, nil
+			}
+		}
+	}
+	return nil, nil, fmt.Errorf("source %s is not included in source registry", source)
 }
 
 func GetSourceRegistry(url string) (*types.SourceRegistry, error) {
@@ -50,116 +111,10 @@ func GetSourceRegistry(url string) (*types.SourceRegistry, error) {
 		return nil, err
 	}
 
-	r, err := loadLatestPoolData(sourceRegistry)
+	r, err := helpers.LoadLatestPoolData(sourceRegistry)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load latest pool data: %v", err)
 	}
 
 	return r, nil
-}
-
-func loadLatestPoolData(sourceRegistry types.SourceRegistry) (*types.SourceRegistry, error) {
-	for _, entry := range sourceRegistry.Entries {
-		if entry.Kyve.BlockPoolID != nil {
-			poolResponse, err := pool.GetPoolInfo(utils.RestEndpointMainnet, int64(*entry.Kyve.BlockPoolID))
-			if err != nil {
-				return nil, err
-			}
-			entry.Kyve.BlockStartKey = &poolResponse.Pool.Data.StartKey
-			entry.Kyve.LatestBlockKey = &poolResponse.Pool.Data.CurrentKey
-		}
-		if entry.Kyve.StatePoolID != nil {
-			poolResponse, err := pool.GetPoolInfo(utils.RestEndpointMainnet, int64(*entry.Kyve.StatePoolID))
-			if err != nil {
-				return nil, err
-			}
-			entry.Kyve.StateStartKey = &poolResponse.Pool.Data.StartKey
-			entry.Kyve.LatestStateKey = &poolResponse.Pool.Data.CurrentKey
-		}
-		if entry.Kaon.BlockPoolID != nil {
-			poolResponse, err := pool.GetPoolInfo(utils.RestEndpointKaon, int64(*entry.Kaon.BlockPoolID))
-			if err != nil {
-				return nil, err
-			}
-			entry.Kaon.BlockStartKey = &poolResponse.Pool.Data.StartKey
-			entry.Kaon.LatestBlockKey = &poolResponse.Pool.Data.CurrentKey
-		}
-		if entry.Kaon.StatePoolID != nil {
-			poolResponse, err := pool.GetPoolInfo(utils.RestEndpointKaon, int64(*entry.Kaon.StatePoolID))
-			if err != nil {
-				return nil, err
-			}
-			entry.Kaon.StateStartKey = &poolResponse.Pool.Data.StartKey
-			entry.Kaon.LatestStateKey = &poolResponse.Pool.Data.CurrentKey
-		}
-	}
-	return &sourceRegistry, nil
-}
-
-func formatKeys(blockStartKey, latestBlockKey, stateStartKey, latestStateKey *string) (string, string, string) {
-	var blockSync, stateSync, heightSync = redNo, redNo, redNo
-
-	if latestBlockKey != nil && *latestBlockKey != "" {
-		latestHeight, err := strconv.ParseInt(*latestBlockKey, 10, 64)
-		if err != nil {
-			panic(err)
-		}
-		startHeight, err := strconv.ParseInt(*blockStartKey, 10, 64)
-		if err != nil {
-			panic(err)
-		}
-
-		latestKey := fmt.Sprintf("  %v - %v", formatNumberWithCommas(startHeight), formatNumberWithCommas(latestHeight))
-		if *latestBlockKey != "" {
-			blockSync = greenYes
-			blockSync += latestKey
-		}
-	}
-	if latestStateKey != nil && *latestStateKey != "" {
-		latestHeight, err := strconv.ParseInt(strings.Split(*latestStateKey, "/")[0], 10, 64)
-		if err != nil {
-			panic(err)
-		}
-
-		startHeight, err := strconv.ParseInt(strings.Split(*stateStartKey, "/")[0], 10, 64)
-		if err != nil {
-			panic(err)
-		}
-
-		interval, err := strconv.ParseInt(strings.Split(*stateStartKey, "/")[0], 10, 64)
-		if err != nil {
-			panic(err)
-		}
-
-		latestKey := fmt.Sprintf("  %v - %v/%v", formatNumberWithCommas(startHeight), formatNumberWithCommas(latestHeight), formatNumberWithCommas(interval))
-		if *latestStateKey != "" {
-			stateSync = greenYes
-			heightSync = greenYes
-			stateSync += latestKey
-		}
-	}
-
-	return blockSync, stateSync, heightSync
-}
-
-func formatNumberWithCommas(number int64) string {
-	// Convert the integer to a string
-	numberString := strconv.FormatInt(number, 10)
-
-	// Calculate the number of commas needed
-	numCommas := (len(numberString) - 1) / 3
-
-	// Create a new slice to store the formatted string
-	formatted := make([]byte, len(numberString)+numCommas)
-
-	// Copy digits to the new slice, inserting commas as needed
-	for i, j := len(numberString)-1, len(formatted)-1; i >= 0; i, j = i-1, j-1 {
-		formatted[j] = numberString[i]
-		if i > 0 && (len(numberString)-i)%3 == 0 {
-			j--
-			formatted[j] = ','
-		}
-	}
-
-	return string(formatted)
 }
