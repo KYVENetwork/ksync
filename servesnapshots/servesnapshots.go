@@ -134,7 +134,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 			// wait until process has properly shut down
 			time.Sleep(10 * time.Second)
 
-			processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, []string{})
+			processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, snapshotArgs)
 			if err != nil {
 				panic(err)
 			}
