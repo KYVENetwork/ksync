@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 func FormatOutput(entry *types.Entry, chainId string) (string, string, string) {
@@ -35,7 +36,7 @@ func GetPoolIds(chainId, source, blockPoolId, snapshotPoolId, registryUrl string
 	if source != "" {
 		bIdRaw, sIdRaw, err := getPoolsBySource(chainId, source, registryUrl)
 		if err != nil {
-			return 0, 0, fmt.Errorf("failed to load poolIds for source: %s", err)
+			return 0, 0, fmt.Errorf("failed to load pool Ids for source %s from %s: %w", source, registryUrl, err)
 		}
 
 		if bIdRaw == nil {
@@ -76,7 +77,8 @@ func getPoolsBySource(chainId, source, registryUrl string) (*int, *int, error) {
 	}
 
 	for _, entry := range sourceRegistry.Entries {
-		if entry.Source.ChainID == source {
+		if strings.ToLower(entry.Source.Title) == strings.ToLower(source) ||
+			strings.ToLower(entry.Source.ChainID) == strings.ToLower(source) {
 			if chainId == utils.ChainIdMainnet {
 				return entry.Kyve.BlockPoolID, entry.Kyve.StatePoolID, nil
 			} else if chainId == utils.ChainIdKaon {
@@ -84,7 +86,7 @@ func getPoolsBySource(chainId, source, registryUrl string) (*int, *int, error) {
 			}
 		}
 	}
-	return nil, nil, fmt.Errorf("source with chainId %s is not included in source registry", source)
+	return nil, nil, fmt.Errorf("source %s is not included in source registry", source)
 }
 
 func GetSourceRegistry(url string) (*types.SourceRegistry, error) {

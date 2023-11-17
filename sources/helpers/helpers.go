@@ -82,12 +82,7 @@ func FormatKeys(blockStartKey, latestBlockKey, stateStartKey, latestStateKey *st
 			panic(err)
 		}
 
-		interval, err := strconv.ParseInt(strings.Split(*stateStartKey, "/")[0], 10, 64)
-		if err != nil {
-			panic(err)
-		}
-
-		latestKey := fmt.Sprintf("  %v - %v/%v", FormatNumberWithCommas(startHeight), FormatNumberWithCommas(latestHeight), FormatNumberWithCommas(interval))
+		latestKey := fmt.Sprintf("  %v - %v", FormatNumberWithCommas(startHeight), FormatNumberWithCommas(latestHeight))
 		if *latestStateKey != "" {
 			stateSync = greenYes
 			heightSync = greenYes
