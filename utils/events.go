@@ -132,7 +132,7 @@ func TrackSyncStartEvent(engine types.Engine, command, chainId, chainRest, stora
 	return
 }
 
-func TrackSyncCompletedEvent(stateSyncHeight, blocksSynced, targetHeight int64, start time.Time, optOut bool) {
+func TrackSyncCompletedEvent(stateSyncHeight, blocksSynced, targetHeight int64, elapsed float64, optOut bool) {
 	if optOut {
 		return
 	}
@@ -145,7 +145,7 @@ func TrackSyncCompletedEvent(stateSyncHeight, blocksSynced, targetHeight int64, 
 			Set("state_sync_height", stateSyncHeight).
 			Set("blocks_synced", blocksSynced).
 			Set("target_height", targetHeight).
-			Set("duration", math.Floor(time.Since(start).Seconds()*100)/100),
+			Set("duration", math.Floor(elapsed*100)/100),
 	})
 
 	err = client.Close()

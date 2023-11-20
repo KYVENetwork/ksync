@@ -173,13 +173,14 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 		}
 	}
 
+	elapsed := time.Since(start).Seconds()
+	utils.TrackSyncCompletedEvent(snapshotHeight, targetHeight-snapshotHeight, targetHeight, elapsed, optOut)
+
 	// stop binary process thread
 	if err := utils.StopProcessByProcessId(processId); err != nil {
 		panic(err)
 	}
 
-	utils.TrackSyncCompletedEvent(snapshotHeight, targetHeight-snapshotHeight, targetHeight, start, optOut)
-
-	logger.Info().Msg(fmt.Sprintf("reached target height %d with applying state-sync snapshot at %d and block-syncing the remaining %d blocks", targetHeight, snapshotHeight, targetHeight-snapshotHeight))
+	logger.Info().Msg(fmt.Sprintf("reached target height %d with applying state-sync snapshot at %d and block-syncing the remaining %d blocks in %.2f seconds", targetHeight, snapshotHeight, targetHeight-snapshotHeight, elapsed))
 	logger.Info().Msg(fmt.Sprintf("successfully reached target height with height-sync"))
 }

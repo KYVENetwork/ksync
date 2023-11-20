@@ -114,12 +114,14 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId
 		os.Exit(1)
 	}
 
-	utils.TrackSyncCompletedEvent(0, targetHeight-currentHeight, targetHeight, start, optOut)
+	elapsed := time.Since(start).Seconds()
+	utils.TrackSyncCompletedEvent(0, targetHeight-currentHeight, targetHeight, elapsed, optOut)
 
 	// stop binary process thread
 	if err := utils.StopProcessByProcessId(processId); err != nil {
 		panic(err)
 	}
 
-	logger.Info().Msg("successfully finished block-sync")
+	logger.Info().Msg(fmt.Sprintf("block-synced from %d to %d (%d blocks) in %.2f seconds", currentHeight, targetHeight, targetHeight-currentHeight, elapsed))
+	logger.Info().Msg(fmt.Sprintf("successfully finished block-sync"))
 }

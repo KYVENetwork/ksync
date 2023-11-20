@@ -118,7 +118,9 @@ func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainId, chainRes
 		panic(err)
 	}
 
-	utils.TrackSyncCompletedEvent(snapshotHeight, 0, snapshotHeight, start, optOut)
+	elapsed := time.Since(start).Seconds()
+	utils.TrackSyncCompletedEvent(snapshotHeight, 0, snapshotHeight, elapsed, optOut)
 
+	logger.Info().Msg(fmt.Sprintf("state-synced at height %d in %.2f seconds", snapshotHeight, elapsed))
 	logger.Info().Msg(fmt.Sprintf("successfully applied state-sync snapshot"))
 }
