@@ -9,6 +9,7 @@ import (
 	"github.com/KYVENetwork/ksync/utils"
 	"os"
 	"strings"
+	"time"
 )
 
 var (
@@ -77,8 +78,10 @@ func PerformStateSyncValidationChecks(chainRest string, snapshotPoolId, snapshot
 	return nearestHeight, nil
 }
 
-func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64, debug, userInput bool) {
+func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainId, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64, optOut, debug, userInput bool) {
 	logger.Info().Msg("starting state-sync")
+
+	utils.TrackSyncStartEvent(engine, utils.STATE_SYNC, chainId, chainRest, storageRest, snapshotHeight, optOut)
 
 	// perform validation checks before booting state-sync process
 	nearestSnapshotHeight, err := PerformStateSyncValidationChecks(chainRest, snapshotPoolId, snapshotHeight, userInput)
@@ -98,6 +101,8 @@ func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainRest, storag
 		panic(err)
 	}
 
+	start := time.Now()
+
 	if err := StartStateSync(engine, chainRest, storageRest, snapshotPoolId, snapshotHeight); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to start state-sync: %s", err))
 
@@ -112,6 +117,8 @@ func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainRest, storag
 	if err := utils.StopProcessByProcessId(processId); err != nil {
 		panic(err)
 	}
+
+	utils.TrackSyncCompletedEvent(snapshotHeight, 0, snapshotHeight, start, optOut)
 
 	logger.Info().Msg(fmt.Sprintf("successfully applied state-sync snapshot"))
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/KYVENetwork/ksync/utils"
 	"os"
 	"strings"
+	"time"
 )
 
 var (
@@ -76,8 +77,10 @@ func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blo
 	return nil
 }
 
-func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId, targetHeight int64, metrics bool, port int64, backupCfg *types.BackupConfig, debug, userInput bool) {
+func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId, chainRest, storageRest string, blockPoolId, targetHeight int64, metrics bool, port int64, backupCfg *types.BackupConfig, optOut, debug, userInput bool) {
 	logger.Info().Msg("starting block-sync")
+
+	utils.TrackSyncStartEvent(engine, utils.BLOCK_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
 
 	// perform validation checks before booting state-sync process
 	if err := PerformBlockSyncValidationChecks(engine, chainRest, blockPoolId, targetHeight, userInput); err != nil {
@@ -96,6 +99,10 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 		panic(err)
 	}
 
+	start := time.Now()
+
+	currentHeight := engine.GetHeight()
+
 	// db executes blocks against app until target height is reached
 	if err := StartBlockSync(engine, chainRest, storageRest, blockPoolId, targetHeight, metrics, port, backupCfg); err != nil {
 		logger.Error().Msg(fmt.Sprintf("%s", err))
@@ -106,6 +113,8 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 		}
 		os.Exit(1)
 	}
+
+	utils.TrackSyncCompletedEvent(0, targetHeight-currentHeight, targetHeight, start, optOut)
 
 	// stop binary process thread
 	if err := utils.StopProcessByProcessId(processId); err != nil {

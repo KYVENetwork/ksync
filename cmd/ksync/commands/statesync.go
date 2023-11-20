@@ -20,9 +20,6 @@ func init() {
 	}
 
 	stateSyncCmd.Flags().StringVar(&homePath, "home", "", "home directory")
-	if err := stateSyncCmd.MarkFlagRequired("home"); err != nil {
-		panic(fmt.Errorf("flag 'home' should be required: %w", err))
-	}
 
 	stateSyncCmd.Flags().StringVar(&chainId, "chain-id", utils.DefaultChainId, fmt.Sprintf("KYVE chain id [\"%s\",\"%s\",\"%s\"]", utils.ChainIdMainnet, utils.ChainIdKaon, utils.ChainIdKorellia))
 
@@ -67,7 +64,7 @@ var stateSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		statesync.StartStateSyncWithBinary(consensusEngine, binaryPath, chainRest, storageRest, sId, targetHeight, debug, !y)
+		statesync.StartStateSyncWithBinary(consensusEngine, binaryPath, chainId, chainRest, storageRest, sId, targetHeight, optOut, debug, !y)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))

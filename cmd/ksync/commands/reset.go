@@ -16,6 +16,8 @@ func init() {
 
 	resetCmd.Flags().StringVar(&homePath, "home", "", "home directory")
 
+	resetCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
+
 	rootCmd.AddCommand(resetCmd)
 }
 
@@ -23,6 +25,8 @@ var resetCmd = &cobra.Command{
 	Use:   "unsafe-reset-all",
 	Short: "Reset tendermint node data",
 	Run: func(cmd *cobra.Command, args []string) {
+		utils.TrackCmdStartEvent(utils.RESET, optOut)
+		
 		// if no home path was given get the default one
 		if homePath == "" {
 			homePath = utils.GetHomePathFromBinary(binaryPath)
