@@ -60,7 +60,7 @@ func StartBinaryProcessForDB(engine types.Engine, binaryPath string, debug bool,
 		engine.GetHomePath(),
 		"--with-tendermint=false",
 		"--address",
-		engine.GetProxyApp(),
+		engine.GetProxyAppAddress(),
 	}, args...)
 
 	cmd := exec.Command(cmdPath, append(startArgs, baseArgs...)...)
