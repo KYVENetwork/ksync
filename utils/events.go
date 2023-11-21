@@ -137,6 +137,16 @@ func TrackSyncCompletedEvent(stateSyncHeight, blocksSynced, targetHeight int64, 
 		return
 	}
 
+	version := "local"
+	build, _ := debug.ReadBuildInfo()
+
+	if strings.TrimSpace(build.Main.Version) != "" {
+		version = strings.TrimSpace(build.Main.Version)
+	}
+
+	timezone, _ := time.Now().Zone()
+	locale := os.Getenv("LANG")
+
 	err := client.Enqueue(analytics.Track{
 		UserId: userId,
 		Event:  SYNC_COMPLETED,
@@ -146,6 +156,18 @@ func TrackSyncCompletedEvent(stateSyncHeight, blocksSynced, targetHeight int64, 
 			Set("blocks_synced", blocksSynced).
 			Set("target_height", targetHeight).
 			Set("duration", math.Floor(elapsed*100)/100),
+		Context: &analytics.Context{
+			App: analytics.AppInfo{
+				Name:    "ksync",
+				Version: version,
+			},
+			Location: analytics.LocationInfo{},
+			OS: analytics.OSInfo{
+				Name: fmt.Sprintf("%s %s", runtime.GOOS, runtime.GOARCH),
+			},
+			Locale:   locale,
+			Timezone: timezone,
+		},
 	})
 
 	err = client.Close()
