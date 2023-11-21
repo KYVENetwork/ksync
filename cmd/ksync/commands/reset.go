@@ -25,8 +25,8 @@ var resetCmd = &cobra.Command{
 	Use:   "unsafe-reset-all",
 	Short: "Reset tendermint node data",
 	Run: func(cmd *cobra.Command, args []string) {
-		utils.TrackCmdStartEvent(utils.RESET, optOut)
-		
+		utils.TrackResetEvent(optOut)
+
 		// if no home path was given get the default one
 		if homePath == "" {
 			homePath = utils.GetHomePathFromBinary(binaryPath)

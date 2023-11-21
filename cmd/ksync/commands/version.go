@@ -27,7 +27,7 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version of KSYNC",
 	Run: func(cmd *cobra.Command, args []string) {
-		utils.TrackCmdStartEvent(utils.VERSION, optOut)
+		utils.TrackVersionEvent(optOut)
 		fmt.Println(getVersion())
 	},
 }

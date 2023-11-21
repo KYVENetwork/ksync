@@ -27,7 +27,7 @@ var infoCmd = &cobra.Command{
 	Use:   "info",
 	Short: "Get KSYNC chain support information",
 	Run: func(cmd *cobra.Command, args []string) {
-		utils.TrackCmdStartEvent(utils.INFO, optOut)
+		utils.TrackInfoEvent(chainId, optOut)
 
 		if chainId != utils.ChainIdMainnet && chainId != utils.ChainIdKaon {
 			logger.Error().Str("chain-id", chainId).Msg("chain information not supported")

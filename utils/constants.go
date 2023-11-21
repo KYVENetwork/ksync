@@ -13,7 +13,7 @@ const (
 	RestEndpointBundlr      = "https://arweave.net"
 	RestEndpointKYVEStorage = "https://storage.kyve.network"
 
-	SegmentKey = "XGkhHMQhaCsY76D3ycJTcafbYxsmuzt6"
+	SegmentKey = "quSEhAvH5fqlHyop9r9mDGxgd97ro3vQ"
 )
 
 const (
@@ -45,10 +45,11 @@ const (
 )
 
 const (
+	SYNC_STARTED    = "SYNC_STARTED"
+	SYNC_COMPLETED  = "SYNC_COMPLETED"
 	BLOCK_SYNC      = "BLOCK_SYNC"
 	STATE_SYNC      = "STATE_SYNC"
 	HEIGHT_SYNC     = "HEIGHT_SYNC"
-	SYNC_COMPLETED  = "SYNC_COMPLETED"
 	SERVE_SNAPSHOTS = "SERVE_SNAPSHOTS"
 	INFO            = "INFO"
 	RESET           = "RESET"

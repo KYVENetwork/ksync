@@ -73,7 +73,7 @@ var serveCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		utils.TrackSyncStartEvent(consensusEngine, utils.SERVE_SNAPSHOTS, chainId, chainRest, storageRest, 0, optOut)
+		utils.TrackServeSnapshotsEvent(consensusEngine, chainId, chainRest, storageRest, snapshotPort, metrics, metricsPort, startHeight, pruning, keepSnapshots, debug, optOut)
 		servesnapshots.StartServeSnapshotsWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, bId, metrics, metricsPort, sId, snapshotPort, startHeight, pruning, keepSnapshots, debug)
 
 		if err := consensusEngine.CloseDBs(); err != nil {

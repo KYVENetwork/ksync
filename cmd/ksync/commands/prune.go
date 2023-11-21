@@ -31,7 +31,7 @@ var pruneCmd = &cobra.Command{
 	Use:   "prune-blocks",
 	Short: "Prune blocks until a specific height",
 	Run: func(cmd *cobra.Command, args []string) {
-		utils.TrackCmdStartEvent(utils.PRUNE, optOut)
+		utils.TrackPruningEvent(untilHeight, optOut)
 
 		// if no home path was given get the default one
 		if homePath == "" {

@@ -32,7 +32,7 @@ var backupCmd = &cobra.Command{
 	Use:   "backup",
 	Short: "Backup data directory",
 	Run: func(cmd *cobra.Command, args []string) {
-		utils.TrackCmdStartEvent(utils.BACKUP, optOut)
+		utils.TrackBackupEvent(backupCompression, backupKeepRecent, optOut)
 
 		// if no home path was given get the default one
 		if homePath == "" {
