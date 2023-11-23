@@ -42,6 +42,7 @@ func init() {
 	serveCmd.Flags().BoolVar(&pruning, "pruning", true, "prune application.db, state.db, blockstore db and snapshots")
 	serveCmd.Flags().BoolVar(&keepSnapshots, "keep-snapshots", false, "keep snapshots, although pruning might be enabled")
 
+	serveCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
 	serveCmd.Flags().BoolVar(&debug, "debug", false, "show logs from tendermint app")
 
 	rootCmd.AddCommand(serveCmd)
@@ -72,6 +73,7 @@ var serveCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		utils.TrackServeSnapshotsEvent(consensusEngine, chainId, chainRest, storageRest, snapshotPort, metrics, metricsPort, startHeight, pruning, keepSnapshots, debug, optOut)
 		servesnapshots.StartServeSnapshotsWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, bId, metrics, metricsPort, sId, snapshotPort, startHeight, pruning, keepSnapshots, debug)
 
 		if err := consensusEngine.CloseDBs(); err != nil {

@@ -18,6 +18,8 @@ func init() {
 
 	infoCmd.Flags().StringVar(&registryUrl, "registry-url", utils.DefaultRegistryURL, "URL to fetch latest KYVE Source-Registry")
 
+	infoCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
+
 	rootCmd.AddCommand(infoCmd)
 }
 
@@ -25,6 +27,8 @@ var infoCmd = &cobra.Command{
 	Use:   "info",
 	Short: "Get KSYNC chain support information",
 	Run: func(cmd *cobra.Command, args []string) {
+		utils.TrackInfoEvent(chainId, optOut)
+
 		if chainId != utils.ChainIdMainnet && chainId != utils.ChainIdKaon {
 			logger.Error().Str("chain-id", chainId).Msg("chain information not supported")
 			return

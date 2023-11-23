@@ -20,6 +20,8 @@ func init() {
 		panic(fmt.Errorf("flag 'until-height' should be required: %w", err))
 	}
 
+	pruneCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
+
 	// Disable pruning for now until we find a way to properly prune
 	// blockstore.db, state.db and application.db
 	//rootCmd.AddCommand(pruneCmd)
@@ -29,6 +31,8 @@ var pruneCmd = &cobra.Command{
 	Use:   "prune-blocks",
 	Short: "Prune blocks until a specific height",
 	Run: func(cmd *cobra.Command, args []string) {
+		utils.TrackPruningEvent(untilHeight, optOut)
+
 		// if no home path was given get the default one
 		if homePath == "" {
 			homePath = utils.GetHomePathFromBinary(binaryPath)

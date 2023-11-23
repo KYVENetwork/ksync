@@ -19,8 +19,10 @@ var (
 	logger = utils.KsyncLogger("height-sync")
 )
 
-func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, snapshotPoolId, blockPoolId, targetHeight int64, debug, userInput bool) {
+func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId, chainRest, storageRest string, snapshotPoolId, blockPoolId, targetHeight int64, optOut, debug, userInput bool) {
 	logger.Info().Msg("starting height-sync")
+
+	utils.TrackSyncStartEvent(engine, utils.HEIGHT_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
 
 	_, _, blockEndHeight, err := blocksyncHelpers.GetBlockBoundaries(chainRest, blockPoolId)
 	if err != nil {
@@ -90,6 +92,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 		}
 	}
 
+	start := time.Now()
 	processId := 0
 
 	// if there are snapshots available before the requested height we apply the nearest
@@ -170,11 +173,14 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainR
 		}
 	}
 
+	elapsed := time.Since(start).Seconds()
+	utils.TrackSyncCompletedEvent(snapshotHeight, targetHeight-snapshotHeight, targetHeight, elapsed, optOut)
+
 	// stop binary process thread
 	if err := utils.StopProcessByProcessId(processId); err != nil {
 		panic(err)
 	}
 
-	logger.Info().Msg(fmt.Sprintf("reached target height %d with applying state-sync snapshot at %d and block-syncing the remaining %d blocks", targetHeight, snapshotHeight, targetHeight-snapshotHeight))
+	logger.Info().Msg(fmt.Sprintf("reached target height %d with applying state-sync snapshot at %d and block-syncing the remaining %d blocks in %.2f seconds", targetHeight, snapshotHeight, targetHeight-snapshotHeight, elapsed))
 	logger.Info().Msg(fmt.Sprintf("successfully reached target height with height-sync"))
 }

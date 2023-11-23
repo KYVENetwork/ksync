@@ -23,6 +23,8 @@ func init() {
 
 	backupCmd.Flags().Int64Var(&backupKeepRecent, "backup-keep-recent", 0, "number of kept backups (0 to keep all)")
 
+	backupCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
+
 	rootCmd.AddCommand(backupCmd)
 }
 
@@ -30,6 +32,8 @@ var backupCmd = &cobra.Command{
 	Use:   "backup",
 	Short: "Backup data directory",
 	Run: func(cmd *cobra.Command, args []string) {
+		utils.TrackBackupEvent(backupCompression, backupKeepRecent, optOut)
+
 		// if no home path was given get the default one
 		if homePath == "" {
 			homePath = utils.GetHomePathFromBinary(binaryPath)

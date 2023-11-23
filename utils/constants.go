@@ -12,6 +12,8 @@ const (
 	RestEndpointArweave     = "https://arweave.net"
 	RestEndpointBundlr      = "https://arweave.net"
 	RestEndpointKYVEStorage = "https://storage.kyve.network"
+
+	SegmentKey = "quSEhAvH5fqlHyop9r9mDGxgd97ro3vQ"
 )
 
 const (
@@ -40,6 +42,20 @@ const (
 	SnapshotPruningAheadFactor  = 3
 	SnapshotPruningWindowFactor = 6
 	BackoffMaxRetries           = 10
+)
+
+const (
+	SYNC_STARTED    = "SYNC_STARTED"
+	SYNC_COMPLETED  = "SYNC_COMPLETED"
+	BLOCK_SYNC      = "BLOCK_SYNC"
+	STATE_SYNC      = "STATE_SYNC"
+	HEIGHT_SYNC     = "HEIGHT_SYNC"
+	SERVE_SNAPSHOTS = "SERVE_SNAPSHOTS"
+	INFO            = "INFO"
+	RESET           = "RESET"
+	PRUNE           = "PRUNE"
+	BACKUP          = "BACKUP"
+	VERSION         = "VERSION"
 )
 
 const (

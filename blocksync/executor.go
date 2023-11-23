@@ -187,7 +187,6 @@ func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPo
 					return fmt.Errorf("failed to stop proxy app: %w", err)
 				}
 
-				logger.Info().Msg(fmt.Sprintf("block-synced from %d to height %d", continuationHeight, targetHeight))
 				return nil
 			}
 		}
