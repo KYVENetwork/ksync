@@ -12,6 +12,7 @@ import (
 	nm "github.com/tendermint/tendermint/node"
 	tmP2P "github.com/tendermint/tendermint/p2p"
 	tmProtoState "github.com/tendermint/tendermint/proto/tendermint/state"
+	"github.com/tendermint/tendermint/proxy"
 	tmState "github.com/tendermint/tendermint/state"
 	tmStore "github.com/tendermint/tendermint/store"
 	tmTypes "github.com/tendermint/tendermint/types"
@@ -37,6 +38,7 @@ type TmEngine struct {
 
 	state         tmState.State
 	prevBlock     *Block
+	proxyApp      proxy.AppConns
 	blockExecutor *tmState.BlockExecutor
 }
 
@@ -89,8 +91,35 @@ func (tm *TmEngine) GetHomePath() string {
 	return tm.homePath
 }
 
-func (tm *TmEngine) GetProxyApp() string {
+func (tm *TmEngine) GetProxyAppAddress() string {
 	return tm.config.ProxyApp
+}
+
+func (tm *TmEngine) StartProxyApp() error {
+	if tm.proxyApp != nil {
+		return fmt.Errorf("proxy app already started")
+	}
+
+	proxyApp, err := CreateAndStartProxyAppConns(tm.config)
+	if err != nil {
+		return err
+	}
+
+	tm.proxyApp = proxyApp
+	return nil
+}
+
+func (tm *TmEngine) StopProxyApp() error {
+	if tm.proxyApp == nil {
+		return fmt.Errorf("proxy app already stopped")
+	}
+
+	if err := tm.proxyApp.Stop(); err != nil {
+		return err
+	}
+
+	tm.proxyApp = nil
+	return nil
 }
 
 func (tm *TmEngine) GetChainId() (string, error) {
@@ -145,17 +174,12 @@ func (tm *TmEngine) DoHandshake() error {
 		return fmt.Errorf("failed to load state and genDoc: %w", err)
 	}
 
-	proxyApp, err := CreateAndStartProxyAppConns(tm.config)
-	if err != nil {
-		return fmt.Errorf("failed to start proxy app: %w", err)
-	}
-
 	eventBus, err := CreateAndStartEventBus()
 	if err != nil {
 		return fmt.Errorf("failed to start event bus: %w", err)
 	}
 
-	if err := DoHandshake(tm.stateStore, state, tm.blockStore, genDoc, eventBus, proxyApp); err != nil {
+	if err := DoHandshake(tm.stateStore, state, tm.blockStore, genDoc, eventBus, tm.proxyApp); err != nil {
 		return fmt.Errorf("failed to do handshake: %w", err)
 	}
 
@@ -166,7 +190,7 @@ func (tm *TmEngine) DoHandshake() error {
 
 	tm.state = state
 
-	_, mempool := CreateMempoolAndMempoolReactor(tm.config, proxyApp, state)
+	_, mempool := CreateMempoolAndMempoolReactor(tm.config, tm.proxyApp, state)
 
 	_, evidencePool, err := CreateEvidenceReactor(tm.config, tm.stateStore, tm.blockStore)
 	if err != nil {
@@ -176,7 +200,7 @@ func (tm *TmEngine) DoHandshake() error {
 	tm.blockExecutor = tmState.NewBlockExecutor(
 		tm.stateStore,
 		tmLogger.With("module", "state"),
-		proxyApp.Consensus(),
+		tm.proxyApp.Consensus(),
 		mempool,
 		evidencePool,
 	)

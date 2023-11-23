@@ -22,7 +22,11 @@ func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPo
 	if err != nil {
 		return fmt.Errorf("failed to get continuation height from engine: %w", err)
 	}
-	
+
+	if err := engine.StartProxyApp(); err != nil {
+		return fmt.Errorf("failed to start proxy app: %w", err)
+	}
+
 	if err := engine.DoHandshake(); err != nil {
 		return fmt.Errorf("failed to do handshake: %w", err)
 	}
@@ -179,6 +183,10 @@ func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPo
 
 			// stop with block execution if we have reached our target height
 			if targetHeight > 0 && height == targetHeight+1 {
+				if err := engine.StopProxyApp(); err != nil {
+					return fmt.Errorf("failed to stop proxy app: %w", err)
+				}
+
 				logger.Info().Msg(fmt.Sprintf("block-synced from %d to height %d", continuationHeight, targetHeight))
 				return nil
 			}

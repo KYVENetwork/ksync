@@ -14,6 +14,7 @@ import (
 	"github.com/cometbft/cometbft/p2p"
 	cometP2P "github.com/cometbft/cometbft/p2p"
 	tmProtoState "github.com/cometbft/cometbft/proto/tendermint/state"
+	"github.com/cometbft/cometbft/proxy"
 	tmState "github.com/cometbft/cometbft/state"
 	tmStore "github.com/cometbft/cometbft/store"
 	tmTypes "github.com/cometbft/cometbft/types"
@@ -38,6 +39,7 @@ type CometEngine struct {
 
 	state         tmState.State
 	prevBlock     *Block
+	proxyApp      proxy.AppConns
 	blockExecutor *tmState.BlockExecutor
 }
 
@@ -90,8 +92,35 @@ func (comet *CometEngine) GetHomePath() string {
 	return comet.homePath
 }
 
-func (comet *CometEngine) GetProxyApp() string {
+func (comet *CometEngine) GetProxyAppAddress() string {
 	return comet.config.ProxyApp
+}
+
+func (comet *CometEngine) StartProxyApp() error {
+	if comet.proxyApp != nil {
+		return fmt.Errorf("proxy app already started")
+	}
+
+	proxyApp, err := CreateAndStartProxyAppConns(comet.config)
+	if err != nil {
+		return err
+	}
+
+	comet.proxyApp = proxyApp
+	return nil
+}
+
+func (comet *CometEngine) StopProxyApp() error {
+	if comet.proxyApp == nil {
+		return fmt.Errorf("proxy app already stopped")
+	}
+
+	if err := comet.proxyApp.Stop(); err != nil {
+		return err
+	}
+
+	comet.proxyApp = nil
+	return nil
 }
 
 func (comet *CometEngine) GetChainId() (string, error) {
@@ -146,17 +175,12 @@ func (comet *CometEngine) DoHandshake() error {
 		return fmt.Errorf("failed to load state and genDoc: %w", err)
 	}
 
-	proxyApp, err := CreateAndStartProxyAppConns(comet.config)
-	if err != nil {
-		return fmt.Errorf("failed to start proxy app: %w", err)
-	}
-
 	eventBus, err := CreateAndStartEventBus()
 	if err != nil {
 		return fmt.Errorf("failed to start event bus: %w", err)
 	}
 
-	if err := DoHandshake(comet.stateStore, state, comet.blockStore, genDoc, eventBus, proxyApp); err != nil {
+	if err := DoHandshake(comet.stateStore, state, comet.blockStore, genDoc, eventBus, comet.proxyApp); err != nil {
 		return fmt.Errorf("failed to do handshake: %w", err)
 	}
 
@@ -167,7 +191,7 @@ func (comet *CometEngine) DoHandshake() error {
 
 	comet.state = state
 
-	mempool := CreateMempool(comet.config, proxyApp, state)
+	mempool := CreateMempool(comet.config, comet.proxyApp, state)
 
 	_, evidencePool, err := CreateEvidenceReactor(comet.config, comet.stateStore, comet.blockStore)
 	if err != nil {
@@ -177,7 +201,7 @@ func (comet *CometEngine) DoHandshake() error {
 	comet.blockExecutor = tmState.NewBlockExecutor(
 		comet.stateStore,
 		cometLogger.With("module", "state"),
-		proxyApp.Consensus(),
+		comet.proxyApp.Consensus(),
 		mempool,
 		evidencePool,
 	)
