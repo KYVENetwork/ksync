@@ -15,8 +15,14 @@ type Engine interface {
 	// GetHomePath gets the home path of the config and data folder
 	GetHomePath() string
 
-	// GetProxyApp gets the proxy app address of the TSP connection
-	GetProxyApp() string
+	// GetProxyAppAddress gets the proxy app address of the TSP connection
+	GetProxyAppAddress() string
+
+	// StartProxyApp starts the proxy app connections to the app
+	StartProxyApp() error
+
+	// StopProxyApp stops the proxy app connections to the app
+	StopProxyApp() error
 
 	// GetChainId gets the chain id of the app
 	GetChainId() (string, error)
