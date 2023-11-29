@@ -30,14 +30,12 @@
 
 <br/>
 
-# Overview
-
 > [!IMPORTANT]
 > In this README you will find information on contribution guidelines and
 > detailed documentation about the low level implementation of KSYNC.
 >
 > You can find the complete documentation on installation and usage
-> here: [https://docs.kyve.network/ksync]**(https://docs.kyve.network/ksync)**
+> here: **[https://docs.kyve.network/ksync](https://docs.kyve.network/ksync)**
 
 # Build from Source
 
