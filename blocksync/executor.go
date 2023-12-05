@@ -41,6 +41,10 @@ func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPo
 		go server.StartMetricsApiServer(engine, metricsPort)
 	}
 
+	if err := server.StartRPC(engine); err != nil {
+		return fmt.Errorf("failed to start rpc: %w", err)
+	}
+
 	// start api server which serves an api endpoint for querying snapshots
 	if snapshotInterval > 0 {
 		go server.StartSnapshotApiServer(engine, snapshotPort)

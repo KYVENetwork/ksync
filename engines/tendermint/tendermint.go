@@ -403,7 +403,6 @@ func (tm *TmEngine) GetAppHeight() (int64, error) {
 
 func (tm *TmEngine) GetSnapshots() ([]byte, error) {
 	socketClient := abciClient.NewSocketClient(tm.config.ProxyApp, false)
-
 	if err := socketClient.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start socket client: %w", err)
 	}
