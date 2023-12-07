@@ -15,10 +15,40 @@ import (
 )
 
 var (
-	userId = uuid.New().String()
 	syncId = uuid.New().String()
 	client = analytics.New(SegmentKey)
 )
+
+func getUserId() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	ksyncDir := filepath.Join(home, ".ksync")
+	if _, err = os.Stat(ksyncDir); os.IsNotExist(err) {
+		if err := os.Mkdir(ksyncDir, 0o755); err != nil {
+			return "", err
+		}
+	}
+
+	userId := uuid.New().String()
+
+	idFile := filepath.Join(ksyncDir, "id")
+	if _, err = os.Stat(idFile); os.IsNotExist(err) {
+		if err := os.WriteFile(idFile, []byte(userId), 0o755); err != nil {
+			return "", err
+		}
+	} else {
+		data, err := os.ReadFile(idFile)
+		if err != nil {
+			return "", err
+		}
+		userId = string(data)
+	}
+
+	return userId, nil
+}
 
 func getContext() *analytics.Context {
 	version := "local"
@@ -50,7 +80,12 @@ func TrackVersionEvent(optOut bool) {
 		return
 	}
 
-	err := client.Enqueue(analytics.Track{
+	userId, err := getUserId()
+	if err != nil {
+		return
+	}
+
+	err = client.Enqueue(analytics.Track{
 		UserId:  userId,
 		Event:   VERSION,
 		Context: getContext(),
@@ -65,7 +100,12 @@ func TrackInfoEvent(chainId string, optOut bool) {
 		return
 	}
 
-	err := client.Enqueue(analytics.Track{
+	userId, err := getUserId()
+	if err != nil {
+		return
+	}
+
+	err = client.Enqueue(analytics.Track{
 		UserId:     userId,
 		Event:      INFO,
 		Properties: analytics.NewProperties().Set("chain_id", chainId),
@@ -81,7 +121,12 @@ func TrackBackupEvent(backupCompression string, backupKeepRecent int64, optOut b
 		return
 	}
 
-	err := client.Enqueue(analytics.Track{
+	userId, err := getUserId()
+	if err != nil {
+		return
+	}
+
+	err = client.Enqueue(analytics.Track{
 		UserId: userId,
 		Event:  BACKUP,
 		Properties: analytics.NewProperties().
@@ -99,7 +144,12 @@ func TrackResetEvent(optOut bool) {
 		return
 	}
 
-	err := client.Enqueue(analytics.Track{
+	userId, err := getUserId()
+	if err != nil {
+		return
+	}
+
+	err = client.Enqueue(analytics.Track{
 		UserId:  userId,
 		Event:   RESET,
 		Context: getContext(),
@@ -114,7 +164,12 @@ func TrackPruningEvent(untilHeight int64, optOut bool) {
 		return
 	}
 
-	err := client.Enqueue(analytics.Track{
+	userId, err := getUserId()
+	if err != nil {
+		return
+	}
+
+	err = client.Enqueue(analytics.Track{
 		UserId: userId,
 		Event:  PRUNE,
 		Properties: analytics.NewProperties().
@@ -128,6 +183,11 @@ func TrackPruningEvent(untilHeight int64, optOut bool) {
 
 func TrackServeSnapshotsEvent(engine types.Engine, chainId, chainRest, storageRest string, snapshotPort int64, metrics bool, metricsPort int64, startHeight int64, pruning, keepSnapshots, debug, optOut bool) {
 	if optOut {
+		return
+	}
+
+	userId, err := getUserId()
+	if err != nil {
 		return
 	}
 
@@ -166,29 +226,9 @@ func TrackSyncStartEvent(engine types.Engine, syncType, chainId, chainRest, stor
 		return
 	}
 
-	home, err := os.UserHomeDir()
+	userId, err := getUserId()
 	if err != nil {
 		return
-	}
-
-	ksyncDir := filepath.Join(home, ".ksync")
-	if _, err = os.Stat(ksyncDir); os.IsNotExist(err) {
-		if err := os.Mkdir(ksyncDir, 0o755); err != nil {
-			return
-		}
-	}
-
-	idFile := filepath.Join(ksyncDir, "id")
-	if _, err = os.Stat(idFile); os.IsNotExist(err) {
-		if err := os.WriteFile(idFile, []byte(userId), 0o755); err != nil {
-			return
-		}
-	} else {
-		data, err := os.ReadFile(idFile)
-		if err != nil {
-			return
-		}
-		userId = string(data)
 	}
 
 	project, err := engine.GetChainId()
@@ -222,7 +262,12 @@ func TrackSyncCompletedEvent(stateSyncHeight, blocksSynced, targetHeight int64, 
 		return
 	}
 
-	err := client.Enqueue(analytics.Track{
+	userId, err := getUserId()
+	if err != nil {
+		return
+	}
+
+	err = client.Enqueue(analytics.Track{
 		UserId: userId,
 		Event:  SYNC_COMPLETED,
 		Properties: analytics.NewProperties().
