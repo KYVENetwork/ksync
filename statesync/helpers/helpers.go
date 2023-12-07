@@ -14,9 +14,18 @@ func GetSnapshotPoolHeight(restEndpoint string, poolId int64) int64 {
 		panic(fmt.Errorf("could not get snapshot pool: %w", err))
 	}
 
-	snapshotHeight, _, err := utils.ParseSnapshotFromKey(snapshotPool.Pool.Data.CurrentKey)
-	if err != nil {
-		panic(fmt.Errorf("could not parse snapshot height from current key: %w", err))
+	var snapshotHeight int64
+
+	if snapshotPool.Pool.Data.CurrentKey == "" {
+		snapshotHeight, _, err = utils.ParseSnapshotFromKey(snapshotPool.Pool.Data.StartKey)
+		if err != nil {
+			panic(fmt.Errorf("could not parse snapshot height from start key: %w", err))
+		}
+	} else {
+		snapshotHeight, _, err = utils.ParseSnapshotFromKey(snapshotPool.Pool.Data.CurrentKey)
+		if err != nil {
+			panic(fmt.Errorf("could not parse snapshot height from current key: %w", err))
+		}
 	}
 
 	return snapshotHeight
