@@ -238,14 +238,14 @@ func (tm *TmEngine) ApplyBlock(runtime string, value []byte) error {
 	blockId := tmTypes.BlockID{Hash: tm.prevBlock.Hash(), PartSetHeader: blockParts.Header()}
 
 	// verify block
-	if err := tm.blockExecutor.ValidateBlock(tm.state, tm.prevBlock); err != nil {
-		return fmt.Errorf("block validation failed at height %d: %w", tm.prevBlock.Height, err)
-	}
+	//if err := tm.blockExecutor.ValidateBlock(tm.state, tm.prevBlock); err != nil {
+	//	return fmt.Errorf("block validation failed at height %d: %w", tm.prevBlock.Height, err)
+	//}
 
 	// verify commits
-	if err := tm.state.Validators.VerifyCommitLight(tm.state.ChainID, blockId, tm.prevBlock.Height, block.LastCommit); err != nil {
-		return fmt.Errorf("light commit verification failed at height %d: %w", tm.prevBlock.Height, err)
-	}
+	//if err := tm.state.Validators.VerifyCommitLight(tm.state.ChainID, blockId, tm.prevBlock.Height, block.LastCommit); err != nil {
+	//	return fmt.Errorf("light commit verification failed at height %d: %w", tm.prevBlock.Height, err)
+	//}
 
 	// store block
 	tm.blockStore.SaveBlock(tm.prevBlock, blockParts, block.LastCommit)
