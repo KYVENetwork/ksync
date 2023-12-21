@@ -20,6 +20,7 @@ import (
 	"github.com/tendermint/tendermint/version"
 	"net/url"
 	"strconv"
+	"time"
 )
 
 var (
@@ -259,6 +260,8 @@ func (tm *TmEngine) ApplyBlock(runtime string, value []byte) error {
 	// update values for next round
 	tm.state = state
 	tm.prevBlock = block
+
+	time.Sleep(50 * time.Millisecond)
 
 	return nil
 }
