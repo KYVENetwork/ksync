@@ -2,17 +2,18 @@ package tendermint
 
 import (
 	"fmt"
+	cmtdb "github.com/cometbft/cometbft-db"
 	"github.com/spf13/viper"
 	cfg "github.com/tendermint/tendermint/config"
 	cs "github.com/tendermint/tendermint/consensus"
 	"github.com/tendermint/tendermint/evidence"
-	mempl "github.com/tendermint/tendermint/mempool"
+	memplv0 "github.com/tendermint/tendermint/mempool/v0"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/state"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/store"
 	tmTypes "github.com/tendermint/tendermint/types"
-	dbm "github.com/tendermint/tm-db"
+	tmdb "github.com/tendermint/tm-db"
 	"path/filepath"
 )
 
@@ -42,24 +43,31 @@ func LoadConfig(homePath string) (*cfg.Config, error) {
 	return config, nil
 }
 
-func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
-	dbType := dbm.BackendType(ctx.Config.DBBackend)
-	return dbm.NewDB(ctx.ID, dbType, ctx.Config.DBDir())
+func DefaultCMTDBProvider(ctx *DBContext) (cmtdb.DB, error) {
+	dbType := cmtdb.BackendType(ctx.Config.DBBackend)
+	return cmtdb.NewDB(ctx.ID, dbType, ctx.Config.DBDir())
 }
 
-func GetStateDBs(config *Config) (dbm.DB, state.Store, error) {
-	stateDB, err := DefaultDBProvider(&DBContext{"state", config})
+func DefaultTMDBProvider(ctx *DBContext) (tmdb.DB, error) {
+	dbType := tmdb.BackendType(ctx.Config.DBBackend)
+	return tmdb.NewDB(ctx.ID, dbType, ctx.Config.DBDir())
+}
+
+func GetStateDBs(config *Config) (cmtdb.DB, state.Store, error) {
+	stateDB, err := DefaultCMTDBProvider(&DBContext{"state", config})
 	if err != nil {
 		return nil, nil, err
 	}
 
-	stateStore := state.NewStore(stateDB)
+	stateStore := state.NewStore(stateDB, sm.StoreOptions{
+		DiscardABCIResponses: config.Storage.DiscardABCIResponses,
+	})
 
 	return stateDB, stateStore, nil
 }
 
-func GetBlockstoreDBs(config *Config) (dbm.DB, *store.BlockStore, error) {
-	blockStoreDB, err := DefaultDBProvider(&DBContext{"blockstore", config})
+func GetBlockstoreDBs(config *Config) (cmtdb.DB, *store.BlockStore, error) {
+	blockStoreDB, err := DefaultCMTDBProvider(&DBContext{"blockstore", config})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -105,17 +113,17 @@ func DoHandshake(
 }
 
 func CreateMempoolAndMempoolReactor(config *Config, proxyApp proxy.AppConns,
-	state sm.State) (*mempl.Reactor, *mempl.CListMempool) {
+	state sm.State) (*memplv0.Reactor, *memplv0.CListMempool) {
 
-	mempool := mempl.NewCListMempool(
+	mempool := memplv0.NewCListMempool(
 		config.Mempool,
 		proxyApp.Mempool(),
 		state.LastBlockHeight,
-		mempl.WithPreCheck(sm.TxPreCheck(state)),
-		mempl.WithPostCheck(sm.TxPostCheck(state)),
+		memplv0.WithPreCheck(sm.TxPreCheck(state)),
+		memplv0.WithPostCheck(sm.TxPostCheck(state)),
 	)
 	mempoolLogger := tmLogger.With("module", "mempool")
-	mempoolReactor := mempl.NewReactor(config.Mempool, mempool)
+	mempoolReactor := memplv0.NewReactor(config.Mempool, mempool)
 	mempoolReactor.SetLogger(mempoolLogger)
 
 	if config.Consensus.WaitForTxs() {
@@ -125,7 +133,7 @@ func CreateMempoolAndMempoolReactor(config *Config, proxyApp proxy.AppConns,
 }
 
 func CreateEvidenceReactor(config *Config, stateStore sm.Store, blockStore *store.BlockStore) (*evidence.Reactor, *evidence.Pool, error) {
-	evidenceDB, err := DefaultDBProvider(&DBContext{ID: "evidence", Config: config})
+	evidenceDB, err := DefaultCMTDBProvider(&DBContext{ID: "evidence", Config: config})
 	if err != nil {
 		return nil, nil, err
 	}

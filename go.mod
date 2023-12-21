@@ -12,13 +12,13 @@ require (
 	github.com/segmentio/analytics-go v3.1.0+incompatible
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.15.0
-	github.com/tendermint/tendermint v0.34.14
+	github.com/tendermint/tendermint v0.34.27
 	github.com/tendermint/tm-db v0.6.7
 	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
-	github.com/Workiva/go-datastructures v1.0.52 // indirect
+	github.com/Workiva/go-datastructures v1.0.53 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/btcsuite/btcd v0.21.0-beta // indirect
@@ -105,3 +105,5 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/tendermint/tendermint => github.com/cometbft/cometbft v0.34.27

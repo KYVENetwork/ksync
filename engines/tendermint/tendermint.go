@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
+	cmtdb "github.com/cometbft/cometbft-db"
 	abciClient "github.com/tendermint/tendermint/abci/client"
 	abciTypes "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
@@ -17,7 +18,6 @@ import (
 	tmStore "github.com/tendermint/tendermint/store"
 	tmTypes "github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tendermint/version"
-	db "github.com/tendermint/tm-db"
 	"net/url"
 	"strconv"
 )
@@ -30,10 +30,10 @@ type TmEngine struct {
 	homePath string
 	config   *cfg.Config
 
-	blockDB    db.DB
+	blockDB    cmtdb.DB
 	blockStore *tmStore.BlockStore
 
-	stateDB    db.DB
+	stateDB    cmtdb.DB
 	stateStore tmState.Store
 
 	state         tmState.State
