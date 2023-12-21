@@ -59,6 +59,8 @@ func StartBinaryProcessForDB(engine types.Engine, binaryPath string, debug bool,
 		"--home",
 		engine.GetHomePath(),
 		"--with-tendermint=false",
+		"--pruning",
+		"nothing",
 		"--address",
 		engine.GetProxyAppAddress(),
 	}, args...)
