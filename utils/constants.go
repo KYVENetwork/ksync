@@ -59,5 +59,5 @@ const (
 )
 
 const (
-	DefaultRegistryURL = "https://github.com/KYVENetwork/source-registry/releases/latest/download/registry.yml"
+	DefaultRegistryURL = "https://raw.githubusercontent.com/KYVENetwork/source-registry/main/.github/registry.yml"
 )
