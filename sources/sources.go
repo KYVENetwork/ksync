@@ -15,10 +15,10 @@ import (
 
 func FormatOutput(entry *types.Entry, chainId string) (string, string, string) {
 	var blockKey, stateKey, heightKey string
-	if chainId == utils.ChainIdMainnet {
-		blockKey, stateKey, heightKey = helpers.FormatKeys(entry.Kyve.BlockStartKey, entry.Kyve.LatestBlockKey, entry.Kyve.StateStartKey, entry.Kyve.LatestStateKey)
-	} else if chainId == utils.ChainIdKaon {
-		blockKey, stateKey, heightKey = helpers.FormatKeys(entry.Kaon.BlockStartKey, entry.Kaon.LatestBlockKey, entry.Kaon.StateStartKey, entry.Kaon.LatestStateKey)
+	if chainId == utils.ChainIdMainnet && entry.Networks.Kyve != nil {
+		blockKey, stateKey, heightKey = helpers.FormatKeys(entry.Networks.Kyve.BlockStartKey, entry.Networks.Kyve.LatestBlockKey, entry.Networks.Kyve.StateStartKey, entry.Networks.Kyve.LatestStateKey)
+	} else if chainId == utils.ChainIdKaon && entry.Networks.Kaon != nil {
+		blockKey, stateKey, heightKey = helpers.FormatKeys(entry.Networks.Kaon.BlockStartKey, entry.Networks.Kaon.LatestBlockKey, entry.Networks.Kaon.StateStartKey, entry.Networks.Kaon.LatestStateKey)
 	}
 	return blockKey, stateKey, heightKey
 }
@@ -77,12 +77,12 @@ func getPoolsBySource(chainId, source, registryUrl string) (*int, *int, error) {
 	}
 
 	for _, entry := range sourceRegistry.Entries {
-		if strings.ToLower(entry.Source.Title) == strings.ToLower(source) ||
-			strings.ToLower(entry.Source.ChainID) == strings.ToLower(source) {
+		if strings.ToLower(entry.Networks.Kyve.SourceMetadata.Title) == strings.ToLower(source) ||
+			strings.ToLower(entry.SourceID) == strings.ToLower(source) {
 			if chainId == utils.ChainIdMainnet {
-				return entry.Kyve.BlockPoolID, entry.Kyve.StatePoolID, nil
+				return entry.Networks.Kyve.Integrations.KSYNC.BlockSyncPool, entry.Networks.Kyve.Integrations.KSYNC.StateSyncPool, nil
 			} else if chainId == utils.ChainIdKaon {
-				return entry.Kaon.BlockPoolID, entry.Kaon.StatePoolID, nil
+				return entry.Networks.Kaon.Integrations.KSYNC.BlockSyncPool, entry.Networks.Kaon.Integrations.KSYNC.StateSyncPool, nil
 			}
 		}
 	}

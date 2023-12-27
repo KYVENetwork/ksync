@@ -43,7 +43,7 @@ var infoCmd = &cobra.Command{
 		// Sort SourceRegistry
 		sortFunc := func(keys []string) {
 			sort.Slice(keys, func(i, j int) bool {
-				return sourceRegistry.Entries[keys[i]].Source.ChainID < sourceRegistry.Entries[keys[j]].Source.ChainID
+				return sourceRegistry.Entries[keys[i]].SourceID < sourceRegistry.Entries[keys[j]].SourceID
 			})
 		}
 		keys := make([]string, 0, len(sourceRegistry.Entries))
@@ -59,19 +59,32 @@ var infoCmd = &cobra.Command{
 		for _, key := range keys {
 			entry := sourceRegistry.Entries[key]
 
+			var title string
+
 			if chainId == utils.ChainIdMainnet {
-				if (entry.Kyve.StatePoolID == nil) && (entry.Kyve.BlockPoolID == nil) {
+				if entry.Networks.Kyve != nil {
+					if entry.Networks.Kyve.Integrations.KSYNC == nil {
+						continue
+					}
+					title = entry.Networks.Kyve.SourceMetadata.Title
+				} else {
 					continue
 				}
 			} else if chainId == utils.ChainIdKaon {
-				if (entry.Kaon.StatePoolID == nil) && (entry.Kaon.BlockPoolID == nil) {
+				if entry.Networks.Kaon != nil {
+					if entry.Networks.Kaon.Integrations.KSYNC == nil {
+						continue
+					}
+					title = entry.Networks.Kaon.SourceMetadata.Title
+				} else {
 					continue
 				}
 			}
+
 			blockSync, stateSync, heightSync := sources.FormatOutput(&entry, chainId)
 			t.AppendRows([]table.Row{
 				{
-					entry.Source.Title,
+					title,
 					blockSync,
 					stateSync,
 					heightSync,

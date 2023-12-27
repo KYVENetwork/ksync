@@ -95,28 +95,45 @@ type Metrics struct {
 	CatchingUp          bool      `json:"catching_up"`
 }
 
-type SourceMetadata struct {
-	ChainID string `yaml:"chain_id"`
-	Hex     string `yaml:"hex"`
-	Title   string `yaml:"title"`
+type Networks struct {
+	Kaon *NetworkProperties `yaml:"kaon-1,omitempty"`
+	Kyve *NetworkProperties `yaml:"kyve-1,omitempty"`
 }
 
-type KYVEInfo struct {
-	BlockPoolID    *int `yaml:"block_pool_id,omitempty"`
-	StatePoolID    *int `yaml:"state_pool_id,omitempty"`
+type NetworkProperties struct {
 	LatestBlockKey *string
 	LatestStateKey *string
 	BlockStartKey  *string
 	StateStartKey  *string
+	Integrations   *Integrations   `yaml:"integrations,omitempty"`
+	Pools          *[]Pool         `yaml:"pools,omitempty"`
+	SourceMetadata *SourceMetadata `yaml:"properties,omitempty"`
+}
+
+type Integrations struct {
+	KSYNC *KSYNCIntegration `yaml:"ksync,omitempty"`
+}
+
+type KSYNCIntegration struct {
+	BlockSyncPool *int `yaml:"block-sync-pool"`
+	StateSyncPool *int `yaml:"state-sync-pool"`
+}
+
+type SourceMetadata struct {
+	Title string `yaml:"title"`
+}
+
+type Pool struct {
+	Id      *int   `yaml:"id"`
+	Runtime string `yaml:"runtime"`
 }
 
 type Entry struct {
-	Source SourceMetadata `yaml:"source"`
-	Kaon   *KYVEInfo      `yaml:"kaon-1,omitempty"`
-	Kyve   *KYVEInfo      `yaml:"kyve-1,omitempty"`
+	ConfigVersion *int     `yaml:"config-version"`
+	Networks      Networks `yaml:"networks"`
+	SourceID      string   `yaml:"source-id"`
 }
 
 type SourceRegistry struct {
 	Entries map[string]Entry `yaml:",inline"`
-	Version string           `yaml:"version"`
 }

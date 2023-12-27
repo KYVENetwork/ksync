@@ -16,37 +16,41 @@ const (
 
 func LoadLatestPoolData(sourceRegistry types.SourceRegistry) (*types.SourceRegistry, error) {
 	for _, entry := range sourceRegistry.Entries {
-		if entry.Kyve.BlockPoolID != nil {
-			poolResponse, err := pool.GetPoolInfo(utils.RestEndpointMainnet, int64(*entry.Kyve.BlockPoolID))
-			if err != nil {
-				return nil, err
+		if entry.Networks.Kyve != nil {
+			if entry.Networks.Kyve.Integrations.KSYNC.BlockSyncPool != nil {
+				poolResponse, err := pool.GetPoolInfo(utils.RestEndpointMainnet, int64(*entry.Networks.Kyve.Integrations.KSYNC.BlockSyncPool))
+				if err != nil {
+					return nil, err
+				}
+				entry.Networks.Kyve.BlockStartKey = &poolResponse.Pool.Data.StartKey
+				entry.Networks.Kyve.LatestBlockKey = &poolResponse.Pool.Data.CurrentKey
 			}
-			entry.Kyve.BlockStartKey = &poolResponse.Pool.Data.StartKey
-			entry.Kyve.LatestBlockKey = &poolResponse.Pool.Data.CurrentKey
+			if entry.Networks.Kyve.Integrations.KSYNC.StateSyncPool != nil {
+				poolResponse, err := pool.GetPoolInfo(utils.RestEndpointMainnet, int64(*entry.Networks.Kyve.Integrations.KSYNC.StateSyncPool))
+				if err != nil {
+					return nil, err
+				}
+				entry.Networks.Kyve.StateStartKey = &poolResponse.Pool.Data.StartKey
+				entry.Networks.Kyve.LatestStateKey = &poolResponse.Pool.Data.CurrentKey
+			}
 		}
-		if entry.Kyve.StatePoolID != nil {
-			poolResponse, err := pool.GetPoolInfo(utils.RestEndpointMainnet, int64(*entry.Kyve.StatePoolID))
-			if err != nil {
-				return nil, err
+		if entry.Networks.Kaon != nil {
+			if entry.Networks.Kaon.Integrations.KSYNC.BlockSyncPool != nil {
+				poolResponse, err := pool.GetPoolInfo(utils.RestEndpointKaon, int64(*entry.Networks.Kaon.Integrations.KSYNC.BlockSyncPool))
+				if err != nil {
+					return nil, err
+				}
+				entry.Networks.Kaon.BlockStartKey = &poolResponse.Pool.Data.StartKey
+				entry.Networks.Kaon.LatestBlockKey = &poolResponse.Pool.Data.CurrentKey
 			}
-			entry.Kyve.StateStartKey = &poolResponse.Pool.Data.StartKey
-			entry.Kyve.LatestStateKey = &poolResponse.Pool.Data.CurrentKey
-		}
-		if entry.Kaon.BlockPoolID != nil {
-			poolResponse, err := pool.GetPoolInfo(utils.RestEndpointKaon, int64(*entry.Kaon.BlockPoolID))
-			if err != nil {
-				return nil, err
+			if entry.Networks.Kaon.Integrations.KSYNC.StateSyncPool != nil {
+				poolResponse, err := pool.GetPoolInfo(utils.RestEndpointKaon, int64(*entry.Networks.Kaon.Integrations.KSYNC.StateSyncPool))
+				if err != nil {
+					return nil, err
+				}
+				entry.Networks.Kaon.StateStartKey = &poolResponse.Pool.Data.StartKey
+				entry.Networks.Kaon.LatestStateKey = &poolResponse.Pool.Data.CurrentKey
 			}
-			entry.Kaon.BlockStartKey = &poolResponse.Pool.Data.StartKey
-			entry.Kaon.LatestBlockKey = &poolResponse.Pool.Data.CurrentKey
-		}
-		if entry.Kaon.StatePoolID != nil {
-			poolResponse, err := pool.GetPoolInfo(utils.RestEndpointKaon, int64(*entry.Kaon.StatePoolID))
-			if err != nil {
-				return nil, err
-			}
-			entry.Kaon.StateStartKey = &poolResponse.Pool.Data.StartKey
-			entry.Kaon.LatestStateKey = &poolResponse.Pool.Data.CurrentKey
 		}
 	}
 	return &sourceRegistry, nil
