@@ -77,11 +77,16 @@ func getPoolsBySource(chainId, source, registryUrl string) (*int, *int, error) {
 	}
 
 	for _, entry := range sourceRegistry.Entries {
-		if strings.ToLower(entry.Networks.Kyve.SourceMetadata.Title) == strings.ToLower(source) ||
-			strings.ToLower(entry.SourceID) == strings.ToLower(source) {
-			if chainId == utils.ChainIdMainnet {
-				return entry.Networks.Kyve.Integrations.KSYNC.BlockSyncPool, entry.Networks.Kyve.Integrations.KSYNC.StateSyncPool, nil
-			} else if chainId == utils.ChainIdKaon {
+		if chainId == utils.ChainIdMainnet && entry.Networks.Kyve != nil {
+			if entry.Networks.Kyve != nil {
+				if strings.ToLower(entry.Networks.Kyve.SourceMetadata.Title) == strings.ToLower(source) ||
+					strings.ToLower(entry.SourceID) == strings.ToLower(source) {
+					return entry.Networks.Kyve.Integrations.KSYNC.BlockSyncPool, entry.Networks.Kyve.Integrations.KSYNC.StateSyncPool, nil
+				}
+			}
+		} else if chainId == utils.ChainIdKaon && entry.Networks.Kaon != nil {
+			if strings.ToLower(entry.Networks.Kaon.SourceMetadata.Title) == strings.ToLower(source) ||
+				strings.ToLower(entry.SourceID) == strings.ToLower(source) {
 				return entry.Networks.Kaon.Integrations.KSYNC.BlockSyncPool, entry.Networks.Kaon.Integrations.KSYNC.StateSyncPool, nil
 			}
 		}
