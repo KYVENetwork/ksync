@@ -16,7 +16,14 @@ func GetHomePathFromBinary(binaryPath string) string {
 		os.Exit(1)
 	}
 
-	out, err := exec.Command(cmdPath).Output()
+	startArgs := make([]string, 0)
+
+	// if we run with cosmovisor we start with the cosmovisor run command
+	if strings.HasSuffix(binaryPath, "cosmovisor") {
+		startArgs = append(startArgs, "run")
+	}
+
+	out, err := exec.Command(cmdPath, startArgs...).Output()
 	if err != nil {
 		logger.Error().Msg("failed to get output of binary")
 		os.Exit(1)
