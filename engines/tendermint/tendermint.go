@@ -9,8 +9,10 @@ import (
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/json"
+	cmtos "github.com/tendermint/tendermint/libs/os"
 	nm "github.com/tendermint/tendermint/node"
 	tmP2P "github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/privval"
 	tmProtoState "github.com/tendermint/tendermint/proto/tendermint/state"
 	"github.com/tendermint/tendermint/proxy"
 	tmState "github.com/tendermint/tendermint/state"
@@ -19,6 +21,7 @@ import (
 	"github.com/tendermint/tendermint/version"
 	db "github.com/tendermint/tm-db"
 	"net/url"
+	"os"
 	"strconv"
 )
 
@@ -634,6 +637,59 @@ func (tm *TmEngine) PruneBlocks(toHeight int64) error {
 		if err := tm.stateStore.PruneStates(base, toHeight); err != nil {
 			return fmt.Errorf("failed to prune state up to %d: %s", toHeight, err)
 		}
+	}
+
+	return nil
+}
+
+func (tm *TmEngine) ResetAll(homePath string, keepAddrBook bool) error {
+	config, err := LoadConfig(homePath)
+	if err != nil {
+		return fmt.Errorf("failed to load config.toml: %w", err)
+	}
+
+	dbDir := config.DBDir()
+	addrBookFile := config.P2P.AddrBookFile()
+	privValKeyFile := config.PrivValidatorKeyFile()
+	privValStateFile := config.PrivValidatorStateFile()
+
+	if keepAddrBook {
+		tmLogger.Info("the address book remains intact")
+	} else {
+		if err := os.Remove(addrBookFile); err == nil {
+			tmLogger.Info("removed existing address book", "file", addrBookFile)
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("error removing address book, file: %s, err: %w", addrBookFile, err)
+		}
+	}
+
+	if err := os.RemoveAll(dbDir); err == nil {
+		tmLogger.Info("removed all blockchain history", "dir", dbDir)
+	} else {
+		return fmt.Errorf("error removing all blockchain history, dir: %s, err: %w", dbDir, err)
+	}
+
+	if err := cmtos.EnsureDir(dbDir, 0700); err != nil {
+		return fmt.Errorf("unable to recreate dbDir, err: %w", err)
+	}
+
+	// recreate the dbDir since the privVal state needs to live there
+	if _, err := os.Stat(privValKeyFile); err == nil {
+		pv := privval.LoadFilePVEmptyState(privValKeyFile, privValStateFile)
+		pv.Reset()
+		tmLogger.Info(
+			"Reset private validator file to genesis state",
+			"keyFile", privValKeyFile,
+			"stateFile", privValStateFile,
+		)
+	} else {
+		pv := privval.GenFilePV(privValKeyFile, privValStateFile)
+		pv.Save()
+		tmLogger.Info(
+			"Generated private validator file",
+			"keyFile", privValKeyFile,
+			"stateFile", privValStateFile,
+		)
 	}
 
 	return nil
