@@ -42,6 +42,7 @@ func init() {
 	serveCmd.Flags().BoolVar(&pruning, "pruning", true, "prune application.db, state.db, blockstore db and snapshots")
 	serveCmd.Flags().BoolVar(&keepSnapshots, "keep-snapshots", false, "keep snapshots, although pruning might be enabled")
 
+	serveCmd.Flags().BoolVarP(&reset, "reset-all", "r", false, "reset this node's validator to genesis state")
 	serveCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
 	serveCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint app")
 
@@ -67,6 +68,13 @@ var serveCmd = &cobra.Command{
 		}
 
 		consensusEngine := engines.EngineFactory(engine)
+
+		if reset {
+			if err := consensusEngine.ResetAll(homePath, true); err != nil {
+				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
+				os.Exit(1)
+			}
+		}
 
 		if err := consensusEngine.OpenDBs(homePath); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs engine: %s", err))

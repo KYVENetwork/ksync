@@ -42,6 +42,7 @@ func init() {
 	blockSyncCmd.Flags().StringVar(&backupCompression, "backup-compression", "", "compression type used for backups (\"tar.gz\",\"zip\")")
 	blockSyncCmd.Flags().StringVar(&backupDest, "backup-dest", "", fmt.Sprintf("path where backups should be stored (default = %s)", utils.DefaultBackupPath))
 
+	blockSyncCmd.Flags().BoolVarP(&reset, "reset-all", "r", false, "reset this node's validator to genesis state")
 	blockSyncCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
 	blockSyncCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint app")
 	blockSyncCmd.Flags().BoolVarP(&y, "yes", "y", false, "automatically answer yes for all questions")
@@ -74,6 +75,13 @@ var blockSyncCmd = &cobra.Command{
 		}
 
 		consensusEngine := engines.EngineFactory(engine)
+
+		if reset {
+			if err := consensusEngine.ResetAll(homePath, true); err != nil {
+				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
+				os.Exit(1)
+			}
+		}
 
 		if err := consensusEngine.OpenDBs(homePath); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
