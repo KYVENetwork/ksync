@@ -54,6 +54,9 @@ func Execute() {
 	stateSyncCmd.Flags().SortFlags = false
 	versionCmd.Flags().SortFlags = false
 
+	// overwrite help command so we can use -h as a shortcut
+	rootCmd.PersistentFlags().BoolP("help", "", false, "help for this command")
+
 	if err := rootCmd.Execute(); err != nil {
 		panic(fmt.Errorf("failed to execute root command: %w", err))
 	}
