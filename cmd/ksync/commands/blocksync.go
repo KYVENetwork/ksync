@@ -13,26 +13,26 @@ import (
 )
 
 func init() {
-	blockSyncCmd.Flags().StringVar(&engine, "engine", utils.DefaultEngine, fmt.Sprintf("KSYNC engines [\"%s\",\"%s\"]", utils.EngineTendermint, utils.EngineCometBFT))
+	blockSyncCmd.Flags().StringVarP(&engine, "engine", "e", utils.DefaultEngine, fmt.Sprintf("KSYNC engines [\"%s\",\"%s\"]", utils.EngineTendermint, utils.EngineCometBFT))
 
-	blockSyncCmd.Flags().StringVar(&binaryPath, "binary", "", "binary path of node to be synced")
+	blockSyncCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced")
 	if err := blockSyncCmd.MarkFlagRequired("binary"); err != nil {
 		panic(fmt.Errorf("flag 'binary' should be required: %w", err))
 	}
 
-	blockSyncCmd.Flags().StringVar(&homePath, "home", "", "home directory")
+	blockSyncCmd.Flags().StringVarP(&homePath, "home", "h", "", "home directory")
 
-	blockSyncCmd.Flags().StringVar(&chainId, "chain-id", utils.DefaultChainId, fmt.Sprintf("KYVE chain id [\"%s\",\"%s\",\"%s\"]", utils.ChainIdMainnet, utils.ChainIdKaon, utils.ChainIdKorellia))
+	blockSyncCmd.Flags().StringVarP(&chainId, "chain-id", "c", utils.DefaultChainId, fmt.Sprintf("KYVE chain id [\"%s\",\"%s\",\"%s\"]", utils.ChainIdMainnet, utils.ChainIdKaon, utils.ChainIdKorellia))
 
 	blockSyncCmd.Flags().StringVar(&chainRest, "chain-rest", "", "rest endpoint for KYVE chain")
 	blockSyncCmd.Flags().StringVar(&storageRest, "storage-rest", "", "storage endpoint for requesting bundle data")
 
-	blockSyncCmd.Flags().StringVar(&source, "source", "", "chain-id of the source")
+	blockSyncCmd.Flags().StringVarP(&source, "source", "s", "", "chain-id of the source")
 	blockSyncCmd.Flags().StringVar(&registryUrl, "registry-url", utils.DefaultRegistryURL, "URL to fetch latest KYVE Source-Registry")
 
 	blockSyncCmd.Flags().StringVar(&blockPoolId, "block-pool-id", "", "pool-id of the block-sync pool")
 
-	blockSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "target height (including)")
+	blockSyncCmd.Flags().Int64VarP(&targetHeight, "target-height", "t", 0, "target height (including)")
 
 	blockSyncCmd.Flags().BoolVar(&metrics, "metrics", false, "metrics server exposing sync status")
 	blockSyncCmd.Flags().Int64Var(&metricsPort, "metrics-port", utils.DefaultMetricsServerPort, fmt.Sprintf("port for metrics server"))
@@ -43,8 +43,8 @@ func init() {
 	blockSyncCmd.Flags().StringVar(&backupDest, "backup-dest", "", fmt.Sprintf("path where backups should be stored (default = %s)", utils.DefaultBackupPath))
 
 	blockSyncCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
-	blockSyncCmd.Flags().BoolVar(&debug, "debug", false, "show logs from tendermint app")
-	blockSyncCmd.Flags().BoolVarP(&y, "assumeyes", "y", false, "automatically answer yes for all questions")
+	blockSyncCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint app")
+	blockSyncCmd.Flags().BoolVarP(&y, "yes", "y", false, "automatically answer yes for all questions")
 
 	rootCmd.AddCommand(blockSyncCmd)
 }

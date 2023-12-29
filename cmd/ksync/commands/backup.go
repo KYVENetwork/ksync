@@ -3,19 +3,19 @@ package commands
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/backup"
-	tendermint "github.com/KYVENetwork/ksync/engines/tendermint"
+	"github.com/KYVENetwork/ksync/engines/tendermint"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	nm "github.com/tendermint/tendermint/node"
 )
 
 func init() {
-	backupCmd.Flags().StringVar(&binaryPath, "binary", "", "binary path of node to be synced")
+	backupCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced")
 	if err := backupCmd.MarkFlagRequired("binary"); err != nil {
 		panic(fmt.Errorf("flag 'binary' should be required: %w", err))
 	}
 
-	backupCmd.Flags().StringVar(&homePath, "home", "", "home directory")
+	backupCmd.Flags().StringVarP(&homePath, "home", "h", "", "home directory")
 
 	backupCmd.Flags().StringVar(&backupDest, "backup-dest", "", fmt.Sprintf("path where backups should be stored (default = %s)", utils.DefaultBackupPath))
 

@@ -12,21 +12,21 @@ import (
 )
 
 func init() {
-	serveCmd.Flags().StringVar(&engine, "engine", utils.DefaultEngine, fmt.Sprintf("KSYNC engines [\"%s\",\"%s\"]", utils.EngineTendermint, utils.EngineCometBFT))
+	serveCmd.Flags().StringVarP(&engine, "engine", "e", utils.DefaultEngine, fmt.Sprintf("KSYNC engines [\"%s\",\"%s\"]", utils.EngineTendermint, utils.EngineCometBFT))
 
-	serveCmd.Flags().StringVar(&binaryPath, "binary", "", "binary path of node to be synced")
+	serveCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced")
 	if err := serveCmd.MarkFlagRequired("binary"); err != nil {
 		panic(fmt.Errorf("flag 'binary' should be required: %w", err))
 	}
 
-	serveCmd.Flags().StringVar(&homePath, "home", "", "home directory")
+	serveCmd.Flags().StringVarP(&homePath, "home", "h", "", "home directory")
 
-	serveCmd.Flags().StringVar(&chainId, "chain-id", utils.DefaultChainId, fmt.Sprintf("KYVE chain id [\"%s\",\"%s\",\"%s\"]", utils.ChainIdMainnet, utils.ChainIdKaon, utils.ChainIdKorellia))
+	serveCmd.Flags().StringVarP(&chainId, "chain-id", "c", utils.DefaultChainId, fmt.Sprintf("KYVE chain id [\"%s\",\"%s\",\"%s\"]", utils.ChainIdMainnet, utils.ChainIdKaon, utils.ChainIdKorellia))
 
 	serveCmd.Flags().StringVar(&chainRest, "chain-rest", "", "rest endpoint for KYVE chain")
 	serveCmd.Flags().StringVar(&storageRest, "storage-rest", "", "storage endpoint for requesting bundle data")
 
-	serveCmd.Flags().StringVar(&source, "source", "", "chain-id of the source")
+	serveCmd.Flags().StringVarP(&source, "source", "s", "", "chain-id of the source")
 	serveCmd.Flags().StringVar(&registryUrl, "registry-url", utils.DefaultRegistryURL, "URL to fetch latest KYVE Source-Registry")
 
 	serveCmd.Flags().StringVar(&snapshotPoolId, "snapshot-pool-id", "", "pool-id of the state-sync pool")
@@ -43,7 +43,7 @@ func init() {
 	serveCmd.Flags().BoolVar(&keepSnapshots, "keep-snapshots", false, "keep snapshots, although pruning might be enabled")
 
 	serveCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
-	serveCmd.Flags().BoolVar(&debug, "debug", false, "show logs from tendermint app")
+	serveCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint app")
 
 	rootCmd.AddCommand(serveCmd)
 }

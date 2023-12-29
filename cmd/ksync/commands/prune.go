@@ -13,7 +13,7 @@ var (
 )
 
 func init() {
-	pruneCmd.Flags().StringVar(&homePath, "home", "", "home directory")
+	pruneCmd.Flags().StringVarP(&homePath, "home", "h", "", "home directory")
 
 	pruneCmd.Flags().Int64Var(&untilHeight, "until-height", 0, "prune blocks until this height (excluding)")
 	if err := pruneCmd.MarkFlagRequired("until-height"); err != nil {
