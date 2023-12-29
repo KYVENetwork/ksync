@@ -27,6 +27,8 @@ var (
 	backupKeepRecent  int64
 	backupCompression string
 	backupDest        string
+	reset             bool
+	keepAddrBook      bool
 	optOut            bool
 	debug             bool
 	y                 bool

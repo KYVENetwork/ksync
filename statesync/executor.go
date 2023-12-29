@@ -17,7 +17,7 @@ func StartStateSyncExecutor(engine types.Engine, chainRest, storageRest string, 
 	}
 
 	if appHeight > 0 {
-		return fmt.Errorf("app height %d is not zero, please reset with \"ksync unsafe-reset-all\"", appHeight)
+		return fmt.Errorf("app height %d is not zero, please reset with \"ksync reset-all\" or run the command with \"--reset-all\"", appHeight)
 	}
 
 	if snapshotHeight == 0 {

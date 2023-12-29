@@ -33,6 +33,7 @@ func init() {
 
 	stateSyncCmd.Flags().Int64Var(&targetHeight, "target-height", 0, "snapshot height, if not specified it will use the latest available snapshot height")
 
+	stateSyncCmd.Flags().BoolVarP(&reset, "reset-all", "r", false, "reset this node's validator to genesis state")
 	stateSyncCmd.Flags().BoolVar(&debug, "debug", false, "show logs from tendermint app")
 	stateSyncCmd.Flags().BoolVarP(&y, "assumeyes", "y", false, "automatically answer yes for all questions")
 
@@ -58,6 +59,13 @@ var stateSyncCmd = &cobra.Command{
 		}
 
 		consensusEngine := engines.EngineFactory(engine)
+
+		if reset {
+			if err := consensusEngine.ResetAll(homePath, true); err != nil {
+				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
+				os.Exit(1)
+			}
+		}
 
 		if err := consensusEngine.OpenDBs(homePath); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))

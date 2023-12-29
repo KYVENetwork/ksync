@@ -94,4 +94,8 @@ type Engine interface {
 	// PruneBlocks prunes blocks from the block store and state store
 	// from the earliest found base height to the specified height
 	PruneBlocks(toHeight int64) error
+
+	// ResetAll removes all the data and WAL, reset this node's validator
+	// to genesis state
+	ResetAll(homePath string, keepAddrBook bool) error
 }
