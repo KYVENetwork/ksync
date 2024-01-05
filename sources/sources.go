@@ -45,8 +45,11 @@ func GetPoolIds(chainId, source, blockPoolId, snapshotPoolId, registryUrl string
 		if sIdRaw == nil && snapshotPoolRequired {
 			return 0, 0, fmt.Errorf("source %s does not contain a snapshot-pool", source)
 		}
+		bId = int64(*bIdRaw)
 
-		bId, sId = int64(*bIdRaw), int64(*sIdRaw)
+		if sIdRaw != nil {
+			sId = int64(*sIdRaw)
+		}
 	}
 
 	if blockPoolId != "" {
