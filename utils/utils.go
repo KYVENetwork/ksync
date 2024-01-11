@@ -9,7 +9,8 @@ import (
 	"math"
 	"net/http"
 	"os"
-	runtime "runtime/debug"
+	"runtime"
+	runtimeDebug "runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -20,7 +21,7 @@ var (
 )
 
 func GetVersion() string {
-	version, ok := runtime.ReadBuildInfo()
+	version, ok := runtimeDebug.ReadBuildInfo()
 	if !ok {
 		panic("failed to get ksync version")
 	}
@@ -41,10 +42,14 @@ func GetFromUrl(url string) ([]byte, error) {
 
 	// Set the User-Agent header
 	version := GetVersion()
+
 	if version != "" {
-		request.Header.Set("User-Agent", fmt.Sprintf("ksync@%v", version))
+		if strings.HasPrefix(version, "v") {
+			version = strings.TrimPrefix(version, "v")
+		}
+		request.Header.Set("User-Agent", fmt.Sprintf("ksync/%v (%v / %v / %v)", version, runtime.GOOS, runtime.GOARCH, runtime.Version()))
 	} else {
-		request.Header.Set("User-Agent", "ksync")
+		request.Header.Set("User-Agent", fmt.Sprintf("ksync/dev (%v / %v / %v)", runtime.GOOS, runtime.GOARCH, runtime.Version()))
 	}
 
 	// Perform the request
