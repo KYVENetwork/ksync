@@ -9,6 +9,8 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"runtime"
+	runtimeDebug "runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -18,12 +20,44 @@ var (
 	logger = KsyncLogger("utils")
 )
 
-// GetFromUrl tries to fetch data from url
+func GetVersion() string {
+	version, ok := runtimeDebug.ReadBuildInfo()
+	if !ok {
+		panic("failed to get ksync version")
+	}
+
+	return strings.TrimSpace(version.Main.Version)
+}
+
+// GetFromUrl tries to fetch data from url with a custom User-Agent header
 func GetFromUrl(url string) ([]byte, error) {
-	response, err := http.Get(url)
+	// Create a custom http.Client with the desired User-Agent header
+	client := &http.Client{}
+
+	// Create a new GET request
+	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
+
+	// Set the User-Agent header
+	version := GetVersion()
+
+	if version != "" {
+		if strings.HasPrefix(version, "v") {
+			version = strings.TrimPrefix(version, "v")
+		}
+		request.Header.Set("User-Agent", fmt.Sprintf("ksync/%v (%v / %v / %v)", version, runtime.GOOS, runtime.GOARCH, runtime.Version()))
+	} else {
+		request.Header.Set("User-Agent", fmt.Sprintf("ksync/dev (%v / %v / %v)", runtime.GOOS, runtime.GOARCH, runtime.Version()))
+	}
+
+	// Perform the request
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
 
 	if response.StatusCode != 200 {
 		return nil, fmt.Errorf("got status code %d != 200", response.StatusCode)
