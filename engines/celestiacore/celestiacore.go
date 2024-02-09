@@ -2,6 +2,7 @@ package celestiacore
 
 import (
 	"fmt"
+	db "github.com/cometbft/cometbft-db"
 	abciClient "github.com/tendermint/tendermint/abci/client"
 	abciTypes "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
@@ -17,7 +18,6 @@ import (
 	tmStore "github.com/tendermint/tendermint/store"
 	tmTypes "github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tendermint/version"
-	db "github.com/tendermint/tm-db"
 	"net/url"
 	"os"
 	"strconv"
@@ -223,6 +223,7 @@ func (cc *CelestiaCoreEngine) DoHandshake() error {
 }
 
 func (cc *CelestiaCoreEngine) ApplyBlock(runtime string, value []byte) error {
+	fmt.Println(cc.GetName())
 	var block *Block
 
 	if runtime == "@kyvejs/tendermint" {
@@ -265,7 +266,7 @@ func (cc *CelestiaCoreEngine) ApplyBlock(runtime string, value []byte) error {
 	cc.blockStore.SaveBlock(cc.prevBlock, blockParts, block.LastCommit)
 
 	// execute block against app
-	state, _, err := cc.blockExecutor.ApplyBlock(cc.state, blockId, cc.prevBlock)
+	state, _, err := cc.blockExecutor.ApplyBlock(cc.state, blockId, cc.prevBlock, block.LastCommit)
 	if err != nil {
 		return fmt.Errorf("failed to apply block at height %d: %w", cc.prevBlock.Height, err)
 	}

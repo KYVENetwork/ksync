@@ -15,6 +15,7 @@ var (
 )
 
 func EngineFactory(engine string) types.Engine {
+	fmt.Println(engine)
 	switch engine {
 	case utils.EngineTendermint:
 		return &tendermint.TmEngine{}
