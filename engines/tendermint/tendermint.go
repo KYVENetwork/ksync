@@ -2,8 +2,6 @@ package tendermint
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/types"
-	"github.com/KYVENetwork/ksync/utils"
 	abciClient "github.com/tendermint/tendermint/abci/client"
 	abciTypes "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
@@ -23,7 +21,20 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 )
+
+type Metrics struct {
+	LatestBlockHash     string    `json:"latest_block_hash"`
+	LatestAppHash       string    `json:"latest_app_hash"`
+	LatestBlockHeight   int64     `json:"latest_block_height"`
+	LatestBlockTime     time.Time `json:"latest_block_time"`
+	EarliestBlockHash   string    `json:"earliest_block_hash"`
+	EarliestAppHash     string    `json:"earliest_app_hash"`
+	EarliestBlockHeight int64     `json:"earliest_block_height"`
+	EarliestBlockTime   time.Time `json:"earliest_block_time"`
+	CatchingUp          bool      `json:"catching_up"`
+}
 
 var (
 	tmLogger = TmLogger()
@@ -46,7 +57,7 @@ type TmEngine struct {
 }
 
 func (tm *TmEngine) GetName() string {
-	return utils.EngineTendermint
+	return "tendermint"
 }
 
 func (tm *TmEngine) OpenDBs(homePath string) error {
@@ -139,7 +150,7 @@ func (tm *TmEngine) GetMetrics() ([]byte, error) {
 	latest := tm.blockStore.LoadBlock(tm.blockStore.Height())
 	earliest := tm.blockStore.LoadBlock(tm.blockStore.Base())
 
-	return json.Marshal(types.Metrics{
+	return json.Marshal(Metrics{
 		LatestBlockHash:     latest.Header.Hash().String(),
 		LatestAppHash:       latest.AppHash.String(),
 		LatestBlockHeight:   latest.Height,
@@ -193,7 +204,7 @@ func (tm *TmEngine) DoHandshake() error {
 
 	tm.state = state
 
-	_, mempool := CreateMempoolAndMempoolReactor(tm.config, tm.proxyApp, state)
+	mempool := CreateMempoolAndMempoolReactor(tm.config, tm.proxyApp, state)
 
 	_, evidencePool, err := CreateEvidenceReactor(tm.config, tm.stateStore, tm.blockStore)
 	if err != nil {
@@ -214,7 +225,7 @@ func (tm *TmEngine) DoHandshake() error {
 func (tm *TmEngine) ApplyBlock(runtime string, value []byte) error {
 	var block *Block
 
-	if runtime == utils.KSyncRuntimeTendermint {
+	if runtime == "@kyvejs/tendermint" {
 		var parsed TendermintValue
 
 		if err := json.Unmarshal(value, &parsed); err != nil {
@@ -222,7 +233,7 @@ func (tm *TmEngine) ApplyBlock(runtime string, value []byte) error {
 		}
 
 		block = parsed.Block.Block
-	} else if runtime == utils.KSyncRuntimeTendermintBsync {
+	} else if runtime == "@kyvejs/tendermint-bsync" {
 		if err := json.Unmarshal(value, &block); err != nil {
 			return fmt.Errorf("failed to unmarshal value: %w", err)
 		}
@@ -269,7 +280,7 @@ func (tm *TmEngine) ApplyBlock(runtime string, value []byte) error {
 func (tm *TmEngine) ApplyFirstBlockOverP2P(runtime string, value, nextValue []byte) error {
 	var block, nextBlock *Block
 
-	if runtime == utils.KSyncRuntimeTendermint {
+	if runtime == "@kyvejs/tendermint" {
 		var parsed, nextParsed TendermintValue
 
 		if err := json.Unmarshal(value, &parsed); err != nil {
@@ -282,7 +293,7 @@ func (tm *TmEngine) ApplyFirstBlockOverP2P(runtime string, value, nextValue []by
 
 		block = parsed.Block.Block
 		nextBlock = nextParsed.Block.Block
-	} else if runtime == utils.KSyncRuntimeTendermintBsync {
+	} else if runtime == "@kyvejs/tendermint-bsync" {
 		if err := json.Unmarshal(value, &block); err != nil {
 			return fmt.Errorf("failed to unmarshal value: %w", err)
 		}

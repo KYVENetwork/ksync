@@ -2,14 +2,13 @@ package cometbft
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/types"
-	"github.com/KYVENetwork/ksync/utils"
 	db "github.com/cometbft/cometbft-db"
 	abciClient "github.com/cometbft/cometbft/abci/client"
 	abciTypes "github.com/cometbft/cometbft/abci/types"
 	cfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/libs/json"
+	cmtos "github.com/cometbft/cometbft/libs/os"
 	nm "github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
 	cometP2P "github.com/cometbft/cometbft/p2p"
@@ -20,11 +19,23 @@ import (
 	tmStore "github.com/cometbft/cometbft/store"
 	tmTypes "github.com/cometbft/cometbft/types"
 	"github.com/cometbft/cometbft/version"
-	cmtos "github.com/tendermint/tendermint/libs/os"
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 )
+
+type Metrics struct {
+	LatestBlockHash     string    `json:"latest_block_hash"`
+	LatestAppHash       string    `json:"latest_app_hash"`
+	LatestBlockHeight   int64     `json:"latest_block_height"`
+	LatestBlockTime     time.Time `json:"latest_block_time"`
+	EarliestBlockHash   string    `json:"earliest_block_hash"`
+	EarliestAppHash     string    `json:"earliest_app_hash"`
+	EarliestBlockHeight int64     `json:"earliest_block_height"`
+	EarliestBlockTime   time.Time `json:"earliest_block_time"`
+	CatchingUp          bool      `json:"catching_up"`
+}
 
 var (
 	cometLogger = CometLogger()
@@ -47,7 +58,8 @@ type CometEngine struct {
 }
 
 func (comet *CometEngine) GetName() string {
-	return utils.EngineCometBFT
+	//return utils.EngineCometBFT
+	return "cometbft"
 }
 
 func (comet *CometEngine) OpenDBs(homePath string) error {
@@ -140,7 +152,7 @@ func (comet *CometEngine) GetMetrics() ([]byte, error) {
 	latest := comet.blockStore.LoadBlock(comet.blockStore.Height())
 	earliest := comet.blockStore.LoadBlock(comet.blockStore.Base())
 
-	return json.Marshal(types.Metrics{
+	return json.Marshal(Metrics{
 		LatestBlockHash:     latest.Header.Hash().String(),
 		LatestAppHash:       latest.AppHash.String(),
 		LatestBlockHeight:   latest.Height,
@@ -215,7 +227,7 @@ func (comet *CometEngine) DoHandshake() error {
 func (comet *CometEngine) ApplyBlock(runtime string, value []byte) error {
 	var block *Block
 
-	if runtime == utils.KSyncRuntimeTendermint {
+	if runtime == "@kyvejs/tendermint" {
 		var parsed TendermintValue
 
 		if err := json.Unmarshal(value, &parsed); err != nil {
@@ -223,7 +235,7 @@ func (comet *CometEngine) ApplyBlock(runtime string, value []byte) error {
 		}
 
 		block = parsed.Block.Block
-	} else if runtime == utils.KSyncRuntimeTendermintBsync {
+	} else if runtime == "@kyvejs/tendermint-bsync" {
 		if err := json.Unmarshal(value, &block); err != nil {
 			return fmt.Errorf("failed to unmarshal value: %w", err)
 		}
@@ -274,7 +286,7 @@ func (comet *CometEngine) ApplyBlock(runtime string, value []byte) error {
 func (comet *CometEngine) ApplyFirstBlockOverP2P(runtime string, value, nextValue []byte) error {
 	var block, nextBlock *Block
 
-	if runtime == utils.KSyncRuntimeTendermint {
+	if runtime == "@kyvejs/tendermint" {
 		var parsed, nextParsed TendermintValue
 
 		if err := json.Unmarshal(value, &parsed); err != nil {
@@ -287,7 +299,7 @@ func (comet *CometEngine) ApplyFirstBlockOverP2P(runtime string, value, nextValu
 
 		block = parsed.Block.Block
 		nextBlock = nextParsed.Block.Block
-	} else if runtime == utils.KSyncRuntimeTendermintBsync {
+	} else if runtime == "@kyvejs/tendermint-bsync" {
 		if err := json.Unmarshal(value, &block); err != nil {
 			return fmt.Errorf("failed to unmarshal value: %w", err)
 		}

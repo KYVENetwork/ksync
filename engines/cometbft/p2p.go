@@ -2,14 +2,16 @@ package cometbft
 
 import (
 	"fmt"
-	log "github.com/KYVENetwork/ksync/utils"
 	bc "github.com/cometbft/cometbft/blocksync"
+	bs "github.com/cometbft/cometbft/blocksync"
 	cometLog "github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/p2p"
 	bcproto "github.com/cometbft/cometbft/proto/tendermint/blocksync"
 	sm "github.com/cometbft/cometbft/state"
 	"github.com/cometbft/cometbft/version"
-	bcv0 "github.com/tendermint/tendermint/blockchain/v0"
+	"github.com/rs/zerolog"
+	"io"
+	"os"
 	"reflect"
 )
 
@@ -17,8 +19,19 @@ const (
 	BlocksyncChannel = byte(0x40)
 )
 
+func KsyncLogger(moduleName string) zerolog.Logger {
+	writer := io.MultiWriter(os.Stdout)
+	customConsoleWriter := zerolog.ConsoleWriter{Out: writer}
+	customConsoleWriter.FormatCaller = func(i interface{}) string {
+		return "\x1b[36m[KSYNC]\x1b[0m"
+	}
+
+	logger := zerolog.New(customConsoleWriter).With().Str("module", moduleName).Timestamp().Logger()
+	return logger
+}
+
 var (
-	logger = log.KsyncLogger("p2p")
+	logger = KsyncLogger("p2p")
 )
 
 type BlockchainReactor struct {
@@ -131,7 +144,7 @@ func MakeNodeInfo(
 		DefaultNodeID: nodeKey.ID(),
 		Network:       genDoc.ChainID,
 		Version:       version.TMCoreSemVer,
-		Channels:      []byte{bcv0.BlockchainChannel},
+		Channels:      []byte{bs.BlocksyncChannel},
 		Moniker:       config.Moniker,
 		Other: p2p.DefaultNodeInfoOther{
 			TxIndex:    "off",

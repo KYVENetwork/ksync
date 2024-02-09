@@ -39,20 +39,3 @@ func GetAppHeightFromRPC(homePath string) (height int64, err error) {
 
 	return
 }
-
-func GetBlockHeightFromDB(homePath string) (int64, error) {
-	config, err := tendermint.LoadConfig(homePath)
-	if err != nil {
-		return 0, err
-	}
-
-	blockStoreDB, blockStore, err := tendermint.GetBlockstoreDBs(config)
-	defer blockStoreDB.Close()
-
-	if err != nil {
-		return 0, err
-	}
-
-	height := blockStore.Height()
-	return height, nil
-}

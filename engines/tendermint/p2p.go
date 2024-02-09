@@ -2,7 +2,7 @@ package tendermint
 
 import (
 	"fmt"
-	log "github.com/KYVENetwork/ksync/utils"
+	"github.com/rs/zerolog"
 	bc "github.com/tendermint/tendermint/blockchain"
 	bcv0 "github.com/tendermint/tendermint/blockchain/v0"
 	tmLog "github.com/tendermint/tendermint/libs/log"
@@ -10,6 +10,8 @@ import (
 	bcproto "github.com/tendermint/tendermint/proto/tendermint/blockchain"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/version"
+	"io"
+	"os"
 	"reflect"
 )
 
@@ -17,8 +19,19 @@ const (
 	BlockchainChannel = byte(0x40)
 )
 
+func KsyncLogger(moduleName string) zerolog.Logger {
+	writer := io.MultiWriter(os.Stdout)
+	customConsoleWriter := zerolog.ConsoleWriter{Out: writer}
+	customConsoleWriter.FormatCaller = func(i interface{}) string {
+		return "\x1b[36m[KSYNC]\x1b[0m"
+	}
+
+	logger := zerolog.New(customConsoleWriter).With().Str("module", moduleName).Timestamp().Logger()
+	return logger
+}
+
 var (
-	logger = log.KsyncLogger("p2p")
+	logger = KsyncLogger("p2p")
 )
 
 type BlockchainReactor struct {

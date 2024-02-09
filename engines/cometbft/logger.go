@@ -2,13 +2,32 @@ package cometbft
 
 import (
 	"fmt"
-	klogger "github.com/KYVENetwork/ksync/utils"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/rs/zerolog"
+	"io"
+	"os"
 )
 
+func LogFormatter(keyvals ...interface{}) zerolog.Logger {
+	writer := io.MultiWriter(os.Stdout)
+	customConsoleWriter := zerolog.ConsoleWriter{Out: writer}
+	customConsoleWriter.FormatCaller = func(i interface{}) string {
+		return "\x1b[36m[APP]\x1b[0m"
+	}
+
+	logger := zerolog.New(customConsoleWriter).With()
+
+	if len(keyvals) > 1 {
+		for i := 0; i < len(keyvals); i = i + 2 {
+			logger = logger.Str(fmt.Sprintf("%v", keyvals[i]), fmt.Sprintf("%v", keyvals[i+1]))
+		}
+	}
+
+	return logger.Timestamp().Logger()
+}
+
 func CometLogger() (logger log.Logger) {
-	logger = KsyncCometLogger{logger: klogger.LogFormatter("")}
+	logger = KsyncCometLogger{logger: LogFormatter("")}
 	return
 }
 
@@ -39,6 +58,6 @@ func (l KsyncCometLogger) Error(msg string, keyvals ...interface{}) {
 }
 
 func (l KsyncCometLogger) With(keyvals ...interface{}) (logger log.Logger) {
-	logger = KsyncCometLogger{logger: klogger.LogFormatter(keyvals)}
+	logger = KsyncCometLogger{logger: LogFormatter(keyvals)}
 	return
 }
