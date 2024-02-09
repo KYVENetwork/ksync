@@ -1,4 +1,4 @@
-package tendermint
+package celestiacore
 
 import (
 	abciTypes "github.com/tendermint/tendermint/abci/types"

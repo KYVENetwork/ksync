@@ -1,4 +1,4 @@
-package tendermint
+package celestiacore
 
 import (
 	"fmt"
