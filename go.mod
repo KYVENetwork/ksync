@@ -1,30 +1,33 @@
 module github.com/KYVENetwork/ksync
 
-go 1.19
+go 1.21.4
 
 require (
+	github.com/KYVENetwork/ksync/engines/cometbft v0.1.0
+	github.com/KYVENetwork/ksync/engines/tendermint v0.1.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/google/uuid v1.3.0
 	github.com/jedib0t/go-pretty/v6 v6.4.7
 	github.com/rs/zerolog v1.30.0
 	github.com/segmentio/analytics-go v3.1.0+incompatible
 	github.com/spf13/cobra v1.6.1
-	github.com/spf13/viper v1.15.0
-	github.com/tendermint/tendermint v0.34.14
+	github.com/tendermint/tendermint v0.34.24
 	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
-	github.com/Workiva/go-datastructures v1.0.52 // indirect
+	github.com/Workiva/go-datastructures v1.0.53 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
-	github.com/btcsuite/btcd v0.21.0-beta // indirect
+	github.com/btcsuite/btcd v0.22.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.1 // indirect
 	github.com/bytedance/sonic v1.9.1 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
-	github.com/cosmos/gogoproto v1.4.1 // indirect
+	github.com/cometbft/cometbft v0.37.2 // indirect
+	github.com/cometbft/cometbft-db v0.8.0 // indirect
+	github.com/cosmos/gogoproto v1.4.2 // indirect
 	github.com/cosmos/gorocksdb v1.2.0 // indirect
 	github.com/creachadair/taskgroup v0.3.2 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
@@ -85,8 +88,10 @@ require (
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/spf13/viper v1.15.0 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
+	github.com/tendermint/tm-db v0.6.7 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.11 // indirect
 	github.com/xtgo/uuid v0.0.0-20140804021211-a0b114877d4c // indirect
