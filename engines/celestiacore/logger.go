@@ -2,9 +2,9 @@ package celestiacore
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/celestia-core/libs/log"
 	klogger "github.com/KYVENetwork/ksync/utils"
 	"github.com/rs/zerolog"
-	"github.com/tendermint/tendermint/libs/log"
 )
 
 func TmLogger() (logger log.Logger) {

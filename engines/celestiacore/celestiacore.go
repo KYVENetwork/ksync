@@ -2,24 +2,24 @@ package celestiacore
 
 import (
 	"fmt"
+	abciClient "github.com/KYVENetwork/celestia-core/abci/client"
+	abciTypes "github.com/KYVENetwork/celestia-core/abci/types"
+	cfg "github.com/KYVENetwork/celestia-core/config"
+	"github.com/KYVENetwork/celestia-core/crypto/ed25519"
+	"github.com/KYVENetwork/celestia-core/libs/json"
+	cmtos "github.com/KYVENetwork/celestia-core/libs/os"
+	nm "github.com/KYVENetwork/celestia-core/node"
+	tmP2P "github.com/KYVENetwork/celestia-core/p2p"
+	"github.com/KYVENetwork/celestia-core/privval"
+	tmProtoState "github.com/KYVENetwork/celestia-core/proto/tendermint/state"
+	"github.com/KYVENetwork/celestia-core/proxy"
+	tmState "github.com/KYVENetwork/celestia-core/state"
+	tmStore "github.com/KYVENetwork/celestia-core/store"
+	tmTypes "github.com/KYVENetwork/celestia-core/types"
+	"github.com/KYVENetwork/celestia-core/version"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
-	abciClient "github.com/tendermint/tendermint/abci/client"
-	abciTypes "github.com/tendermint/tendermint/abci/types"
-	cfg "github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/crypto/ed25519"
-	"github.com/tendermint/tendermint/libs/json"
-	cmtos "github.com/tendermint/tendermint/libs/os"
-	nm "github.com/tendermint/tendermint/node"
-	tmP2P "github.com/tendermint/tendermint/p2p"
-	"github.com/tendermint/tendermint/privval"
-	tmProtoState "github.com/tendermint/tendermint/proto/tendermint/state"
-	"github.com/tendermint/tendermint/proxy"
-	tmState "github.com/tendermint/tendermint/state"
-	tmStore "github.com/tendermint/tendermint/store"
-	tmTypes "github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/version"
-	db "github.com/tendermint/tm-db"
+	db "github.com/cometbft/cometbft-db"
 	"net/url"
 	"os"
 	"strconv"
@@ -29,7 +29,7 @@ var (
 	tmLogger = TmLogger()
 )
 
-type TmEngine struct {
+type CelestiaCoreEngine struct {
 	homePath string
 	config   *cfg.Config
 
@@ -45,11 +45,11 @@ type TmEngine struct {
 	blockExecutor *tmState.BlockExecutor
 }
 
-func (tm *TmEngine) GetName() string {
+func (tm *CelestiaCoreEngine) GetName() string {
 	return utils.EngineTendermint
 }
 
-func (tm *TmEngine) OpenDBs(homePath string) error {
+func (tm *CelestiaCoreEngine) OpenDBs(homePath string) error {
 	tm.homePath = homePath
 
 	config, err := LoadConfig(tm.homePath)
@@ -78,7 +78,7 @@ func (tm *TmEngine) OpenDBs(homePath string) error {
 	return nil
 }
 
-func (tm *TmEngine) CloseDBs() error {
+func (tm *CelestiaCoreEngine) CloseDBs() error {
 	if err := tm.blockDB.Close(); err != nil {
 		return fmt.Errorf("failed to close blockDB: %w", err)
 	}
@@ -90,15 +90,15 @@ func (tm *TmEngine) CloseDBs() error {
 	return nil
 }
 
-func (tm *TmEngine) GetHomePath() string {
+func (tm *CelestiaCoreEngine) GetHomePath() string {
 	return tm.homePath
 }
 
-func (tm *TmEngine) GetProxyAppAddress() string {
+func (tm *CelestiaCoreEngine) GetProxyAppAddress() string {
 	return tm.config.ProxyApp
 }
 
-func (tm *TmEngine) StartProxyApp() error {
+func (tm *CelestiaCoreEngine) StartProxyApp() error {
 	if tm.proxyApp != nil {
 		return fmt.Errorf("proxy app already started")
 	}
@@ -112,7 +112,7 @@ func (tm *TmEngine) StartProxyApp() error {
 	return nil
 }
 
-func (tm *TmEngine) StopProxyApp() error {
+func (tm *CelestiaCoreEngine) StopProxyApp() error {
 	if tm.proxyApp == nil {
 		return fmt.Errorf("proxy app already stopped")
 	}
@@ -125,7 +125,7 @@ func (tm *TmEngine) StopProxyApp() error {
 	return nil
 }
 
-func (tm *TmEngine) GetChainId() (string, error) {
+func (tm *CelestiaCoreEngine) GetChainId() (string, error) {
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(tm.config)
 	_, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(tm.stateDB, defaultDocProvider)
 	if err != nil {
@@ -135,7 +135,7 @@ func (tm *TmEngine) GetChainId() (string, error) {
 	return genDoc.ChainID, nil
 }
 
-func (tm *TmEngine) GetMetrics() ([]byte, error) {
+func (tm *CelestiaCoreEngine) GetMetrics() ([]byte, error) {
 	latest := tm.blockStore.LoadBlock(tm.blockStore.Height())
 	earliest := tm.blockStore.LoadBlock(tm.blockStore.Base())
 
@@ -152,7 +152,7 @@ func (tm *TmEngine) GetMetrics() ([]byte, error) {
 	})
 }
 
-func (tm *TmEngine) GetContinuationHeight() (int64, error) {
+func (tm *CelestiaCoreEngine) GetContinuationHeight() (int64, error) {
 	height := tm.blockStore.Height()
 
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(tm.config)
@@ -170,7 +170,7 @@ func (tm *TmEngine) GetContinuationHeight() (int64, error) {
 	return continuationHeight, nil
 }
 
-func (tm *TmEngine) DoHandshake() error {
+func (tm *CelestiaCoreEngine) DoHandshake() error {
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(tm.config)
 	state, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(tm.stateDB, defaultDocProvider)
 	if err != nil {
@@ -211,7 +211,7 @@ func (tm *TmEngine) DoHandshake() error {
 	return nil
 }
 
-func (tm *TmEngine) ApplyBlock(runtime string, value []byte) error {
+func (tm *CelestiaCoreEngine) ApplyBlock(runtime string, value []byte) error {
 	var block *Block
 
 	if runtime == utils.KSyncRuntimeTendermint {
@@ -254,7 +254,7 @@ func (tm *TmEngine) ApplyBlock(runtime string, value []byte) error {
 	tm.blockStore.SaveBlock(tm.prevBlock, blockParts, block.LastCommit)
 
 	// execute block against app
-	state, _, err := tm.blockExecutor.ApplyBlock(tm.state, blockId, tm.prevBlock)
+	state, _, err := tm.blockExecutor.ApplyBlock(tm.state, blockId, tm.prevBlock, block.LastCommit)
 	if err != nil {
 		return fmt.Errorf("failed to apply block at height %d: %w", tm.prevBlock.Height, err)
 	}
@@ -266,7 +266,7 @@ func (tm *TmEngine) ApplyBlock(runtime string, value []byte) error {
 	return nil
 }
 
-func (tm *TmEngine) ApplyFirstBlockOverP2P(runtime string, value, nextValue []byte) error {
+func (tm *CelestiaCoreEngine) ApplyFirstBlockOverP2P(runtime string, value, nextValue []byte) error {
 	var block, nextBlock *Block
 
 	if runtime == utils.KSyncRuntimeTendermint {
@@ -363,11 +363,11 @@ func (tm *TmEngine) ApplyFirstBlockOverP2P(runtime string, value, nextValue []by
 	return nil
 }
 
-func (tm *TmEngine) GetGenesisPath() string {
+func (tm *CelestiaCoreEngine) GetGenesisPath() string {
 	return tm.config.GenesisFile()
 }
 
-func (tm *TmEngine) GetGenesisHeight() (int64, error) {
+func (tm *CelestiaCoreEngine) GetGenesisHeight() (int64, error) {
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(tm.config)
 	genDoc, err := defaultDocProvider()
 	if err != nil {
@@ -377,15 +377,15 @@ func (tm *TmEngine) GetGenesisHeight() (int64, error) {
 	return genDoc.InitialHeight, nil
 }
 
-func (tm *TmEngine) GetHeight() int64 {
+func (tm *CelestiaCoreEngine) GetHeight() int64 {
 	return tm.blockStore.Height()
 }
 
-func (tm *TmEngine) GetBaseHeight() int64 {
+func (tm *CelestiaCoreEngine) GetBaseHeight() int64 {
 	return tm.blockStore.Base()
 }
 
-func (tm *TmEngine) GetAppHeight() (int64, error) {
+func (tm *CelestiaCoreEngine) GetAppHeight() (int64, error) {
 	socketClient := abciClient.NewSocketClient(tm.config.ProxyApp, false)
 
 	if err := socketClient.Start(); err != nil {
@@ -404,7 +404,7 @@ func (tm *TmEngine) GetAppHeight() (int64, error) {
 	return info.LastBlockHeight, nil
 }
 
-func (tm *TmEngine) GetSnapshots() ([]byte, error) {
+func (tm *CelestiaCoreEngine) GetSnapshots() ([]byte, error) {
 	socketClient := abciClient.NewSocketClient(tm.config.ProxyApp, false)
 
 	if err := socketClient.Start(); err != nil {
@@ -427,7 +427,7 @@ func (tm *TmEngine) GetSnapshots() ([]byte, error) {
 	return json.Marshal(res.Snapshots)
 }
 
-func (tm *TmEngine) IsSnapshotAvailable(height int64) (bool, error) {
+func (tm *CelestiaCoreEngine) IsSnapshotAvailable(height int64) (bool, error) {
 	socketClient := abciClient.NewSocketClient(tm.config.ProxyApp, false)
 
 	if err := socketClient.Start(); err != nil {
@@ -452,7 +452,7 @@ func (tm *TmEngine) IsSnapshotAvailable(height int64) (bool, error) {
 	return false, nil
 }
 
-func (tm *TmEngine) GetSnapshotChunk(height, format, chunk int64) ([]byte, error) {
+func (tm *CelestiaCoreEngine) GetSnapshotChunk(height, format, chunk int64) ([]byte, error) {
 	socketClient := abciClient.NewSocketClient(tm.config.ProxyApp, false)
 
 	if err := socketClient.Start(); err != nil {
@@ -475,12 +475,12 @@ func (tm *TmEngine) GetSnapshotChunk(height, format, chunk int64) ([]byte, error
 	return json.Marshal(res.Chunk)
 }
 
-func (tm *TmEngine) GetBlock(height int64) ([]byte, error) {
+func (tm *CelestiaCoreEngine) GetBlock(height int64) ([]byte, error) {
 	block := tm.blockStore.LoadBlock(height)
 	return json.Marshal(block)
 }
 
-func (tm *TmEngine) GetState(height int64) ([]byte, error) {
+func (tm *CelestiaCoreEngine) GetState(height int64) ([]byte, error) {
 	initialHeight := height
 	if initialHeight == 0 {
 		initialHeight = 1
@@ -533,12 +533,12 @@ func (tm *TmEngine) GetState(height int64) ([]byte, error) {
 	return json.Marshal(snapshotState)
 }
 
-func (tm *TmEngine) GetSeenCommit(height int64) ([]byte, error) {
+func (tm *CelestiaCoreEngine) GetSeenCommit(height int64) ([]byte, error) {
 	block := tm.blockStore.LoadBlock(height + 1)
 	return json.Marshal(block.LastCommit)
 }
 
-func (tm *TmEngine) OfferSnapshot(value []byte) (string, uint32, error) {
+func (tm *CelestiaCoreEngine) OfferSnapshot(value []byte) (string, uint32, error) {
 	var bundle TendermintSsyncBundle
 
 	if err := json.Unmarshal(value, &bundle); err != nil {
@@ -567,7 +567,7 @@ func (tm *TmEngine) OfferSnapshot(value []byte) (string, uint32, error) {
 	return res.Result.String(), bundle[0].Value.Snapshot.Chunks, nil
 }
 
-func (tm *TmEngine) ApplySnapshotChunk(chunkIndex uint32, value []byte) (string, error) {
+func (tm *CelestiaCoreEngine) ApplySnapshotChunk(chunkIndex uint32, value []byte) (string, error) {
 	var bundle TendermintSsyncBundle
 
 	if err := json.Unmarshal(value, &bundle); err != nil {
@@ -602,7 +602,7 @@ func (tm *TmEngine) ApplySnapshotChunk(chunkIndex uint32, value []byte) (string,
 	return res.Result.String(), nil
 }
 
-func (tm *TmEngine) BootstrapState(value []byte) error {
+func (tm *CelestiaCoreEngine) BootstrapState(value []byte) error {
 	var bundle TendermintSsyncBundle
 
 	if err := json.Unmarshal(value, &bundle); err != nil {
@@ -625,7 +625,7 @@ func (tm *TmEngine) BootstrapState(value []byte) error {
 	return nil
 }
 
-func (tm *TmEngine) PruneBlocks(toHeight int64) error {
+func (tm *CelestiaCoreEngine) PruneBlocks(toHeight int64) error {
 	blocksPruned, err := tm.blockStore.PruneBlocks(toHeight)
 	if err != nil {
 		return fmt.Errorf("failed to prune blocks up to %d: %s", toHeight, err)
@@ -642,7 +642,7 @@ func (tm *TmEngine) PruneBlocks(toHeight int64) error {
 	return nil
 }
 
-func (tm *TmEngine) ResetAll(homePath string, keepAddrBook bool) error {
+func (tm *CelestiaCoreEngine) ResetAll(homePath string, keepAddrBook bool) error {
 	config, err := LoadConfig(homePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)

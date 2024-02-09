@@ -1,10 +1,10 @@
 package celestiacore
 
 import (
-	abciTypes "github.com/tendermint/tendermint/abci/types"
-	tmCfg "github.com/tendermint/tendermint/config"
-	tmState "github.com/tendermint/tendermint/state"
-	tmTypes "github.com/tendermint/tendermint/types"
+	abciTypes "github.com/KYVENetwork/celestia-core/abci/types"
+	tmCfg "github.com/KYVENetwork/celestia-core/config"
+	tmState "github.com/KYVENetwork/celestia-core/state"
+	tmTypes "github.com/KYVENetwork/celestia-core/types"
 )
 
 type Block = tmTypes.Block

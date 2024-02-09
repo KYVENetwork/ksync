@@ -6,7 +6,7 @@ import (
 	cfg "github.com/tendermint/tendermint/config"
 	cs "github.com/tendermint/tendermint/consensus"
 	"github.com/tendermint/tendermint/evidence"
-	mempl "github.com/tendermint/tendermint/mempool"
+	mempl "github.com/tendermint/tendermint/mempool/v0"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/state"
 	sm "github.com/tendermint/tendermint/state"
@@ -53,7 +53,9 @@ func GetStateDBs(config *Config) (dbm.DB, state.Store, error) {
 		return nil, nil, err
 	}
 
-	stateStore := state.NewStore(stateDB)
+	stateStore := state.NewStore(stateDB, sm.StoreOptions{
+		DiscardABCIResponses: config.Storage.DiscardABCIResponses,
+	})
 
 	return stateDB, stateStore, nil
 }
