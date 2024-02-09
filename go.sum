@@ -48,6 +48,8 @@ github.com/KYVENetwork/ksync/engines/celestiacore v0.1.1 h1:9EWsn7RWcpBzOtUjyvG7
 github.com/KYVENetwork/ksync/engines/celestiacore v0.1.1/go.mod h1:akUcwEgu4LWMyOwdTvPu2m8VVYBWqwCeheeOe/WWl2U=
 github.com/KYVENetwork/ksync/engines/celestiacore v0.1.2 h1:v0dbAvLvHYqEpV9wSSWPUHqxD3TfFW3uaD8nJZ2ZLGQ=
 github.com/KYVENetwork/ksync/engines/celestiacore v0.1.2/go.mod h1:L1L0U1lUWoBo7IqAqKhBh91bCmEEA6vAx67Ol73BofQ=
+github.com/KYVENetwork/ksync/engines/celestiacore v0.1.3 h1:HVd32RdOb8bBfFyt9Xon9V71NyhHFArtiK4TINffidI=
+github.com/KYVENetwork/ksync/engines/celestiacore v0.1.3/go.mod h1:JglDnGhjup+/sM0G3rJU1Io9NHpU0UReftnf+MQcU6Y=
 github.com/KYVENetwork/ksync/engines/cometbft v0.1.0 h1:Oa9eAo0oawAHJU4pA8CyBlMpCh8anui4yhFqlB8/8fI=
 github.com/KYVENetwork/ksync/engines/cometbft v0.1.0/go.mod h1:FOoGHRIJy78EQcSXBzvpXE5jCGtwQC5uqDsrk+/iByw=
 github.com/KYVENetwork/ksync/engines/tendermint v0.1.0 h1:ACuvEAamYndmSjtoa4IZjAWBIMGpPg/uBL9wlQiQVAk=

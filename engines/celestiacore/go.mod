@@ -3,10 +3,10 @@ module github.com/KYVENetwork/ksync/engines/celestiacore
 go 1.21.4
 
 require (
+	github.com/cometbft/cometbft-db v0.8.0
 	github.com/rs/zerolog v1.27.0
 	github.com/spf13/viper v1.13.0
 	github.com/tendermint/tendermint v0.34.24
-	github.com/cometbft/cometbft-db v0.8.0
 )
 
 require (
