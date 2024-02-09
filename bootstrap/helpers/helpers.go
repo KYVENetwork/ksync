@@ -2,7 +2,7 @@ package helpers
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/engines/tendermint"
+	"github.com/KYVENetwork/ksync/engines/celestiacore"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/tendermint/tendermint/libs/json"
@@ -11,7 +11,7 @@ import (
 )
 
 func GetAppHeightFromRPC(homePath string) (height int64, err error) {
-	config, err := tendermint.LoadConfig(homePath)
+	config, err := celestiacore.LoadConfig(homePath)
 	if err != nil {
 		panic(fmt.Errorf("failed to load config.toml: %w", err))
 	}
