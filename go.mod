@@ -16,7 +16,7 @@ require (
 )
 
 require (
-	github.com/KYVENetwork/ksync/engines/celestiacore v0.1.0 // indirect
+	github.com/KYVENetwork/ksync/engines/celestiacore v0.1.1 // indirect
 	github.com/Workiva/go-datastructures v1.0.53 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect

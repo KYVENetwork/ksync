@@ -2,7 +2,6 @@ package celestiacore
 
 import (
 	"fmt"
-	dbm "github.com/cometbft/cometbft-db"
 	"github.com/spf13/viper"
 	cfg "github.com/tendermint/tendermint/config"
 	cs "github.com/tendermint/tendermint/consensus"
@@ -14,6 +13,7 @@ import (
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/store"
 	tmTypes "github.com/tendermint/tendermint/types"
+	dbm "github.com/tendermint/tm-db"
 	"path/filepath"
 )
 
@@ -101,7 +101,7 @@ func DoHandshake(
 	handshaker := cs.NewHandshaker(stateStore, state, blockStore, genDoc)
 	handshaker.SetLogger(tmLogger.With("module", "consensus"))
 	handshaker.SetEventBus(eventBus)
-	if _, err := handshaker.Handshake(proxyApp); err != nil {
+	if err := handshaker.Handshake(proxyApp); err != nil {
 		return fmt.Errorf("error during handshake: %v", err)
 	}
 	return nil
