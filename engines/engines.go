@@ -3,6 +3,7 @@ package engines
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/engines/celestiacore"
+	"github.com/KYVENetwork/ksync/engines/tendermint"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"os"
@@ -15,6 +16,8 @@ var (
 func EngineFactory(engine string) types.Engine {
 	fmt.Println(engine)
 	switch engine {
+	case utils.EngineTendermint:
+		return &tendermint.TmEngine{}
 	case utils.EngineCelestiaCore:
 		return &celestiacore.CelestiaCoreEngine{}
 	default:
