@@ -1,4 +1,4 @@
-module github.com/KYVENetwork/ksync/engines/celestiacore/v2
+module github.com/KYVENetwork/ksync/engines/celestiacore
 
 go 1.21.4
 
