@@ -4,12 +4,12 @@ import (
 	"fmt"
 	log "github.com/KYVENetwork/ksync/utils"
 	bc "github.com/cometbft/cometbft/blocksync"
+	bcv0 "github.com/cometbft/cometbft/blocksync"
 	cometLog "github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/p2p"
 	bcproto "github.com/cometbft/cometbft/proto/tendermint/blocksync"
 	sm "github.com/cometbft/cometbft/state"
 	"github.com/cometbft/cometbft/version"
-	bcv0 "github.com/tendermint/tendermint/blockchain/v0"
 	"reflect"
 )
 
@@ -131,7 +131,7 @@ func MakeNodeInfo(
 		DefaultNodeID: nodeKey.ID(),
 		Network:       genDoc.ChainID,
 		Version:       version.TMCoreSemVer,
-		Channels:      []byte{bcv0.BlockchainChannel},
+		Channels:      []byte{bcv0.BlocksyncChannel},
 		Moniker:       config.Moniker,
 		Other: p2p.DefaultNodeInfoOther{
 			TxIndex:    "off",
