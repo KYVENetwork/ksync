@@ -3,7 +3,7 @@ module github.com/KYVENetwork/ksync
 go 1.21.4
 
 require (
-	github.com/KYVENetwork/ksync/engines/celestiacore v1.0.0
+	github.com/KYVENetwork/ksync/engines/celestiacore v0.1.4
 	github.com/KYVENetwork/ksync/engines/tendermint v0.1.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/google/uuid v1.3.1

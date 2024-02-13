@@ -42,8 +42,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/ChainSafe/go-schnorrkel v1.0.0 h1:3aDA67lAykLaG1y3AOjs88dMxC88PgUuHRrLeDnvGIM=
 github.com/ChainSafe/go-schnorrkel v1.0.0/go.mod h1:dpzHYVxLZcp8pjlV+O+UR8K0Hp/z7vcchBSbMBEhCw4=
-github.com/KYVENetwork/ksync/engines/celestiacore v1.0.0 h1:XjEbLq5byopi4XdupBWwECk5HaNeeQQfvz2wd7mDrjk=
-github.com/KYVENetwork/ksync/engines/celestiacore v1.0.0/go.mod h1:fmUiQ6ecMOctFGsdbkQMqUa+7A8yvr09eVwgIY6suIo=
+github.com/KYVENetwork/ksync/engines/celestiacore v0.1.4 h1:EwC7I9DHF5j0cCjtSxERw2PZqiwBjM6Sv0RpyUF9A0I=
+github.com/KYVENetwork/ksync/engines/celestiacore v0.1.4/go.mod h1:akUcwEgu4LWMyOwdTvPu2m8VVYBWqwCeheeOe/WWl2U=
 github.com/KYVENetwork/ksync/engines/tendermint v0.1.0 h1:ACuvEAamYndmSjtoa4IZjAWBIMGpPg/uBL9wlQiQVAk=
 github.com/KYVENetwork/ksync/engines/tendermint v0.1.0/go.mod h1:2a10tY6jBL3lD901dD0ShH9AS86v10dWTLpHTHnhtGU=
 github.com/Microsoft/go-winio v0.6.0 h1:slsWYD/zyx7lCXoZVlvQrj0hPTM1HI4+v1sIda2yDvg=
