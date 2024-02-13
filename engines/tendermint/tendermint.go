@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
+	db "github.com/cometbft/cometbft-db"
 	abciClient "github.com/tendermint/tendermint/abci/client"
 	abciTypes "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
@@ -19,7 +20,6 @@ import (
 	tmStore "github.com/tendermint/tendermint/store"
 	tmTypes "github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tendermint/version"
-	db "github.com/tendermint/tm-db"
 	"net/url"
 	"os"
 	"strconv"
@@ -238,7 +238,7 @@ func (tm *TmEngine) ApplyBlock(runtime string, value []byte) error {
 
 	// get block data
 	blockParts := tm.prevBlock.MakePartSet(tmTypes.BlockPartSizeBytes)
-	blockId := tmTypes.BlockID{Hash: tm.prevBlock.Hash(), PartSetHeader: blockParts.Header()}
+	blockId := block.LastBlockID
 
 	// verify block
 	if err := tm.blockExecutor.ValidateBlock(tm.state, tm.prevBlock); err != nil {
@@ -250,14 +250,14 @@ func (tm *TmEngine) ApplyBlock(runtime string, value []byte) error {
 		return fmt.Errorf("light commit verification failed at height %d: %w", tm.prevBlock.Height, err)
 	}
 
-	// store block
-	tm.blockStore.SaveBlock(tm.prevBlock, blockParts, block.LastCommit)
-
 	// execute block against app
-	state, _, err := tm.blockExecutor.ApplyBlock(tm.state, blockId, tm.prevBlock)
+	state, _, err := tm.blockExecutor.ApplyBlock(tm.state, blockId, tm.prevBlock, block.LastCommit)
 	if err != nil {
 		return fmt.Errorf("failed to apply block at height %d: %w", tm.prevBlock.Height, err)
 	}
+
+	// store block
+	tm.blockStore.SaveBlock(tm.prevBlock, blockParts, block.LastCommit)
 
 	// update values for next round
 	tm.state = state
