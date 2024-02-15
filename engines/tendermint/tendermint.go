@@ -238,7 +238,7 @@ func (tm *TmEngine) ApplyBlock(runtime string, value []byte) error {
 
 	// get block data
 	blockParts := tm.prevBlock.MakePartSet(tmTypes.BlockPartSizeBytes)
-	blockId := block.LastBlockID
+	blockId := tmTypes.BlockID{Hash: tm.prevBlock.Hash(), PartSetHeader: blockParts.Header()}
 
 	// verify block
 	if err := tm.blockExecutor.ValidateBlock(tm.state, tm.prevBlock); err != nil {
