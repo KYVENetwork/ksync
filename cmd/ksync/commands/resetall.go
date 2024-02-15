@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	resetCmd.Flags().StringVar(&engine, "engine", utils.DefaultEngine, fmt.Sprintf("KSYNC engines [\"%s\",\"%s\"]", utils.EngineTendermint, utils.EngineCometBFT))
+	resetCmd.Flags().StringVar(&engine, "engine", utils.DefaultEngine, fmt.Sprintf("KSYNC engines [\"%s\",\"%s\",\"%s\"]", utils.EngineTendermint, utils.EngineCometBFT, utils.EngineCelestiaCore))
 
 	resetCmd.Flags().StringVar(&homePath, "home", "", "home directory")
 	if err := resetCmd.MarkFlagRequired("home"); err != nil {

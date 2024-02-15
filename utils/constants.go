@@ -25,7 +25,7 @@ const (
 const (
 	EngineTendermint   = "tendermint"
 	EngineCometBFT     = "cometbft"
-	EngineCelestiaCore = "celestiacore"
+	EngineCelestiaCore = "tendermint-celestiacore"
 )
 
 const (
