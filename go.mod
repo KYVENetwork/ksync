@@ -5,7 +5,7 @@ go 1.21
 toolchain go1.21.4
 
 require (
-	github.com/KYVENetwork/celestia-core v1.38.0-tm-v0.34.29
+	github.com/KYVENetwork/celestia-core v1.39.0-tm-v0.34.29
 	github.com/cometbft/cometbft v0.37.2
 	github.com/cometbft/cometbft-db v0.8.0
 	github.com/gin-gonic/gin v1.9.1
