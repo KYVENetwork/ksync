@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	serveCmd.Flags().StringVarP(&engine, "engine", "e", utils.DefaultEngine, fmt.Sprintf("KSYNC engines [\"%s\",\"%s\"]", utils.EngineTendermint, utils.EngineCometBFT))
+	serveCmd.Flags().StringVarP(&engine, "engine", "e", utils.DefaultEngine, fmt.Sprintf("KSYNC engines [\"%s\",\"%s\",\"%s\"]", utils.EngineTendermint, utils.EngineCometBFT, utils.EngineCelestiaCore))
 
 	serveCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced")
 	if err := serveCmd.MarkFlagRequired("binary"); err != nil {
