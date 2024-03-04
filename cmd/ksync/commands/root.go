@@ -7,31 +7,32 @@ import (
 )
 
 var (
-	engine            string
-	binaryPath        string
-	homePath          string
-	chainId           string
-	chainRest         string
-	storageRest       string
-	snapshotPoolId    string
-	blockPoolId       string
-	startHeight       int64
-	targetHeight      int64
-	metrics           bool
-	metricsPort       int64
-	snapshotPort      int64
-	source            string
-	pruning           bool
-	keepSnapshots     bool
-	backupInterval    int64
-	backupKeepRecent  int64
-	backupCompression string
-	backupDest        string
-	reset             bool
-	keepAddrBook      bool
-	optOut            bool
-	debug             bool
-	y                 bool
+	engine               string
+	binaryPath           string
+	homePath             string
+	chainId              string
+	chainRest            string
+	storageRest          string
+	snapshotPoolId       string
+	blockPoolId          string
+	startHeight          int64
+	targetHeight         int64
+	metrics              bool
+	metricsPort          int64
+	snapshotPort         int64
+	source               string
+	pruning              bool
+	keepSnapshots        bool
+	backupInterval       int64
+	backupKeepRecent     int64
+	backupCompression    string
+	backupDest           string
+	skipCrisisInvariants bool
+	reset                bool
+	keepAddrBook         bool
+	optOut               bool
+	debug                bool
+	y                    bool
 )
 
 var (

@@ -115,7 +115,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 		}
 	} else {
 		// if we have to sync from genesis we first bootstrap the node
-		if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, blockPoolId, debug); err != nil {
+		if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, blockPoolId, false, debug); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
 			os.Exit(1)
 		}

@@ -14,7 +14,7 @@ var (
 	logger = utils.KsyncLogger("bootstrap")
 )
 
-func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, poolId int64, debug bool) error {
+func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, poolId int64, skipCrisisInvariants, debug bool) error {
 	logger.Info().Msg("starting bootstrap")
 
 	gt100, err := utils.IsFileGreaterThanOrEqualTo100MB(engine.GetGenesisPath())
@@ -67,8 +67,13 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 		return fmt.Errorf("failed to close dbs in engine: %w", err)
 	}
 
+	args := make([]string, 0)
+	if skipCrisisInvariants {
+		args = append(args, "--x-crisis-skip-assert-invariants")
+	}
+
 	// start binary process thread
-	processId, err := utils.StartBinaryProcessForP2P(engine, binaryPath, debug, []string{})
+	processId, err := utils.StartBinaryProcessForP2P(engine, binaryPath, debug, args)
 	if err != nil {
 		return err
 	}

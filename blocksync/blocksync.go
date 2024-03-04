@@ -77,7 +77,7 @@ func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blo
 	return nil
 }
 
-func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId, chainRest, storageRest string, blockPoolId, targetHeight int64, metrics bool, port int64, backupCfg *types.BackupConfig, optOut, debug, userInput bool) {
+func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId, chainRest, storageRest string, blockPoolId, targetHeight int64, metrics bool, port int64, backupCfg *types.BackupConfig, skipCrisisInvariants, optOut, debug, userInput bool) {
 	logger.Info().Msg("starting block-sync")
 
 	utils.TrackSyncStartEvent(engine, utils.BLOCK_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
@@ -88,9 +88,14 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId
 		os.Exit(1)
 	}
 
-	if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, blockPoolId, debug); err != nil {
+	if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, blockPoolId, skipCrisisInvariants, debug); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
 		os.Exit(1)
+	}
+
+	args := make([]string, 0)
+	if skipCrisisInvariants {
+		args = append(args, "--x-crisis-skip-assert-invariants")
 	}
 
 	// start binary process thread
