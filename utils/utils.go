@@ -79,7 +79,7 @@ func GetFromUrlWithBackoff(url string) (data []byte, err error) {
 			delaySec := math.Pow(2, float64(i))
 			delay := time.Duration(delaySec) * time.Second
 
-			logger.Error().Msg(fmt.Sprintf("failed to fetch from url %s, retrying in %d seconds", url, int(delaySec)))
+			logger.Error().Msg(fmt.Sprintf("failed to fetch from url \"%s\" with error \"%s\", retrying in %d seconds", url, err, int(delaySec)))
 			time.Sleep(delay)
 
 			continue
