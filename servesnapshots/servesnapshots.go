@@ -42,8 +42,12 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 	if pruning {
 		snapshotArgs = append(
 			snapshotArgs,
+			"--pruning",
+			"custom",
 			"--pruning-keep-recent",
 			strconv.FormatInt(utils.SnapshotPruningWindowFactor*config.Interval, 10),
+			"--pruning-interval",
+			"10",
 		)
 
 		if keepSnapshots {
