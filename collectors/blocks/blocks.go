@@ -90,6 +90,7 @@ BundleCollector:
 			}
 		}
 
+		time.Sleep(utils.RequestTimeoutMS)
 		paginationKey = nextKey
 	}
 }
