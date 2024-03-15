@@ -60,7 +60,7 @@ func GetFromUrl(url string) ([]byte, error) {
 	defer response.Body.Close()
 
 	if response.StatusCode != 200 {
-		return nil, fmt.Errorf("got status code %d != 200", response.StatusCode)
+		return nil, fmt.Errorf("got status code %d", response.StatusCode)
 	}
 
 	data, err := io.ReadAll(response.Body)

@@ -19,6 +19,7 @@ func StartBlockCollector(itemCh chan<- types.DataItem, errorCh chan<- error, cha
 
 BundleCollector:
 	for {
+		fmt.Println("requesting finalized bundles page", chainRest, blockPool.Pool.Id, paginationKey)
 		bundlesPage, nextKey, err := bundles.GetFinalizedBundlesPage(chainRest, blockPool.Pool.Id, utils.BundlesPageLimit, paginationKey)
 		if err != nil {
 			errorCh <- fmt.Errorf("failed to get finalized bundles page: %w", err)
@@ -90,6 +91,8 @@ BundleCollector:
 			}
 		}
 
+		// have a small timeout to avoid rate limiting
+		time.Sleep(250)
 		paginationKey = nextKey
 	}
 }
