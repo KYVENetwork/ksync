@@ -18,7 +18,6 @@ import (
 	tmState "github.com/tendermint/tendermint/state"
 	tmStore "github.com/tendermint/tendermint/store"
 	tmTypes "github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/version"
 	db "github.com/tendermint/tm-db"
 	"net/url"
 	"os"
@@ -513,7 +512,6 @@ func (tm *TmEngine) GetState(height int64) ([]byte, error) {
 	snapshotState := tmState.State{
 		Version: tmProtoState.Version{
 			Consensus: lastBlock.Version,
-			Software:  version.TMCoreSemVer,
 		},
 		ChainID:                          lastBlock.ChainID,
 		InitialHeight:                    initialHeight,

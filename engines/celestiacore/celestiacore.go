@@ -16,7 +16,6 @@ import (
 	tmState "github.com/KYVENetwork/celestia-core/state"
 	tmStore "github.com/KYVENetwork/celestia-core/store"
 	tmTypes "github.com/KYVENetwork/celestia-core/types"
-	"github.com/KYVENetwork/celestia-core/version"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	db "github.com/cometbft/cometbft-db"
@@ -513,7 +512,6 @@ func (cc *CelestiaCoreEngine) GetState(height int64) ([]byte, error) {
 	snapshotState := tmState.State{
 		Version: tmProtoState.Version{
 			Consensus: lastBlock.Version,
-			Software:  version.TMCoreSemVer,
 		},
 		ChainID:                          lastBlock.ChainID,
 		InitialHeight:                    initialHeight,
