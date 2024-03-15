@@ -90,8 +90,7 @@ BundleCollector:
 			}
 		}
 
-		// have a small timeout to avoid rate limiting
-		time.Sleep(250)
+		time.Sleep(utils.RequestTimeoutMS)
 		paginationKey = nextKey
 	}
 }

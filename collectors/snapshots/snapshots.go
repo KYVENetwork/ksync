@@ -5,6 +5,7 @@ import (
 	"github.com/KYVENetwork/ksync/collectors/bundles"
 	"github.com/KYVENetwork/ksync/utils"
 	"strconv"
+	"time"
 )
 
 func FindBundleIdBySnapshot(restEndpoint string, poolId int64, snapshotHeight int64) (bundleId int64, err error) {
@@ -36,6 +37,7 @@ func FindBundleIdBySnapshot(restEndpoint string, poolId int64, snapshotHeight in
 			break
 		}
 
+		time.Sleep(utils.RequestTimeoutMS)
 		paginationKey = nextKey
 	}
 
@@ -78,6 +80,7 @@ func FindNearestSnapshotBundleIdByHeight(restEndpoint string, poolId int64, targ
 			break
 		}
 
+		time.Sleep(utils.RequestTimeoutMS)
 		paginationKey = nextKey
 	}
 

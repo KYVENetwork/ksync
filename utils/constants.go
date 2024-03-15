@@ -43,6 +43,7 @@ const (
 	SnapshotPruningAheadFactor  = 3
 	SnapshotPruningWindowFactor = 6
 	BackoffMaxRetries           = 10
+	RequestTimeoutMS            = 250
 )
 
 const (
