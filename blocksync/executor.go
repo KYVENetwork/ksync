@@ -17,7 +17,7 @@ var (
 	errorCh = make(chan error)
 )
 
-func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning bool, backupCfg *types.BackupConfig) error {
+func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning, skipWaiting bool, backupCfg *types.BackupConfig) error {
 	continuationHeight, err := engine.GetContinuationHeight()
 	if err != nil {
 		return fmt.Errorf("failed to get continuation height from engine: %w", err)
@@ -53,7 +53,7 @@ func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPo
 
 	// if KSYNC has already fetched 3 * snapshot_interval ahead of the snapshot pool we wait
 	// in order to not bloat the KSYNC process
-	if snapshotInterval > 0 {
+	if snapshotInterval > 0 && !skipWaiting {
 		snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(chainRest, snapshotPoolId)
 
 		if continuationHeight > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
@@ -160,8 +160,8 @@ func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPo
 			}
 
 			// if KSYNC has already fetched 3 * snapshot_interval ahead of the snapshot pool we wait
-			// in order to not bloat the KSYNC process
-			if snapshotInterval > 0 {
+			// in order to not bloat the KSYNC process. If skipWaiting is true we sync as far as possible
+			if snapshotInterval > 0 && !skipWaiting {
 				// only log this message once
 				if height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
 					logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to produce new bundles")
