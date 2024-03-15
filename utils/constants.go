@@ -5,8 +5,8 @@ const (
 	ChainIdKaon     = "kaon-1"
 	ChainIdKorellia = "korellia-2"
 
-	RestEndpointMainnet  = "https://api-eu-1.kyve.network"
-	RestEndpointKaon     = "https://api-eu-1.kaon.kyve.network"
+	RestEndpointMainnet  = "https://api.kyve.network"
+	RestEndpointKaon     = "https://api.kaon.kyve.network"
 	RestEndpointKorellia = "https://api.korellia.kyve.network"
 
 	RestEndpointArweave     = "https://arweave.net"
