@@ -517,7 +517,6 @@ func (comet *CometEngine) GetState(height int64) ([]byte, error) {
 	snapshotState := tmState.State{
 		Version: tmProtoState.Version{
 			Consensus: lastBlock.Version,
-			Software:  "",
 		},
 		ChainID:                          lastBlock.ChainID,
 		InitialHeight:                    initialHeight,
