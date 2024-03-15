@@ -182,7 +182,7 @@ func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPo
 			}
 
 			// stop with block execution if we have reached our target height
-			if targetHeight > 0 && height == targetHeight+1 {
+			if targetHeight > 0 && height >= targetHeight+1 {
 				if err := engine.StopProxyApp(); err != nil {
 					return fmt.Errorf("failed to stop proxy app: %w", err)
 				}

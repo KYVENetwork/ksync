@@ -71,7 +71,7 @@ BundleCollector:
 				continuationHeight = itemHeight + 1
 
 				// exit if mustExit is true and target height is reached
-				if mustExit && targetHeight > 0 && itemHeight == targetHeight+1 {
+				if mustExit && targetHeight > 0 && itemHeight >= targetHeight+1 {
 					break BundleCollector
 				}
 			}
