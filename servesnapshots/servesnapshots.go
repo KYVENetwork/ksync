@@ -20,8 +20,13 @@ var (
 	logger = utils.KsyncLogger("serve-snapshots")
 )
 
-func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort, startHeight int64, skipCrisisInvariants, pruning, keepSnapshots, debug bool) {
+func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort, startHeight int64, skipCrisisInvariants, pruning, keepSnapshots, skipWaiting, debug bool) {
 	logger.Info().Msg("starting serve-snapshots")
+
+	if pruning && skipWaiting {
+		logger.Error().Msg("pruning has to be disabled with --pruning=false if --skip-waiting is true")
+		os.Exit(1)
+	}
 
 	// get snapshot interval from pool
 	var config types.TendermintSSyncConfig
@@ -171,7 +176,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 	}
 
 	// db executes blocks against app indefinitely
-	if err := blocksync.StartDBExecutor(engine, chainRest, storageRest, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning, nil); err != nil {
+	if err := blocksync.StartDBExecutor(engine, chainRest, storageRest, blockPoolId, 0, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning, skipWaiting, nil); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to start db executor: %s", err))
 
 		// stop binary process thread
