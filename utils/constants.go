@@ -5,8 +5,8 @@ const (
 	ChainIdKaon     = "kaon-1"
 	ChainIdKorellia = "korellia-2"
 
-	RestEndpointMainnet  = "https://api-eu-1.kyve.network"
-	RestEndpointKaon     = "https://api-eu-1.kaon.kyve.network"
+	RestEndpointMainnet  = "https://api.kyve.network"
+	RestEndpointKaon     = "https://api.kaon.kyve.network"
 	RestEndpointKorellia = "https://api.korellia.kyve.network"
 
 	RestEndpointArweave     = "https://arweave.net"
@@ -37,12 +37,13 @@ const (
 )
 
 const (
-	BundlesPageLimit            = 100
+	BundlesPageLimit            = 500
 	BlockBuffer                 = 300
 	PruningInterval             = 100
 	SnapshotPruningAheadFactor  = 3
 	SnapshotPruningWindowFactor = 6
 	BackoffMaxRetries           = 10
+	RequestTimeoutMS            = 250
 )
 
 const (

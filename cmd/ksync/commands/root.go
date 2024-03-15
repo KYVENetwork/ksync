@@ -23,6 +23,7 @@ var (
 	source               string
 	pruning              bool
 	keepSnapshots        bool
+	skipWaiting          bool
 	backupInterval       int64
 	backupKeepRecent     int64
 	backupCompression    string

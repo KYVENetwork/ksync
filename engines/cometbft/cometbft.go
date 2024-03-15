@@ -19,7 +19,6 @@ import (
 	tmState "github.com/cometbft/cometbft/state"
 	tmStore "github.com/cometbft/cometbft/store"
 	tmTypes "github.com/cometbft/cometbft/types"
-	"github.com/cometbft/cometbft/version"
 	cmtos "github.com/tendermint/tendermint/libs/os"
 	"net/url"
 	"os"
@@ -518,7 +517,6 @@ func (comet *CometEngine) GetState(height int64) ([]byte, error) {
 	snapshotState := tmState.State{
 		Version: tmProtoState.Version{
 			Consensus: lastBlock.Version,
-			Software:  version.TMCoreSemVer,
 		},
 		ChainID:                          lastBlock.ChainID,
 		InitialHeight:                    initialHeight,
