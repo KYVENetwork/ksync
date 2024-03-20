@@ -192,7 +192,7 @@ func (tm *TmEngine) DoHandshake() error {
 
 	tm.state = state
 
-	mempool := CreateMempoolAndMempoolReactor(tm.config, tm.proxyApp, state)
+	_, mempool := CreateMempoolAndMempoolReactor(tm.config, tm.proxyApp, state)
 
 	_, evidencePool, err := CreateEvidenceReactor(tm.config, tm.stateStore, tm.blockStore)
 	if err != nil {
