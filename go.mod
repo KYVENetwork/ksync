@@ -15,7 +15,7 @@ require (
 	github.com/segmentio/analytics-go v3.1.0+incompatible
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.15.0
-	github.com/tendermint/tendermint v0.34.24
+	github.com/tendermint/tendermint v0.34.14
 	github.com/tendermint/tm-db v0.6.7
 	gopkg.in/yaml.v2 v2.4.0
 )

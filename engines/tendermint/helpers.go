@@ -7,7 +7,6 @@ import (
 	cs "github.com/tendermint/tendermint/consensus"
 	"github.com/tendermint/tendermint/evidence"
 	mempl "github.com/tendermint/tendermint/mempool"
-	memplv0 "github.com/tendermint/tendermint/mempool/v0"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/state"
 	sm "github.com/tendermint/tendermint/state"
@@ -54,9 +53,7 @@ func GetStateDBs(config *Config) (dbm.DB, state.Store, error) {
 		return nil, nil, err
 	}
 
-	stateStore := state.NewStore(stateDB, sm.StoreOptions{
-		DiscardABCIResponses: config.Storage.DiscardABCIResponses,
-	})
+	stateStore := state.NewStore(stateDB)
 
 	return stateDB, stateStore, nil
 }
@@ -108,24 +105,23 @@ func DoHandshake(
 }
 
 func CreateMempoolAndMempoolReactor(config *Config, proxyApp proxy.AppConns,
-	state sm.State) mempl.Mempool {
+	state sm.State) (*mempl.Reactor, *mempl.CListMempool) {
 
-	logger := tmLogger.With("module", "mempool")
-	mp := memplv0.NewCListMempool(
+	mempool := mempl.NewCListMempool(
 		config.Mempool,
 		proxyApp.Mempool(),
 		state.LastBlockHeight,
-		memplv0.WithMetrics(mempl.NopMetrics()),
-		memplv0.WithPreCheck(sm.TxPreCheck(state)),
-		memplv0.WithPostCheck(sm.TxPostCheck(state)),
+		mempl.WithPreCheck(sm.TxPreCheck(state)),
+		mempl.WithPostCheck(sm.TxPostCheck(state)),
 	)
+	mempoolLogger := tmLogger.With("module", "mempool")
+	mempoolReactor := mempl.NewReactor(config.Mempool, mempool)
+	mempoolReactor.SetLogger(mempoolLogger)
 
-	mp.SetLogger(logger)
 	if config.Consensus.WaitForTxs() {
-		mp.EnableTxsAvailable()
+		mempool.EnableTxsAvailable()
 	}
-
-	return mp
+	return mempoolReactor, mempool
 }
 
 func CreateEvidenceReactor(config *Config, stateStore sm.Store, blockStore *store.BlockStore) (*evidence.Reactor, *evidence.Pool, error) {
