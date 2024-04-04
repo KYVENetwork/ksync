@@ -20,7 +20,7 @@ func StartBlockSync(engine types.Engine, chainRest, storageRest string, poolId, 
 	return StartDBExecutor(engine, chainRest, storageRest, poolId, targetHeight, metrics, port, 0, 0, utils.DefaultSnapshotServerPort, false, false, backupCfg)
 }
 
-func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blockPoolId, targetHeight int64, userInput bool) error {
+func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blockPoolId, targetHeight int64, checkEndHeight, userInput bool) error {
 	continuationHeight, err := engine.GetContinuationHeight()
 	if err != nil {
 		return fmt.Errorf("failed to get continuation height from engine: %w", err)
@@ -48,7 +48,7 @@ func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blo
 		return fmt.Errorf("requested target height is %d but app is already at block height %d", targetHeight, continuationHeight)
 	}
 
-	if targetHeight > 0 && targetHeight > endHeight {
+	if checkEndHeight && targetHeight > 0 && targetHeight > endHeight {
 		return fmt.Errorf("requested target height is %d but last available block on pool is %d", targetHeight, endHeight)
 	}
 
@@ -83,7 +83,7 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId
 	utils.TrackSyncStartEvent(engine, utils.BLOCK_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
 
 	// perform validation checks before booting state-sync process
-	if err := PerformBlockSyncValidationChecks(engine, chainRest, blockPoolId, targetHeight, userInput); err != nil {
+	if err := PerformBlockSyncValidationChecks(engine, chainRest, blockPoolId, targetHeight, true, userInput); err != nil {
 		logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
 		os.Exit(1)
 	}

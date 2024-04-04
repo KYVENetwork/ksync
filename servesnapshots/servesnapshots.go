@@ -100,7 +100,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		}
 	}
 
-	if err := blocksync.PerformBlockSyncValidationChecks(engine, chainRest, blockPoolId, targetHeight, false); err != nil {
+	if err := blocksync.PerformBlockSyncValidationChecks(engine, chainRest, blockPoolId, targetHeight, false, false); err != nil {
 		logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
 		os.Exit(1)
 	}

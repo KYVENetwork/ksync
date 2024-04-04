@@ -42,7 +42,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 		logger.Info().Msg(fmt.Sprintf("target height not specified, searching for latest available block height"))
 	}
 
-	if err := blocksync.PerformBlockSyncValidationChecks(engine, chainRest, blockPoolId, targetHeight, false); err != nil {
+	if err := blocksync.PerformBlockSyncValidationChecks(engine, chainRest, blockPoolId, targetHeight, true, false); err != nil {
 		logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
 		os.Exit(1)
 	}
