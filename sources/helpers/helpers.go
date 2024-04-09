@@ -16,7 +16,7 @@ const (
 
 func LoadLatestPoolData(sourceRegistry types.SourceRegistry) (*types.SourceRegistry, error) {
 	for _, entry := range sourceRegistry.Entries {
-		if entry.Networks.Kyve != nil {
+		if entry.Networks.Kyve != nil && entry.Networks.Kyve.Integrations != nil && entry.Networks.Kyve.Integrations.KSYNC != nil {
 			if entry.Networks.Kyve.Integrations.KSYNC.BlockSyncPool != nil {
 				poolResponse, err := pool.GetPoolInfo(utils.RestEndpointMainnet, int64(*entry.Networks.Kyve.Integrations.KSYNC.BlockSyncPool))
 				if err != nil {
@@ -34,7 +34,7 @@ func LoadLatestPoolData(sourceRegistry types.SourceRegistry) (*types.SourceRegis
 				entry.Networks.Kyve.LatestStateKey = &poolResponse.Pool.Data.CurrentKey
 			}
 		}
-		if entry.Networks.Kaon != nil {
+		if entry.Networks.Kaon != nil && entry.Networks.Kaon.Integrations != nil && entry.Networks.Kaon.Integrations.KSYNC != nil {
 			if entry.Networks.Kaon.Integrations.KSYNC.BlockSyncPool != nil {
 				poolResponse, err := pool.GetPoolInfo(utils.RestEndpointKaon, int64(*entry.Networks.Kaon.Integrations.KSYNC.BlockSyncPool))
 				if err != nil {
