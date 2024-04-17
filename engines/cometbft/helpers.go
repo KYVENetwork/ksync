@@ -7,7 +7,6 @@ import (
 	cs "github.com/cometbft/cometbft/consensus"
 	"github.com/cometbft/cometbft/evidence"
 	mempl "github.com/cometbft/cometbft/mempool"
-	memplv0 "github.com/cometbft/cometbft/mempool/v0"
 	"github.com/cometbft/cometbft/proxy"
 	"github.com/cometbft/cometbft/state"
 	sm "github.com/cometbft/cometbft/state"
@@ -109,13 +108,13 @@ func DoHandshake(
 
 func CreateMempool(config *Config, proxyApp proxy.AppConns, state sm.State) mempl.Mempool {
 	logger := cometLogger.With("module", "mempool")
-	mp := memplv0.NewCListMempool(
+	mp := mempl.NewCListMempool(
 		config.Mempool,
 		proxyApp.Mempool(),
 		state.LastBlockHeight,
-		memplv0.WithMetrics(mempl.NopMetrics()),
-		memplv0.WithPreCheck(sm.TxPreCheck(state)),
-		memplv0.WithPostCheck(sm.TxPostCheck(state)),
+		mempl.WithMetrics(mempl.NopMetrics()),
+		mempl.WithPreCheck(sm.TxPreCheck(state)),
+		mempl.WithPostCheck(sm.TxPostCheck(state)),
 	)
 
 	mp.SetLogger(logger)

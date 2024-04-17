@@ -1,6 +1,7 @@
 package cometbft
 
 import (
+	"context"
 	"fmt"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
@@ -155,6 +156,8 @@ func (comet *CometEngine) GetMetrics() ([]byte, error) {
 func (comet *CometEngine) GetContinuationHeight() (int64, error) {
 	height := comet.blockStore.Height()
 
+	fmt.Println("comet.blockStore.Height()", height)
+
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(comet.config)
 	_, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(comet.stateDB, defaultDocProvider)
 	if err != nil {
@@ -206,6 +209,7 @@ func (comet *CometEngine) DoHandshake() error {
 		comet.proxyApp.Consensus(),
 		mempool,
 		evidencePool,
+		comet.blockStore,
 	)
 
 	return nil
@@ -258,7 +262,7 @@ func (comet *CometEngine) ApplyBlock(runtime string, value []byte) error {
 	comet.blockStore.SaveBlock(comet.prevBlock, blockParts, block.LastCommit)
 
 	// execute block against app
-	state, _, err := comet.blockExecutor.ApplyBlock(comet.state, blockId, comet.prevBlock)
+	state, err := comet.blockExecutor.ApplyBlock(comet.state, blockId, comet.prevBlock)
 	if err != nil {
 		return fmt.Errorf("failed to apply block at height %d: %w", comet.prevBlock.Height, err)
 	}
@@ -396,7 +400,7 @@ func (comet *CometEngine) GetAppHeight() (int64, error) {
 		return 0, fmt.Errorf("failed to start socket client: %w", err)
 	}
 
-	info, err := socketClient.InfoSync(abciTypes.RequestInfo{})
+	info, err := socketClient.Info(context.Background(), &abciTypes.RequestInfo{})
 	if err != nil {
 		return 0, fmt.Errorf("failed to query info: %w", err)
 	}
@@ -415,7 +419,7 @@ func (comet *CometEngine) GetSnapshots() ([]byte, error) {
 		return nil, fmt.Errorf("failed to start socket client: %w", err)
 	}
 
-	res, err := socketClient.ListSnapshotsSync(abciTypes.RequestListSnapshots{})
+	res, err := socketClient.ListSnapshots(context.Background(), &abciTypes.RequestListSnapshots{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list snapshots: %w", err)
 	}
@@ -438,7 +442,7 @@ func (comet *CometEngine) IsSnapshotAvailable(height int64) (bool, error) {
 		return false, fmt.Errorf("failed to start socket client: %w", err)
 	}
 
-	res, err := socketClient.ListSnapshotsSync(abciTypes.RequestListSnapshots{})
+	res, err := socketClient.ListSnapshots(context.Background(), &abciTypes.RequestListSnapshots{})
 	if err != nil {
 		return false, fmt.Errorf("failed to list snapshots: %w", err)
 	}
@@ -463,7 +467,7 @@ func (comet *CometEngine) GetSnapshotChunk(height, format, chunk int64) ([]byte,
 		return nil, fmt.Errorf("failed to start socket client: %w", err)
 	}
 
-	res, err := socketClient.LoadSnapshotChunkSync(abciTypes.RequestLoadSnapshotChunk{
+	res, err := socketClient.LoadSnapshotChunk(context.Background(), &abciTypes.RequestLoadSnapshotChunk{
 		Height: uint64(height),
 		Format: uint32(format),
 		Chunk:  uint32(chunk),
@@ -554,7 +558,7 @@ func (comet *CometEngine) OfferSnapshot(value []byte) (string, uint32, error) {
 		return abciTypes.ResponseOfferSnapshot_UNKNOWN.String(), 0, fmt.Errorf("failed to start socket client: %w", err)
 	}
 
-	res, err := socketClient.OfferSnapshotSync(abciTypes.RequestOfferSnapshot{
+	res, err := socketClient.OfferSnapshot(context.Background(), &abciTypes.RequestOfferSnapshot{
 		Snapshot: bundle[0].Value.Snapshot,
 		AppHash:  bundle[0].Value.State.AppHash,
 	})
@@ -588,7 +592,7 @@ func (comet *CometEngine) ApplySnapshotChunk(chunkIndex uint32, value []byte) (s
 		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("failed to start socket client: %w", err)
 	}
 
-	res, err := socketClient.ApplySnapshotChunkSync(abciTypes.RequestApplySnapshotChunk{
+	res, err := socketClient.ApplySnapshotChunk(context.Background(), &abciTypes.RequestApplySnapshotChunk{
 		Index:  chunkIndex,
 		Chunk:  bundle[0].Value.Chunk,
 		Sender: string(nodeKey.ID()),
@@ -633,7 +637,7 @@ func (comet *CometEngine) BootstrapState(value []byte) error {
 }
 
 func (comet *CometEngine) PruneBlocks(toHeight int64) error {
-	blocksPruned, err := comet.blockStore.PruneBlocks(toHeight)
+	blocksPruned, _, err := comet.blockStore.PruneBlocks(toHeight, comet.state)
 	if err != nil {
 		return fmt.Errorf("failed to prune blocks up to %d: %s", toHeight, err)
 	}
@@ -641,7 +645,7 @@ func (comet *CometEngine) PruneBlocks(toHeight int64) error {
 	base := toHeight - int64(blocksPruned)
 
 	if toHeight > base {
-		if err := comet.stateStore.PruneStates(base, toHeight); err != nil {
+		if err := comet.stateStore.PruneStates(base, toHeight, toHeight); err != nil {
 			return fmt.Errorf("failed to prune state up to %d: %s", toHeight, err)
 		}
 	}

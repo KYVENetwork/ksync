@@ -52,7 +52,7 @@ func (bcR *BlockchainReactor) GetChannels() []*p2p.ChannelDescriptor {
 func (bcR *BlockchainReactor) sendStatusToPeer(src p2p.Peer) (queued bool) {
 	logger.Info().Int64("base", bcR.block.Height).Int64("height", bcR.block.Height+1).Msg("Sent status to peer")
 
-	return src.SendEnvelope(p2p.Envelope{
+	return src.Send(p2p.Envelope{
 		ChannelID: BlocksyncChannel,
 		Message: &bcproto.StatusResponse{
 			Base:   bcR.block.Height,
@@ -71,7 +71,7 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 
 		logger.Info().Msg(fmt.Sprintf("sent block with height %d to peer", bcR.block.Height))
 
-		return src.TrySendEnvelope(p2p.Envelope{
+		return src.TrySend(p2p.Envelope{
 			ChannelID: BlocksyncChannel,
 			Message:   &bcproto.BlockResponse{Block: bl},
 		})
@@ -86,7 +86,7 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 
 		logger.Info().Msg(fmt.Sprintf("sent block with height %d to peer", bcR.nextBlock.Height))
 
-		return src.TrySendEnvelope(p2p.Envelope{
+		return src.TrySend(p2p.Envelope{
 			ChannelID: BlocksyncChannel,
 			Message:   &bcproto.BlockResponse{Block: bl},
 		})
