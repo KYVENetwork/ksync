@@ -48,7 +48,7 @@ func init() {
 
 	serveCmd.Flags().BoolVarP(&reset, "reset-all", "r", false, "reset this node's validator to genesis state")
 	serveCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
-	serveCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint app")
+	serveCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint-v34 app")
 
 	rootCmd.AddCommand(serveCmd)
 }
@@ -75,7 +75,7 @@ var serveCmd = &cobra.Command{
 
 		if reset {
 			if err := consensusEngine.ResetAll(homePath, true); err != nil {
-				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
+				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint-v34 application: %s", err))
 				os.Exit(1)
 			}
 		}

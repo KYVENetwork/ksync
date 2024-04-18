@@ -1,7 +1,7 @@
 package types
 
 // Engine is an interface defining common behaviour for each consensus engine.
-// Currently, both tendermint and cometbft-v38 are supported
+// Currently, both tendermint-v34 and cometbft-v38 are supported
 type Engine interface {
 	// GetName gets the engine name
 	GetName() string
@@ -88,7 +88,7 @@ type Engine interface {
 	// ApplySnapshotChunk applies a snapshot chunk over ABCI to the app
 	ApplySnapshotChunk(chunkIndex uint32, value []byte) (string, error)
 
-	// BootstrapState initializes the tendermint state
+	// BootstrapState initializes the tendermint-v34 state
 	BootstrapState(value []byte) error
 
 	// PruneBlocks prunes blocks from the block store and state store

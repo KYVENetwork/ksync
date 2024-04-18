@@ -2,7 +2,7 @@ package commands
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/engines/tendermint"
+	"github.com/KYVENetwork/ksync/engines/tendermint-v34"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"os"
@@ -38,12 +38,12 @@ var pruneCmd = &cobra.Command{
 			homePath = utils.GetHomePathFromBinary(binaryPath)
 		}
 
-		config, err := tendermint.LoadConfig(homePath)
+		config, err := tendermint_v34.LoadConfig(homePath)
 		if err != nil {
 			panic(fmt.Errorf("failed to load config: %w", err))
 		}
 
-		blockStoreDB, blockStore, err := tendermint.GetBlockstoreDBs(config)
+		blockStoreDB, blockStore, err := tendermint_v34.GetBlockstoreDBs(config)
 		defer blockStoreDB.Close()
 
 		if err != nil {

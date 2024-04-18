@@ -1,15 +1,15 @@
-package celestiacore
+package tendermint_v34
 
 import (
 	"fmt"
-	bc "github.com/KYVENetwork/celestia-core/blockchain"
-	bcv0 "github.com/KYVENetwork/celestia-core/blockchain/v0"
-	tmLog "github.com/KYVENetwork/celestia-core/libs/log"
-	"github.com/KYVENetwork/celestia-core/p2p"
-	bcproto "github.com/KYVENetwork/celestia-core/proto/celestiacore/blockchain"
-	sm "github.com/KYVENetwork/celestia-core/state"
-	"github.com/KYVENetwork/celestia-core/version"
 	log "github.com/KYVENetwork/ksync/utils"
+	bc "github.com/tendermint/tendermint/blockchain"
+	bcv0 "github.com/tendermint/tendermint/blockchain/v0"
+	tmLog "github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/p2p"
+	bcproto "github.com/tendermint/tendermint/proto/tendermint/blockchain"
+	sm "github.com/tendermint/tendermint/state"
+	"github.com/tendermint/tendermint/version"
 	"reflect"
 )
 

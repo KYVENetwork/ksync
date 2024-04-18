@@ -1,18 +1,19 @@
-package tendermint
+package celestia_core_v34
 
 import (
 	"fmt"
+	cfg "github.com/KYVENetwork/celestia-core/config"
+	cs "github.com/KYVENetwork/celestia-core/consensus"
+	"github.com/KYVENetwork/celestia-core/evidence"
+	mempl "github.com/KYVENetwork/celestia-core/mempool"
+	memplv0 "github.com/KYVENetwork/celestia-core/mempool/v0"
+	"github.com/KYVENetwork/celestia-core/proxy"
+	"github.com/KYVENetwork/celestia-core/state"
+	sm "github.com/KYVENetwork/celestia-core/state"
+	"github.com/KYVENetwork/celestia-core/store"
+	tmTypes "github.com/KYVENetwork/celestia-core/types"
+	dbm "github.com/cometbft/cometbft-db"
 	"github.com/spf13/viper"
-	cfg "github.com/tendermint/tendermint/config"
-	cs "github.com/tendermint/tendermint/consensus"
-	"github.com/tendermint/tendermint/evidence"
-	mempl "github.com/tendermint/tendermint/mempool"
-	"github.com/tendermint/tendermint/proxy"
-	"github.com/tendermint/tendermint/state"
-	sm "github.com/tendermint/tendermint/state"
-	"github.com/tendermint/tendermint/store"
-	tmTypes "github.com/tendermint/tendermint/types"
-	dbm "github.com/tendermint/tm-db"
 	"path/filepath"
 )
 
@@ -53,7 +54,9 @@ func GetStateDBs(config *Config) (dbm.DB, state.Store, error) {
 		return nil, nil, err
 	}
 
-	stateStore := state.NewStore(stateDB)
+	stateStore := state.NewStore(stateDB, sm.StoreOptions{
+		DiscardABCIResponses: config.Storage.DiscardABCIResponses,
+	})
 
 	return stateDB, stateStore, nil
 }
@@ -98,30 +101,31 @@ func DoHandshake(
 	handshaker := cs.NewHandshaker(stateStore, state, blockStore, genDoc)
 	handshaker.SetLogger(tmLogger.With("module", "consensus"))
 	handshaker.SetEventBus(eventBus)
-	if err := handshaker.Handshake(proxyApp); err != nil {
+	if _, err := handshaker.Handshake(proxyApp); err != nil {
 		return fmt.Errorf("error during handshake: %v", err)
 	}
 	return nil
 }
 
 func CreateMempoolAndMempoolReactor(config *Config, proxyApp proxy.AppConns,
-	state sm.State) (*mempl.Reactor, *mempl.CListMempool) {
+	state sm.State) mempl.Mempool {
 
-	mempool := mempl.NewCListMempool(
+	logger := tmLogger.With("module", "mempool")
+	mp := memplv0.NewCListMempool(
 		config.Mempool,
 		proxyApp.Mempool(),
 		state.LastBlockHeight,
-		mempl.WithPreCheck(sm.TxPreCheck(state)),
-		mempl.WithPostCheck(sm.TxPostCheck(state)),
+		memplv0.WithMetrics(mempl.NopMetrics()),
+		memplv0.WithPreCheck(sm.TxPreCheck(state)),
+		memplv0.WithPostCheck(sm.TxPostCheck(state)),
 	)
-	mempoolLogger := tmLogger.With("module", "mempool")
-	mempoolReactor := mempl.NewReactor(config.Mempool, mempool)
-	mempoolReactor.SetLogger(mempoolLogger)
 
+	mp.SetLogger(logger)
 	if config.Consensus.WaitForTxs() {
-		mempool.EnableTxsAvailable()
+		mp.EnableTxsAvailable()
 	}
-	return mempoolReactor, mempool
+
+	return mp
 }
 
 func CreateEvidenceReactor(config *Config, stateStore sm.Store, blockStore *store.BlockStore) (*evidence.Reactor, *evidence.Pool, error) {

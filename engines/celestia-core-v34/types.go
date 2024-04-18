@@ -1,4 +1,4 @@
-package celestiacore
+package celestia_core_v34
 
 import (
 	abciTypes "github.com/KYVENetwork/celestia-core/abci/types"

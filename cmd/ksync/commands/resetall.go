@@ -30,10 +30,10 @@ var resetCmd = &cobra.Command{
 		utils.TrackResetEvent(optOut)
 
 		if err := engines.EngineFactory(engine).ResetAll(homePath, keepAddrBook); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
+			logger.Error().Msg(fmt.Sprintf("failed to reset tendermint-v34 application: %s", err))
 			os.Exit(1)
 		}
 
-		logger.Info().Msg("successfully reset tendermint application")
+		logger.Info().Msg("successfully reset tendermint-v34 application")
 	},
 }

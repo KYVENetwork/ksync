@@ -1,4 +1,4 @@
-package tendermint
+package tendermint_v34
 
 import (
 	abciTypes "github.com/tendermint/tendermint/abci/types"
