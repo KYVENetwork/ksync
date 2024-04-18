@@ -59,6 +59,10 @@ func (engine *Engine) OpenDBs(homePath string) error {
 
 	engine.config = config
 
+	if err := utils.FormatGenesisFile(config.GenesisFile()); err != nil {
+		return fmt.Errorf("failed to format genesis file: %w", err)
+	}
+
 	blockDB, blockStore, err := GetBlockstoreDBs(config)
 	if err != nil {
 		return fmt.Errorf("failed to open blockDB: %w", err)

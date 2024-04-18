@@ -60,6 +60,10 @@ func (engine *Engine) OpenDBs(homePath string) error {
 
 	engine.config = config
 
+	if err := utils.FormatGenesisFile(config.GenesisFile()); err != nil {
+		return fmt.Errorf("failed to format genesis file: %w", err)
+	}
+
 	blockDB, blockStore, err := GetBlockstoreDBs(config)
 	if err != nil {
 		return fmt.Errorf("failed to open blockDB: %w", err)
@@ -155,8 +159,6 @@ func (engine *Engine) GetMetrics() ([]byte, error) {
 
 func (engine *Engine) GetContinuationHeight() (int64, error) {
 	height := engine.blockStore.Height()
-
-	fmt.Println("engine.blockStore.Height()", height)
 
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(engine.config)
 	_, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(engine.stateDB, defaultDocProvider)
