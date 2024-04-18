@@ -18,16 +18,20 @@ func FormatGenesisFile(genesisPath string) error {
 	}
 
 	if err := json.Unmarshal(genesisFile, &genesis); err != nil {
-		return fmt.Errorf("failed to unmarshal entire genesis file: %w", err)
+		return fmt.Errorf("failed to unmarshal genesis file: %w", err)
 	}
 
 	if err := json.Unmarshal(genesisFile, &value); err != nil {
-		return fmt.Errorf("failed to unmarshal initial height of genesis file: %w", err)
+		return fmt.Errorf("failed to unmarshal initial_height value of genesis file: %w", err)
 	}
 
 	genesis["initial_height"] = value.InitialHeight.String()
 
 	genesisJson, err := json.MarshalIndent(genesis, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal genesis file: %w", err)
+	}
+
 	if err := os.WriteFile(genesisPath, genesisJson, os.ModePerm); err != nil {
 		return fmt.Errorf("failed to write genesis.json: %w", err)
 	}
