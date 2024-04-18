@@ -1,8 +1,8 @@
-package cometbft
+package cometbft_v37
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/cometbft/v38/libs/log"
+	"github.com/KYVENetwork/cometbft/v37/libs/log"
 	klogger "github.com/KYVENetwork/ksync/utils"
 	"github.com/rs/zerolog"
 )

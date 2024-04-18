@@ -1,4 +1,4 @@
-package cometbft
+package cometbft_v38
 
 import (
 	"fmt"

@@ -23,6 +23,7 @@ github.com/ChainSafe/go-schnorrkel v1.0.0/go.mod h1:dpzHYVxLZcp8pjlV+O+UR8K0Hp/z
 github.com/DataDog/zstd v1.4.1/go.mod h1:1jcaCB/ufaK+sKp1NBhlGmpz41jOoPQ35bpF36t7BBo=
 github.com/KYVENetwork/celestia-core v1.39.0-tm-v0.34.29 h1:JpEk+a91bJ0W3Get6wjwx6WHGKstvU519KyuXLC875c=
 github.com/KYVENetwork/celestia-core v1.39.0-tm-v0.34.29/go.mod h1:ZeSHei1r4laTYPPrdCoLOjyUptk94IVcRrhkNbjk3zw=
+github.com/KYVENetwork/cometbft/v37 v37.0.1/go.mod h1:eAUIGNAQfYvLNuTZS48MsjqFtIYA8mU9ZcJmGbVMk90=
 github.com/KYVENetwork/cometbft/v38 v38.0.1 h1:KkLhQwfuDMli+Q6SjKR5CiBskymY0uYTwGc+qXB4d4o=
 github.com/KYVENetwork/cometbft/v38 v38.0.1/go.mod h1:8g8iw3Pp/ZkXPBgmPon9K/kHcj53vE86l5228rhmcuk=
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
