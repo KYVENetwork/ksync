@@ -2,14 +2,14 @@ package cometbft
 
 import (
 	"fmt"
+	bc "github.com/KYVENetwork/cometbft/v38/blocksync"
+	bcv0 "github.com/KYVENetwork/cometbft/v38/blocksync"
+	cometLog "github.com/KYVENetwork/cometbft/v38/libs/log"
+	"github.com/KYVENetwork/cometbft/v38/p2p"
+	bcproto "github.com/KYVENetwork/cometbft/v38/proto/cometbft/v38/blocksync"
+	sm "github.com/KYVENetwork/cometbft/v38/state"
+	"github.com/KYVENetwork/cometbft/v38/version"
 	log "github.com/KYVENetwork/ksync/utils"
-	bc "github.com/cometbft/cometbft/blocksync"
-	bcv0 "github.com/cometbft/cometbft/blocksync"
-	cometLog "github.com/cometbft/cometbft/libs/log"
-	"github.com/cometbft/cometbft/p2p"
-	bcproto "github.com/cometbft/cometbft/proto/tendermint/blocksync"
-	sm "github.com/cometbft/cometbft/state"
-	"github.com/cometbft/cometbft/version"
 	"reflect"
 )
 

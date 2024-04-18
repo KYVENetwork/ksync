@@ -1,10 +1,10 @@
 package cometbft
 
 import (
-	abciTypes "github.com/cometbft/cometbft/abci/types"
-	cometCfg "github.com/cometbft/cometbft/config"
-	cometState "github.com/cometbft/cometbft/state"
-	cometTypes "github.com/cometbft/cometbft/types"
+	abciTypes "github.com/KYVENetwork/cometbft/v38/abci/types"
+	cometCfg "github.com/KYVENetwork/cometbft/v38/config"
+	cometState "github.com/KYVENetwork/cometbft/v38/state"
+	cometTypes "github.com/KYVENetwork/cometbft/v38/types"
 )
 
 type Block = cometTypes.Block
