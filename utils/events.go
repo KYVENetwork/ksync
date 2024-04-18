@@ -95,6 +95,26 @@ func TrackVersionEvent(optOut bool) {
 	_ = err
 }
 
+func TrackEnginesEvent(optOut bool) {
+	if optOut {
+		return
+	}
+
+	userId, err := getUserId()
+	if err != nil {
+		return
+	}
+
+	err = client.Enqueue(analytics.Track{
+		UserId:  userId,
+		Event:   ENGINES,
+		Context: getContext(),
+	})
+
+	err = client.Close()
+	_ = err
+}
+
 func TrackInfoEvent(chainId string, optOut bool) {
 	if optOut {
 		return

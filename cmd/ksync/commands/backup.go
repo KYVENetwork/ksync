@@ -6,7 +6,7 @@ import (
 	"github.com/KYVENetwork/ksync/engines/tendermint-v34"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
-	nm "github.com/tendermint-v34/tendermint/node"
+	nm "github.com/tendermint/tendermint/node"
 )
 
 func init() {
@@ -39,7 +39,7 @@ var backupCmd = &cobra.Command{
 			homePath = utils.GetHomePathFromBinary(binaryPath)
 		}
 
-		// load tendermint-v34 config
+		// load tendermint config
 		config, err := tendermint_v34.LoadConfig(homePath)
 		if err != nil {
 			logger.Error().Str("err", err.Error()).Msg("failed to load config.toml")

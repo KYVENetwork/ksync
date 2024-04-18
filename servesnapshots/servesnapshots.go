@@ -131,7 +131,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		}
 
 		// TODO: does app has to be restarted after a state-sync?
-		if engine.GetName() == utils.EngineCometBFT {
+		if engine.GetName() == utils.EngineCometBFTV37 || engine.GetName() == utils.EngineCometBFTV38 {
 			// ignore error, since process gets terminated anyway afterwards
 			e := engine.CloseDBs()
 			_ = e

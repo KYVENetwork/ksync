@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	stateSyncCmd.Flags().StringVarP(&engine, "engine", "e", utils.DefaultEngine, fmt.Sprintf("KSYNC engines [\"%s\",\"%s\",\"%s\"]", utils.EngineTendermint, utils.EngineCometBFT, utils.EngineCelestiaCore))
+	stateSyncCmd.Flags().StringVarP(&engine, "engine", "e", utils.DefaultEngine, "consensus engine of the binary, list all engines with \"ksync engines\"")
 
 	stateSyncCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced")
 	if err := stateSyncCmd.MarkFlagRequired("binary"); err != nil {
@@ -35,7 +35,7 @@ func init() {
 
 	stateSyncCmd.Flags().BoolVarP(&reset, "reset-all", "r", false, "reset this node's validator to genesis state")
 	stateSyncCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
-	stateSyncCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint-v34 app")
+	stateSyncCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint app")
 	stateSyncCmd.Flags().BoolVarP(&y, "yes", "y", false, "automatically answer yes for all questions")
 
 	rootCmd.AddCommand(stateSyncCmd)
@@ -63,7 +63,7 @@ var stateSyncCmd = &cobra.Command{
 
 		if reset {
 			if err := consensusEngine.ResetAll(homePath, true); err != nil {
-				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint-v34 application: %s", err))
+				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
 				os.Exit(1)
 			}
 		}

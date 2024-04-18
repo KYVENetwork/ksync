@@ -88,7 +88,7 @@ type Engine interface {
 	// ApplySnapshotChunk applies a snapshot chunk over ABCI to the app
 	ApplySnapshotChunk(chunkIndex uint32, value []byte) (string, error)
 
-	// BootstrapState initializes the tendermint-v34 state
+	// BootstrapState initializes the tendermint state
 	BootstrapState(value []byte) error
 
 	// PruneBlocks prunes blocks from the block store and state store

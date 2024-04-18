@@ -48,7 +48,7 @@ BundleCollector:
 			var bundle types.Bundle
 
 			if err := json.Unmarshal(deflated, &bundle); err != nil {
-				errorCh <- fmt.Errorf("failed to unmarshal tendermint-v34 bundle: %w", err)
+				errorCh <- fmt.Errorf("failed to unmarshal tendermint bundle: %w", err)
 				return
 			}
 
@@ -126,7 +126,7 @@ func RetrieveBlock(chainRest, storageRest string, blockPool types.PoolResponse, 
 			var bundle types.Bundle
 
 			if err := json.Unmarshal(deflated, &bundle); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal tendermint-v34 bundle: %w", err)
+				return nil, fmt.Errorf("failed to unmarshal tendermint bundle: %w", err)
 			}
 
 			for _, dataItem := range bundle {

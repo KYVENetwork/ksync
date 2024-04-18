@@ -549,7 +549,7 @@ func (engine *Engine) OfferSnapshot(value []byte) (string, uint32, error) {
 	var bundle TendermintSsyncBundle
 
 	if err := json.Unmarshal(value, &bundle); err != nil {
-		return abciTypes.ResponseOfferSnapshot_UNKNOWN.String(), 0, fmt.Errorf("failed to unmarshal tendermint-v34-ssync bundle: %w", err)
+		return abciTypes.ResponseOfferSnapshot_UNKNOWN.String(), 0, fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
 	}
 
 	socketClient := abciClient.NewSocketClient(engine.config.ProxyApp, false)
@@ -578,7 +578,7 @@ func (engine *Engine) ApplySnapshotChunk(chunkIndex uint32, value []byte) (strin
 	var bundle TendermintSsyncBundle
 
 	if err := json.Unmarshal(value, &bundle); err != nil {
-		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("failed to unmarshal tendermint-v34-ssync bundle: %w", err)
+		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
 	}
 
 	nodeKey, err := p2p.LoadNodeKey(engine.config.NodeKeyFile())
@@ -613,7 +613,7 @@ func (engine *Engine) BootstrapState(value []byte) error {
 	var bundle TendermintSsyncBundle
 
 	if err := json.Unmarshal(value, &bundle); err != nil {
-		return fmt.Errorf("failed to unmarshal tendermint-v34-ssync bundle: %w", err)
+		return fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
 	}
 
 	err := engine.stateStore.Bootstrap(*bundle[0].Value.State)

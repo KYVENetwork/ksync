@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	resetCmd.Flags().StringVar(&engine, "engine", utils.DefaultEngine, fmt.Sprintf("KSYNC engines [\"%s\",\"%s\",\"%s\"]", utils.EngineTendermint, utils.EngineCometBFT, utils.EngineCelestiaCore))
+	resetCmd.Flags().StringVarP(&engine, "engine", "e", utils.DefaultEngine, "consensus engine of the binary, list all engines with \"ksync engines\"")
 
 	resetCmd.Flags().StringVar(&homePath, "home", "", "home directory")
 	if err := resetCmd.MarkFlagRequired("home"); err != nil {
@@ -30,10 +30,10 @@ var resetCmd = &cobra.Command{
 		utils.TrackResetEvent(optOut)
 
 		if err := engines.EngineFactory(engine).ResetAll(homePath, keepAddrBook); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to reset tendermint-v34 application: %s", err))
+			logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
 			os.Exit(1)
 		}
 
-		logger.Info().Msg("successfully reset tendermint-v34 application")
+		logger.Info().Msg("successfully reset tendermint application")
 	},
 }
