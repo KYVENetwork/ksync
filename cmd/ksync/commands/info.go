@@ -82,10 +82,12 @@ var infoCmd = &cobra.Command{
 
 			if chainId == utils.ChainIdMainnet {
 				if entry.Networks.Kyve != nil {
-					if entry.Networks.Kyve.Integrations.KSYNC == nil {
-						continue
+					if entry.Networks.Kyve.Integrations != nil {
+						if entry.Networks.Kyve.Integrations.KSYNC == nil {
+							continue
+						}
+						title = entry.Networks.Kyve.SourceMetadata.Title
 					}
-					title = entry.Networks.Kyve.SourceMetadata.Title
 				} else {
 					continue
 				}
