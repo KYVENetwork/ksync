@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 )
 
 func FormatGenesisFile(genesisPath string) error {
@@ -12,20 +13,24 @@ func FormatGenesisFile(genesisPath string) error {
 		return fmt.Errorf("error opening genesis.json at %s: %w", genesisPath, err)
 	}
 
-	var genesis map[string]interface{}
 	var value struct {
-		InitialHeight json.Number `json:"initial_height"`
+		InitialHeight int `json:"initial_height"`
 	}
+
+	// if we can not unmarshal the initial_height to an integer it means
+	// that it is of type string which is desired. In this case we return
+	// and don't format the genesis file
+	if err := json.Unmarshal(genesisFile, &value); err != nil {
+		return nil
+	}
+
+	var genesis map[string]interface{}
 
 	if err := json.Unmarshal(genesisFile, &genesis); err != nil {
 		return fmt.Errorf("failed to unmarshal genesis file: %w", err)
 	}
 
-	if err := json.Unmarshal(genesisFile, &value); err != nil {
-		return fmt.Errorf("failed to unmarshal initial_height value of genesis file: %w", err)
-	}
-
-	genesis["initial_height"] = value.InitialHeight.String()
+	genesis["initial_height"] = strconv.Itoa(value.InitialHeight)
 
 	genesisJson, err := json.MarshalIndent(genesis, "", "  ")
 	if err != nil {
