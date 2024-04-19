@@ -20,7 +20,7 @@ func FindBundleIdBySnapshot(restEndpoint string, poolId int64, snapshotHeight in
 		for _, bundle := range bundlesPage {
 			height, chunkIndex, err := utils.ParseSnapshotFromKey(bundle.ToKey)
 			if err != nil {
-				panic(fmt.Errorf("failed to parse snapshot from key: %w", err))
+				return bundleId, fmt.Errorf("failed to parse snapshot from key: %w", err)
 			}
 
 			if height < snapshotHeight {
@@ -56,7 +56,7 @@ func FindNearestSnapshotBundleIdByHeight(restEndpoint string, poolId int64, targ
 		for _, bundle := range bundlesPage {
 			height, chunkIndex, err := utils.ParseSnapshotFromKey(bundle.ToKey)
 			if err != nil {
-				panic(fmt.Errorf("failed to parse snapshot from key: %w", err))
+				return bundleId, snapshotHeight, fmt.Errorf("failed to parse snapshot from key: %w", err)
 			}
 
 			if height <= targetHeight {
