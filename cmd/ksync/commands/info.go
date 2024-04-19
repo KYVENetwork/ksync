@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"github.com/KYVENetwork/ksync/sources"
+	"github.com/KYVENetwork/ksync/sources/helpers"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
@@ -34,7 +35,7 @@ var infoCmd = &cobra.Command{
 			return
 		}
 
-		sourceRegistry, err := sources.GetSourceRegistry(registryUrl)
+		sourceRegistry, err := helpers.GetSourceRegistry(registryUrl)
 		if err != nil {
 			logger.Error().Str("err", err.Error()).Msg("failed to get source registry")
 			return

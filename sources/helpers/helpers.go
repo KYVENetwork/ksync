@@ -5,6 +5,9 @@ import (
 	"github.com/KYVENetwork/ksync/collectors/pool"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"net/http"
 	"strconv"
 	"strings"
 )
@@ -53,6 +56,87 @@ func LoadLatestPoolData(sourceRegistry types.SourceRegistry) (*types.SourceRegis
 			}
 		}
 	}
+	return &sourceRegistry, nil
+}
+
+func GetSourceRegistryEntry(registryUrl, chainId, source string) (*types.Entry, error) {
+	registry, err := GetSourceRegistryWithoutPoolData(registryUrl)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get source registry: %v", err)
+	}
+
+	for _, entry := range registry.Entries {
+		if chainId == utils.ChainIdMainnet {
+			if entry.Networks.Kyve != nil {
+				if strings.ToLower(entry.Networks.Kyve.SourceMetadata.Title) == strings.ToLower(source) ||
+					strings.ToLower(entry.SourceID) == strings.ToLower(source) {
+					return &entry, nil
+				}
+			}
+		} else if chainId == utils.ChainIdKaon {
+			if entry.Networks.Kaon != nil {
+				if strings.ToLower(entry.Networks.Kaon.SourceMetadata.Title) == strings.ToLower(source) ||
+					strings.ToLower(entry.SourceID) == strings.ToLower(source) {
+					return &entry, nil
+				}
+			}
+		}
+	}
+	return nil, fmt.Errorf("could not find source registry entry fpr %v", source)
+}
+
+func GetSourceRegistry(url string) (*types.SourceRegistry, error) {
+	response, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.StatusCode != 200 {
+		return nil, fmt.Errorf("got status code %d != 200", response.StatusCode)
+	}
+
+	data, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var sourceRegistry types.SourceRegistry
+
+	err = yaml.Unmarshal(data, &sourceRegistry)
+	if err != nil {
+		return nil, err
+	}
+
+	r, err := LoadLatestPoolData(sourceRegistry)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load latest pool data: %v", err)
+	}
+
+	return r, nil
+}
+
+func GetSourceRegistryWithoutPoolData(url string) (*types.SourceRegistry, error) {
+	response, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.StatusCode != 200 {
+		return nil, fmt.Errorf("got status code %d != 200", response.StatusCode)
+	}
+
+	data, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var sourceRegistry types.SourceRegistry
+
+	err = yaml.Unmarshal(data, &sourceRegistry)
+	if err != nil {
+		return nil, err
+	}
+
 	return &sourceRegistry, nil
 }
 

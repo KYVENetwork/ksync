@@ -6,11 +6,7 @@ import (
 	"github.com/KYVENetwork/ksync/sources/helpers"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
-	"net/http"
 	"strconv"
-	"strings"
 )
 
 func FormatOutput(entry *types.Entry, chainId string) (string, string, string) {
@@ -74,55 +70,13 @@ func getPoolsBySource(chainId, source, registryUrl string) (*int, *int, error) {
 		return nil, nil, fmt.Errorf("chain ID %s is not supported", chainId)
 	}
 
-	sourceRegistry, err := GetSourceRegistry(registryUrl)
+	entry, err := helpers.GetSourceRegistryEntry(registryUrl, chainId, source)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to get source registry entry: %v", err)
 	}
 
-	for _, entry := range sourceRegistry.Entries {
-		if chainId == utils.ChainIdMainnet && entry.Networks.Kyve != nil {
-			if entry.Networks.Kyve != nil {
-				if strings.ToLower(entry.Networks.Kyve.SourceMetadata.Title) == strings.ToLower(source) ||
-					strings.ToLower(entry.SourceID) == strings.ToLower(source) {
-					return entry.Networks.Kyve.Integrations.KSYNC.BlockSyncPool, entry.Networks.Kyve.Integrations.KSYNC.StateSyncPool, nil
-				}
-			}
-		} else if chainId == utils.ChainIdKaon && entry.Networks.Kaon != nil {
-			if strings.ToLower(entry.Networks.Kaon.SourceMetadata.Title) == strings.ToLower(source) ||
-				strings.ToLower(entry.SourceID) == strings.ToLower(source) {
-				return entry.Networks.Kaon.Integrations.KSYNC.BlockSyncPool, entry.Networks.Kaon.Integrations.KSYNC.StateSyncPool, nil
-			}
-		}
+	if chainId == utils.ChainIdMainnet {
+		return entry.Networks.Kyve.Integrations.KSYNC.BlockSyncPool, entry.Networks.Kyve.Integrations.KSYNC.StateSyncPool, nil
 	}
-	return nil, nil, fmt.Errorf("source %s is not included in source registry", source)
-}
-
-func GetSourceRegistry(url string) (*types.SourceRegistry, error) {
-	response, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-
-	if response.StatusCode != 200 {
-		return nil, fmt.Errorf("got status code %d != 200", response.StatusCode)
-	}
-
-	data, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var sourceRegistry types.SourceRegistry
-
-	err = yaml.Unmarshal(data, &sourceRegistry)
-	if err != nil {
-		return nil, err
-	}
-
-	r, err := helpers.LoadLatestPoolData(sourceRegistry)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load latest pool data: %v", err)
-	}
-
-	return r, nil
+	return entry.Networks.Kaon.Integrations.KSYNC.BlockSyncPool, entry.Networks.Kaon.Integrations.KSYNC.StateSyncPool, nil
 }
