@@ -14,8 +14,39 @@ var (
 	logger = utils.KsyncLogger("collector")
 )
 
+// getPaginationKeyForBlockHeight gets the pagination key right for the bundle so the StartBlockCollector can
+// directly start at the correct bundle. Therefore, it does not need to search though all the bundles until
+// it finds the correct one
+func getPaginationKeyForBlockHeight(chainRest string, blockPool types.PoolResponse, height int64) (string, error) {
+	bundle, err := bundles.GetFinalizedBundleForBlockHeight(chainRest, blockPool, height)
+	if err != nil {
+		return "", fmt.Errorf("failed to get finalized bundle for block height %d: %w", height, err)
+	}
+
+	bundleId, err := strconv.ParseInt(bundle.Id, 10, 64)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse bundle id %s: %w", bundle.Id, err)
+	}
+
+	// if bundleId is zero we start from the beginning, meaning the paginationKey should be empty
+	if bundleId == 0 {
+		return "", nil
+	}
+
+	_, paginationKey, err := bundles.GetFinalizedBundlesPageWithOffset(chainRest, blockPool.Pool.Id, 1, bundleId-1, "")
+	if err != nil {
+		return "", fmt.Errorf("failed to get finalized bundles: %w", err)
+	}
+
+	return paginationKey, nil
+}
+
 func StartBlockCollector(itemCh chan<- types.DataItem, errorCh chan<- error, chainRest, storageRest string, blockPool types.PoolResponse, continuationHeight, targetHeight int64, mustExit bool) {
-	paginationKey := ""
+	paginationKey, err := getPaginationKeyForBlockHeight(chainRest, blockPool, continuationHeight)
+	if err != nil {
+		errorCh <- fmt.Errorf("failed to get pagination key for continuation height %d: %w", continuationHeight, err)
+		return
+	}
 
 BundleCollector:
 	for {

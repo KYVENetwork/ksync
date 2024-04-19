@@ -34,7 +34,7 @@ func StartStateSyncExecutor(engine types.Engine, chainRest, storageRest string, 
 		return fmt.Errorf("error getting bundle id from snapshot: %w", err)
 	}
 
-	finalizedBundle, err := bundles.GetFinalizedBundle(chainRest, snapshotPoolId, bundleId)
+	finalizedBundle, err := bundles.GetFinalizedBundleById(chainRest, snapshotPoolId, bundleId)
 	if err != nil {
 		return fmt.Errorf("failed getting finalized bundle: %w", err)
 	}
@@ -57,7 +57,7 @@ func StartStateSyncExecutor(engine types.Engine, chainRest, storageRest string, 
 	}
 
 	for chunkIndex := uint32(0); chunkIndex < chunks; chunkIndex++ {
-		chunkBundleFinalized, err := bundles.GetFinalizedBundle(chainRest, snapshotPoolId, bundleId+int64(chunkIndex))
+		chunkBundleFinalized, err := bundles.GetFinalizedBundleById(chainRest, snapshotPoolId, bundleId+int64(chunkIndex))
 		if err != nil {
 			return fmt.Errorf("failed getting finalized bundle: %w", err)
 		}

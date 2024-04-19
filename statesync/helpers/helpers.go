@@ -59,7 +59,7 @@ func GetSnapshotBoundaries(restEndpoint string, poolId int64) (*types.PoolRespon
 	latestBundleId := poolResponse.Pool.Data.TotalBundles - 1
 
 	for {
-		bundle, err := bundles.GetFinalizedBundle(restEndpoint, poolId, latestBundleId)
+		bundle, err := bundles.GetFinalizedBundleById(restEndpoint, poolId, latestBundleId)
 		if err != nil {
 			return nil, 0, 0, fmt.Errorf("failed to get finalized bundle with id %d: %w", latestBundleId, err)
 		}

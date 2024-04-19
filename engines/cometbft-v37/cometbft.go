@@ -159,8 +159,6 @@ func (engine *Engine) GetMetrics() ([]byte, error) {
 func (engine *Engine) GetContinuationHeight() (int64, error) {
 	height := engine.blockStore.Height()
 
-	fmt.Println("engine.blockStore.Height()", height)
-
 	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(engine.config)
 	_, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(engine.stateDB, defaultDocProvider)
 	if err != nil {
