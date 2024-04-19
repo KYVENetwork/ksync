@@ -1,20 +1,20 @@
-package celestiacore
+package cometbft_v38
 
 import (
 	"fmt"
-	bc "github.com/KYVENetwork/celestia-core/blockchain"
-	bcv0 "github.com/KYVENetwork/celestia-core/blockchain/v0"
-	tmLog "github.com/KYVENetwork/celestia-core/libs/log"
-	"github.com/KYVENetwork/celestia-core/p2p"
-	bcproto "github.com/KYVENetwork/celestia-core/proto/celestiacore/blockchain"
-	sm "github.com/KYVENetwork/celestia-core/state"
-	"github.com/KYVENetwork/celestia-core/version"
+	bc "github.com/KYVENetwork/cometbft/v38/blocksync"
+	bcv0 "github.com/KYVENetwork/cometbft/v38/blocksync"
+	cometLog "github.com/KYVENetwork/cometbft/v38/libs/log"
+	"github.com/KYVENetwork/cometbft/v38/p2p"
+	bcproto "github.com/KYVENetwork/cometbft/v38/proto/cometbft/v38/blocksync"
+	sm "github.com/KYVENetwork/cometbft/v38/state"
+	"github.com/KYVENetwork/cometbft/v38/version"
 	log "github.com/KYVENetwork/ksync/utils"
 	"reflect"
 )
 
 const (
-	BlockchainChannel = byte(0x40)
+	BlocksyncChannel = byte(0x40)
 )
 
 var (
@@ -40,7 +40,7 @@ func NewBlockchainReactor(block *Block, nextBlock *Block) *BlockchainReactor {
 func (bcR *BlockchainReactor) GetChannels() []*p2p.ChannelDescriptor {
 	return []*p2p.ChannelDescriptor{
 		{
-			ID:                  BlockchainChannel,
+			ID:                  BlocksyncChannel,
 			Priority:            5,
 			SendQueueCapacity:   1000,
 			RecvBufferCapacity:  50 * 4096,
@@ -50,17 +50,15 @@ func (bcR *BlockchainReactor) GetChannels() []*p2p.ChannelDescriptor {
 }
 
 func (bcR *BlockchainReactor) sendStatusToPeer(src p2p.Peer) (queued bool) {
-	msgBytes, err := bc.EncodeMsg(&bcproto.StatusResponse{
-		Base:   bcR.block.Height,
-		Height: bcR.block.Height + 1})
-	if err != nil {
-		logger.Error().Str("could not convert msg to protobuf", err.Error())
-		return
-	}
-
 	logger.Info().Int64("base", bcR.block.Height).Int64("height", bcR.block.Height+1).Msg("Sent status to peer")
 
-	return src.Send(BlockchainChannel, msgBytes)
+	return src.Send(p2p.Envelope{
+		ChannelID: BlocksyncChannel,
+		Message: &bcproto.StatusResponse{
+			Base:   bcR.block.Height,
+			Height: bcR.block.Height + 1,
+		},
+	})
 }
 
 func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p.Peer) (queued bool) {
@@ -71,15 +69,12 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 			return false
 		}
 
-		msgBytes, err := bc.EncodeMsg(&bcproto.BlockResponse{Block: bl})
-		if err != nil {
-			logger.Error().Str("could not marshal msg", err.Error())
-			return false
-		}
-
 		logger.Info().Msg(fmt.Sprintf("sent block with height %d to peer", bcR.block.Height))
 
-		return src.TrySend(BlockchainChannel, msgBytes)
+		return src.TrySend(p2p.Envelope{
+			ChannelID: BlocksyncChannel,
+			Message:   &bcproto.BlockResponse{Block: bl},
+		})
 	}
 
 	if msg.Height == bcR.nextBlock.Height {
@@ -89,36 +84,32 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 			return false
 		}
 
-		msgBytes, err := bc.EncodeMsg(&bcproto.BlockResponse{Block: bl})
-		if err != nil {
-			logger.Error().Str("could not marshal msg", err.Error())
-			return false
-		}
-
 		logger.Info().Msg(fmt.Sprintf("sent block with height %d to peer", bcR.nextBlock.Height))
 
-		return src.TrySend(BlockchainChannel, msgBytes)
+		return src.TrySend(p2p.Envelope{
+			ChannelID: BlocksyncChannel,
+			Message:   &bcproto.BlockResponse{Block: bl},
+		})
 	}
 
 	logger.Error().Msg(fmt.Sprintf("peer asked for different block, expected = %d,%d, requested %d", bcR.block.Height, bcR.nextBlock.Height, msg.Height))
 	return false
 }
 
-func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
-	msg, err := bc.DecodeMsg(msgBytes)
-	if err != nil {
-		logger.Error().Msgf("Error decoding message", fmt.Sprintf("src: %s", src), fmt.Sprintf("chId: %b", chID), err)
-		bcR.Switch.StopPeerForError(src, err)
+func (bcR *BlockchainReactor) ReceiveEnvelope(e p2p.Envelope) {
+	if err := bc.ValidateMsg(e.Message); err != nil {
+		bcR.Logger.Error("Peer sent us invalid msg", "peer", e.Src, "msg", e.Message, "err", err)
+		bcR.Switch.StopPeerForError(e.Src, err)
 		return
 	}
 
-	switch msg := msg.(type) {
+	switch msg := e.Message.(type) {
 	case *bcproto.StatusRequest:
 		logger.Info().Msg("Incoming status request")
-		bcR.sendStatusToPeer(src)
+		bcR.sendStatusToPeer(e.Src)
 	case *bcproto.BlockRequest:
 		logger.Info().Int64("height", msg.Height).Msg("Incoming block request")
-		bcR.sendBlockToPeer(msg, src)
+		bcR.sendBlockToPeer(msg, e.Src)
 	case *bcproto.StatusResponse:
 		logger.Info().Int64("base", msg.Base).Int64("height", msg.Height).Msgf("Incoming status response")
 	default:
@@ -140,7 +131,7 @@ func MakeNodeInfo(
 		DefaultNodeID: nodeKey.ID(),
 		Network:       genDoc.ChainID,
 		Version:       version.TMCoreSemVer,
-		Channels:      []byte{bcv0.BlockchainChannel},
+		Channels:      []byte{bcv0.BlocksyncChannel},
 		Moniker:       config.Moniker,
 		Other: p2p.DefaultNodeInfoOther{
 			TxIndex:    "off",
@@ -165,7 +156,7 @@ func CreateSwitch(config *Config,
 	bcReactor p2p.Reactor,
 	nodeInfo p2p.NodeInfo,
 	nodeKey *p2p.NodeKey,
-	logger tmLog.Logger) *p2p.Switch {
+	logger cometLog.Logger) *p2p.Switch {
 
 	sw := p2p.NewSwitch(
 		config.P2P,

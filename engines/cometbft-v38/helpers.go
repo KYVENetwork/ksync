@@ -1,18 +1,17 @@
-package cometbft
+package cometbft_v38
 
 import (
 	"fmt"
+	cfg "github.com/KYVENetwork/cometbft/v38/config"
+	cs "github.com/KYVENetwork/cometbft/v38/consensus"
+	"github.com/KYVENetwork/cometbft/v38/evidence"
+	mempl "github.com/KYVENetwork/cometbft/v38/mempool"
+	"github.com/KYVENetwork/cometbft/v38/proxy"
+	"github.com/KYVENetwork/cometbft/v38/state"
+	sm "github.com/KYVENetwork/cometbft/v38/state"
+	"github.com/KYVENetwork/cometbft/v38/store"
+	cometTypes "github.com/KYVENetwork/cometbft/v38/types"
 	dbm "github.com/cometbft/cometbft-db"
-	cfg "github.com/cometbft/cometbft/config"
-	cs "github.com/cometbft/cometbft/consensus"
-	"github.com/cometbft/cometbft/evidence"
-	mempl "github.com/cometbft/cometbft/mempool"
-	memplv0 "github.com/cometbft/cometbft/mempool/v0"
-	"github.com/cometbft/cometbft/proxy"
-	"github.com/cometbft/cometbft/state"
-	sm "github.com/cometbft/cometbft/state"
-	"github.com/cometbft/cometbft/store"
-	cometTypes "github.com/cometbft/cometbft/types"
 	"github.com/spf13/viper"
 	"path/filepath"
 )
@@ -109,13 +108,13 @@ func DoHandshake(
 
 func CreateMempool(config *Config, proxyApp proxy.AppConns, state sm.State) mempl.Mempool {
 	logger := cometLogger.With("module", "mempool")
-	mp := memplv0.NewCListMempool(
+	mp := mempl.NewCListMempool(
 		config.Mempool,
 		proxyApp.Mempool(),
 		state.LastBlockHeight,
-		memplv0.WithMetrics(mempl.NopMetrics()),
-		memplv0.WithPreCheck(sm.TxPreCheck(state)),
-		memplv0.WithPostCheck(sm.TxPostCheck(state)),
+		mempl.WithMetrics(mempl.NopMetrics()),
+		mempl.WithPreCheck(sm.TxPreCheck(state)),
+		mempl.WithPostCheck(sm.TxPostCheck(state)),
 	)
 
 	mp.SetLogger(logger)

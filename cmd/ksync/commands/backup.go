@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/backup"
-	"github.com/KYVENetwork/ksync/engines/tendermint"
+	"github.com/KYVENetwork/ksync/engines/tendermint-v34"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	nm "github.com/tendermint/tendermint/node"
@@ -40,14 +40,14 @@ var backupCmd = &cobra.Command{
 		}
 
 		// load tendermint config
-		config, err := tendermint.LoadConfig(homePath)
+		config, err := tendermint_v34.LoadConfig(homePath)
 		if err != nil {
 			logger.Error().Str("err", err.Error()).Msg("failed to load config.toml")
 			return
 		}
 
 		// load block store
-		blockStoreDB, blockStore, err := tendermint.GetBlockstoreDBs(config)
+		blockStoreDB, blockStore, err := tendermint_v34.GetBlockstoreDBs(config)
 		defer blockStoreDB.Close()
 
 		if err != nil {
@@ -56,7 +56,7 @@ var backupCmd = &cobra.Command{
 		}
 
 		// load state store
-		stateDB, _, err := tendermint.GetStateDBs(config)
+		stateDB, _, err := tendermint_v34.GetStateDBs(config)
 		defer stateDB.Close()
 
 		if err != nil {

@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	stateSyncCmd.Flags().StringVarP(&engine, "engine", "e", utils.DefaultEngine, fmt.Sprintf("KSYNC engines [\"%s\",\"%s\",\"%s\"]", utils.EngineTendermint, utils.EngineCometBFT, utils.EngineCelestiaCore))
+	stateSyncCmd.Flags().StringVarP(&engine, "engine", "e", utils.DefaultEngine, "consensus engine of the binary, list all engines with \"ksync engines\"")
 
 	stateSyncCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced")
 	if err := stateSyncCmd.MarkFlagRequired("binary"); err != nil {

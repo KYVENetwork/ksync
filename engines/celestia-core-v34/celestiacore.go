@@ -1,4 +1,4 @@
-package celestiacore
+package celestia_core_v34
 
 import (
 	"fmt"
@@ -28,7 +28,7 @@ var (
 	tmLogger = TmLogger()
 )
 
-type CelestiaCoreEngine struct {
+type Engine struct {
 	homePath string
 	config   *cfg.Config
 
@@ -44,89 +44,93 @@ type CelestiaCoreEngine struct {
 	blockExecutor *tmState.BlockExecutor
 }
 
-func (cc *CelestiaCoreEngine) GetName() string {
-	return utils.EngineTendermint
+func (engine *Engine) GetName() string {
+	return utils.EngineCelestiaCoreV34
 }
 
-func (cc *CelestiaCoreEngine) OpenDBs(homePath string) error {
-	cc.homePath = homePath
+func (engine *Engine) OpenDBs(homePath string) error {
+	engine.homePath = homePath
 
-	config, err := LoadConfig(cc.homePath)
+	config, err := LoadConfig(engine.homePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
 	}
 
-	cc.config = config
+	engine.config = config
+
+	if err := utils.FormatGenesisFile(config.GenesisFile()); err != nil {
+		return fmt.Errorf("failed to format genesis file: %w", err)
+	}
 
 	blockDB, blockStore, err := GetBlockstoreDBs(config)
 	if err != nil {
 		return fmt.Errorf("failed to open blockDB: %w", err)
 	}
 
-	cc.blockDB = blockDB
-	cc.blockStore = blockStore
+	engine.blockDB = blockDB
+	engine.blockStore = blockStore
 
 	stateDB, stateStore, err := GetStateDBs(config)
 	if err != nil {
 		return fmt.Errorf("failed to open stateDB: %w", err)
 	}
 
-	cc.stateDB = stateDB
-	cc.stateStore = stateStore
+	engine.stateDB = stateDB
+	engine.stateStore = stateStore
 
 	return nil
 }
 
-func (cc *CelestiaCoreEngine) CloseDBs() error {
-	if err := cc.blockDB.Close(); err != nil {
+func (engine *Engine) CloseDBs() error {
+	if err := engine.blockDB.Close(); err != nil {
 		return fmt.Errorf("failed to close blockDB: %w", err)
 	}
 
-	if err := cc.stateDB.Close(); err != nil {
+	if err := engine.stateDB.Close(); err != nil {
 		return fmt.Errorf("failed to close stateDB: %w", err)
 	}
 
 	return nil
 }
 
-func (cc *CelestiaCoreEngine) GetHomePath() string {
-	return cc.homePath
+func (engine *Engine) GetHomePath() string {
+	return engine.homePath
 }
 
-func (cc *CelestiaCoreEngine) GetProxyAppAddress() string {
-	return cc.config.ProxyApp
+func (engine *Engine) GetProxyAppAddress() string {
+	return engine.config.ProxyApp
 }
 
-func (cc *CelestiaCoreEngine) StartProxyApp() error {
-	if cc.proxyApp != nil {
+func (engine *Engine) StartProxyApp() error {
+	if engine.proxyApp != nil {
 		return fmt.Errorf("proxy app already started")
 	}
 
-	proxyApp, err := CreateAndStartProxyAppConns(cc.config)
+	proxyApp, err := CreateAndStartProxyAppConns(engine.config)
 	if err != nil {
 		return err
 	}
 
-	cc.proxyApp = proxyApp
+	engine.proxyApp = proxyApp
 	return nil
 }
 
-func (cc *CelestiaCoreEngine) StopProxyApp() error {
-	if cc.proxyApp == nil {
+func (engine *Engine) StopProxyApp() error {
+	if engine.proxyApp == nil {
 		return fmt.Errorf("proxy app already stopped")
 	}
 
-	if err := cc.proxyApp.Stop(); err != nil {
+	if err := engine.proxyApp.Stop(); err != nil {
 		return err
 	}
 
-	cc.proxyApp = nil
+	engine.proxyApp = nil
 	return nil
 }
 
-func (cc *CelestiaCoreEngine) GetChainId() (string, error) {
-	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(cc.config)
-	_, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(cc.stateDB, defaultDocProvider)
+func (engine *Engine) GetChainId() (string, error) {
+	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(engine.config)
+	_, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(engine.stateDB, defaultDocProvider)
 	if err != nil {
 		return "", fmt.Errorf("failed to load state and genDoc: %w", err)
 	}
@@ -134,9 +138,9 @@ func (cc *CelestiaCoreEngine) GetChainId() (string, error) {
 	return genDoc.ChainID, nil
 }
 
-func (cc *CelestiaCoreEngine) GetMetrics() ([]byte, error) {
-	latest := cc.blockStore.LoadBlock(cc.blockStore.Height())
-	earliest := cc.blockStore.LoadBlock(cc.blockStore.Base())
+func (engine *Engine) GetMetrics() ([]byte, error) {
+	latest := engine.blockStore.LoadBlock(engine.blockStore.Height())
+	earliest := engine.blockStore.LoadBlock(engine.blockStore.Base())
 
 	return json.Marshal(types.Metrics{
 		LatestBlockHash:     latest.Header.Hash().String(),
@@ -151,11 +155,11 @@ func (cc *CelestiaCoreEngine) GetMetrics() ([]byte, error) {
 	})
 }
 
-func (cc *CelestiaCoreEngine) GetContinuationHeight() (int64, error) {
-	height := cc.blockStore.Height()
+func (engine *Engine) GetContinuationHeight() (int64, error) {
+	height := engine.blockStore.Height()
 
-	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(cc.config)
-	_, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(cc.stateDB, defaultDocProvider)
+	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(engine.config)
+	_, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(engine.stateDB, defaultDocProvider)
 	if err != nil {
 		return 0, fmt.Errorf("failed to load state and genDoc: %w", err)
 	}
@@ -169,9 +173,9 @@ func (cc *CelestiaCoreEngine) GetContinuationHeight() (int64, error) {
 	return continuationHeight, nil
 }
 
-func (cc *CelestiaCoreEngine) DoHandshake() error {
-	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(cc.config)
-	state, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(cc.stateDB, defaultDocProvider)
+func (engine *Engine) DoHandshake() error {
+	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(engine.config)
+	state, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(engine.stateDB, defaultDocProvider)
 	if err != nil {
 		return fmt.Errorf("failed to load state and genDoc: %w", err)
 	}
@@ -181,28 +185,28 @@ func (cc *CelestiaCoreEngine) DoHandshake() error {
 		return fmt.Errorf("failed to start event bus: %w", err)
 	}
 
-	if err := DoHandshake(cc.stateStore, state, cc.blockStore, genDoc, eventBus, cc.proxyApp); err != nil {
+	if err := DoHandshake(engine.stateStore, state, engine.blockStore, genDoc, eventBus, engine.proxyApp); err != nil {
 		return fmt.Errorf("failed to do handshake: %w", err)
 	}
 
-	state, err = cc.stateStore.Load()
+	state, err = engine.stateStore.Load()
 	if err != nil {
 		return fmt.Errorf("failed to reload state: %w", err)
 	}
 
-	cc.state = state
+	engine.state = state
 
-	mempool := CreateMempoolAndMempoolReactor(cc.config, cc.proxyApp, state)
+	mempool := CreateMempoolAndMempoolReactor(engine.config, engine.proxyApp, state)
 
-	_, evidencePool, err := CreateEvidenceReactor(cc.config, cc.stateStore, cc.blockStore)
+	_, evidencePool, err := CreateEvidenceReactor(engine.config, engine.stateStore, engine.blockStore)
 	if err != nil {
 		return fmt.Errorf("failed to create evidence reactor: %w", err)
 	}
 
-	cc.blockExecutor = tmState.NewBlockExecutor(
-		cc.stateStore,
+	engine.blockExecutor = tmState.NewBlockExecutor(
+		engine.stateStore,
 		tmLogger.With("module", "state"),
-		cc.proxyApp.Consensus(),
+		engine.proxyApp.Consensus(),
 		mempool,
 		evidencePool,
 	)
@@ -210,7 +214,7 @@ func (cc *CelestiaCoreEngine) DoHandshake() error {
 	return nil
 }
 
-func (cc *CelestiaCoreEngine) ApplyBlock(runtime string, value []byte) error {
+func (engine *Engine) ApplyBlock(runtime string, value []byte) error {
 	var block *Block
 
 	if runtime == utils.KSyncRuntimeTendermint {
@@ -230,42 +234,42 @@ func (cc *CelestiaCoreEngine) ApplyBlock(runtime string, value []byte) error {
 	}
 
 	// if the previous block is not defined we continue
-	if cc.prevBlock == nil {
-		cc.prevBlock = block
+	if engine.prevBlock == nil {
+		engine.prevBlock = block
 		return nil
 	}
 
 	// get block data
-	blockParts := cc.prevBlock.MakePartSet(tmTypes.BlockPartSizeBytes)
+	blockParts := engine.prevBlock.MakePartSet(tmTypes.BlockPartSizeBytes)
 	blockId := block.LastBlockID
 
 	// verify block
-	if err := cc.blockExecutor.ValidateBlock(cc.state, cc.prevBlock); err != nil {
-		return fmt.Errorf("block validation failed at height %d: %w", cc.prevBlock.Height, err)
+	if err := engine.blockExecutor.ValidateBlock(engine.state, engine.prevBlock); err != nil {
+		return fmt.Errorf("block validation failed at height %d: %w", engine.prevBlock.Height, err)
 	}
 
 	// verify commits
-	if err := cc.state.Validators.VerifyCommitLight(cc.state.ChainID, blockId, cc.prevBlock.Height, block.LastCommit); err != nil {
-		return fmt.Errorf("light commit verification failed at height %d: %w", cc.prevBlock.Height, err)
+	if err := engine.state.Validators.VerifyCommitLight(engine.state.ChainID, blockId, engine.prevBlock.Height, block.LastCommit); err != nil {
+		return fmt.Errorf("light commit verification failed at height %d: %w", engine.prevBlock.Height, err)
 	}
 
 	// execute block against app
-	state, _, err := cc.blockExecutor.ApplyBlock(cc.state, blockId, cc.prevBlock, block.LastCommit)
+	state, _, err := engine.blockExecutor.ApplyBlock(engine.state, blockId, engine.prevBlock, block.LastCommit)
 	if err != nil {
-		return fmt.Errorf("failed to apply block at height %d: %w", cc.prevBlock.Height, err)
+		return fmt.Errorf("failed to apply block at height %d: %w", engine.prevBlock.Height, err)
 	}
 
 	// store block
-	cc.blockStore.SaveBlock(cc.prevBlock, blockParts, block.LastCommit)
+	engine.blockStore.SaveBlock(engine.prevBlock, blockParts, block.LastCommit)
 
 	// update values for next round
-	cc.state = state
-	cc.prevBlock = block
+	engine.state = state
+	engine.prevBlock = block
 
 	return nil
 }
 
-func (cc *CelestiaCoreEngine) ApplyFirstBlockOverP2P(runtime string, value, nextValue []byte) error {
+func (engine *Engine) ApplyFirstBlockOverP2P(runtime string, value, nextValue []byte) error {
 	var block, nextBlock *Block
 
 	if runtime == utils.KSyncRuntimeTendermint {
@@ -293,12 +297,12 @@ func (cc *CelestiaCoreEngine) ApplyFirstBlockOverP2P(runtime string, value, next
 		return fmt.Errorf("runtime %s unknown", runtime)
 	}
 
-	genDoc, err := nm.DefaultGenesisDocProviderFunc(cc.config)()
+	genDoc, err := nm.DefaultGenesisDocProviderFunc(engine.config)()
 	if err != nil {
 		return fmt.Errorf("failed to load state and genDoc: %w", err)
 	}
 
-	peerAddress := cc.config.P2P.ListenAddress
+	peerAddress := engine.config.P2P.ListenAddress
 	peerHost, err := url.Parse(peerAddress)
 	if err != nil {
 		return fmt.Errorf("invalid peer address: %w", err)
@@ -310,9 +314,9 @@ func (cc *CelestiaCoreEngine) ApplyFirstBlockOverP2P(runtime string, value, next
 	}
 
 	// this peer should listen to different port to avoid port collision
-	cc.config.P2P.ListenAddress = fmt.Sprintf("tcp://%s:%d", peerHost.Hostname(), port-1)
+	engine.config.P2P.ListenAddress = fmt.Sprintf("tcp://%s:%d", peerHost.Hostname(), port-1)
 
-	nodeKey, err := tmP2P.LoadNodeKey(cc.config.NodeKeyFile())
+	nodeKey, err := tmP2P.LoadNodeKey(engine.config.NodeKeyFile())
 	if err != nil {
 		return fmt.Errorf("failed to load node key file: %w", err)
 	}
@@ -322,13 +326,13 @@ func (cc *CelestiaCoreEngine) ApplyFirstBlockOverP2P(runtime string, value, next
 		PrivKey: ed25519.GenPrivKey(),
 	}
 
-	nodeInfo, err := MakeNodeInfo(cc.config, ksyncNodeKey, genDoc)
-	transport := tmP2P.NewMultiplexTransport(nodeInfo, *ksyncNodeKey, tmP2P.MConnConfig(cc.config.P2P))
+	nodeInfo, err := MakeNodeInfo(engine.config, ksyncNodeKey, genDoc)
+	transport := tmP2P.NewMultiplexTransport(nodeInfo, *ksyncNodeKey, tmP2P.MConnConfig(engine.config.P2P))
 	bcR := NewBlockchainReactor(block, nextBlock)
-	sw := CreateSwitch(cc.config, transport, bcR, nodeInfo, ksyncNodeKey, tmLogger)
+	sw := CreateSwitch(engine.config, transport, bcR, nodeInfo, ksyncNodeKey, tmLogger)
 
 	// start the transport
-	addr, err := tmP2P.NewNetAddressString(tmP2P.IDAddressString(ksyncNodeKey.ID(), cc.config.P2P.ListenAddress))
+	addr, err := tmP2P.NewNetAddressString(tmP2P.IDAddressString(ksyncNodeKey.ID(), engine.config.P2P.ListenAddress))
 	if err != nil {
 		return fmt.Errorf("failed to start transport: %w", err)
 	}
@@ -362,12 +366,12 @@ func (cc *CelestiaCoreEngine) ApplyFirstBlockOverP2P(runtime string, value, next
 	return nil
 }
 
-func (cc *CelestiaCoreEngine) GetGenesisPath() string {
-	return cc.config.GenesisFile()
+func (engine *Engine) GetGenesisPath() string {
+	return engine.config.GenesisFile()
 }
 
-func (cc *CelestiaCoreEngine) GetGenesisHeight() (int64, error) {
-	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(cc.config)
+func (engine *Engine) GetGenesisHeight() (int64, error) {
+	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(engine.config)
 	genDoc, err := defaultDocProvider()
 	if err != nil {
 		return 0, err
@@ -376,16 +380,16 @@ func (cc *CelestiaCoreEngine) GetGenesisHeight() (int64, error) {
 	return genDoc.InitialHeight, nil
 }
 
-func (cc *CelestiaCoreEngine) GetHeight() int64 {
-	return cc.blockStore.Height()
+func (engine *Engine) GetHeight() int64 {
+	return engine.blockStore.Height()
 }
 
-func (cc *CelestiaCoreEngine) GetBaseHeight() int64 {
-	return cc.blockStore.Base()
+func (engine *Engine) GetBaseHeight() int64 {
+	return engine.blockStore.Base()
 }
 
-func (cc *CelestiaCoreEngine) GetAppHeight() (int64, error) {
-	socketClient := abciClient.NewSocketClient(cc.config.ProxyApp, false)
+func (engine *Engine) GetAppHeight() (int64, error) {
+	socketClient := abciClient.NewSocketClient(engine.config.ProxyApp, false)
 
 	if err := socketClient.Start(); err != nil {
 		return 0, fmt.Errorf("failed to start socket client: %w", err)
@@ -403,8 +407,8 @@ func (cc *CelestiaCoreEngine) GetAppHeight() (int64, error) {
 	return info.LastBlockHeight, nil
 }
 
-func (cc *CelestiaCoreEngine) GetSnapshots() ([]byte, error) {
-	socketClient := abciClient.NewSocketClient(cc.config.ProxyApp, false)
+func (engine *Engine) GetSnapshots() ([]byte, error) {
+	socketClient := abciClient.NewSocketClient(engine.config.ProxyApp, false)
 
 	if err := socketClient.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start socket client: %w", err)
@@ -426,8 +430,8 @@ func (cc *CelestiaCoreEngine) GetSnapshots() ([]byte, error) {
 	return json.Marshal(res.Snapshots)
 }
 
-func (cc *CelestiaCoreEngine) IsSnapshotAvailable(height int64) (bool, error) {
-	socketClient := abciClient.NewSocketClient(cc.config.ProxyApp, false)
+func (engine *Engine) IsSnapshotAvailable(height int64) (bool, error) {
+	socketClient := abciClient.NewSocketClient(engine.config.ProxyApp, false)
 
 	if err := socketClient.Start(); err != nil {
 		return false, fmt.Errorf("failed to start socket client: %w", err)
@@ -451,8 +455,8 @@ func (cc *CelestiaCoreEngine) IsSnapshotAvailable(height int64) (bool, error) {
 	return false, nil
 }
 
-func (cc *CelestiaCoreEngine) GetSnapshotChunk(height, format, chunk int64) ([]byte, error) {
-	socketClient := abciClient.NewSocketClient(cc.config.ProxyApp, false)
+func (engine *Engine) GetSnapshotChunk(height, format, chunk int64) ([]byte, error) {
+	socketClient := abciClient.NewSocketClient(engine.config.ProxyApp, false)
 
 	if err := socketClient.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start socket client: %w", err)
@@ -474,37 +478,37 @@ func (cc *CelestiaCoreEngine) GetSnapshotChunk(height, format, chunk int64) ([]b
 	return json.Marshal(res.Chunk)
 }
 
-func (cc *CelestiaCoreEngine) GetBlock(height int64) ([]byte, error) {
-	block := cc.blockStore.LoadBlock(height)
+func (engine *Engine) GetBlock(height int64) ([]byte, error) {
+	block := engine.blockStore.LoadBlock(height)
 	return json.Marshal(block)
 }
 
-func (cc *CelestiaCoreEngine) GetState(height int64) ([]byte, error) {
+func (engine *Engine) GetState(height int64) ([]byte, error) {
 	initialHeight := height
 	if initialHeight == 0 {
 		initialHeight = 1
 	}
 
-	lastBlock := cc.blockStore.LoadBlock(height)
-	currentBlock := cc.blockStore.LoadBlock(height + 1)
-	nextBlock := cc.blockStore.LoadBlock(height + 2)
+	lastBlock := engine.blockStore.LoadBlock(height)
+	currentBlock := engine.blockStore.LoadBlock(height + 1)
+	nextBlock := engine.blockStore.LoadBlock(height + 2)
 
-	lastValidators, err := cc.stateStore.LoadValidators(height)
+	lastValidators, err := engine.stateStore.LoadValidators(height)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load validators at height %d: %w", height, err)
 	}
 
-	currentValidators, err := cc.stateStore.LoadValidators(height + 1)
+	currentValidators, err := engine.stateStore.LoadValidators(height + 1)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load validators at height %d: %w", height+1, err)
 	}
 
-	nextValidators, err := cc.stateStore.LoadValidators(height + 2)
+	nextValidators, err := engine.stateStore.LoadValidators(height + 2)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load validators at height %d: %w", height+2, err)
 	}
 
-	consensusParams, err := cc.stateStore.LoadConsensusParams(height + 2)
+	consensusParams, err := engine.stateStore.LoadConsensusParams(height + 2)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load consensus params at height %d: %w", height, err)
 	}
@@ -531,19 +535,19 @@ func (cc *CelestiaCoreEngine) GetState(height int64) ([]byte, error) {
 	return json.Marshal(snapshotState)
 }
 
-func (cc *CelestiaCoreEngine) GetSeenCommit(height int64) ([]byte, error) {
-	block := cc.blockStore.LoadBlock(height + 1)
+func (engine *Engine) GetSeenCommit(height int64) ([]byte, error) {
+	block := engine.blockStore.LoadBlock(height + 1)
 	return json.Marshal(block.LastCommit)
 }
 
-func (cc *CelestiaCoreEngine) OfferSnapshot(value []byte) (string, uint32, error) {
+func (engine *Engine) OfferSnapshot(value []byte) (string, uint32, error) {
 	var bundle TendermintSsyncBundle
 
 	if err := json.Unmarshal(value, &bundle); err != nil {
 		return abciTypes.ResponseOfferSnapshot_UNKNOWN.String(), 0, fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
 	}
 
-	socketClient := abciClient.NewSocketClient(cc.config.ProxyApp, false)
+	socketClient := abciClient.NewSocketClient(engine.config.ProxyApp, false)
 
 	if err := socketClient.Start(); err != nil {
 		return abciTypes.ResponseOfferSnapshot_UNKNOWN.String(), 0, fmt.Errorf("failed to start socket client: %w", err)
@@ -565,19 +569,19 @@ func (cc *CelestiaCoreEngine) OfferSnapshot(value []byte) (string, uint32, error
 	return res.Result.String(), bundle[0].Value.Snapshot.Chunks, nil
 }
 
-func (cc *CelestiaCoreEngine) ApplySnapshotChunk(chunkIndex uint32, value []byte) (string, error) {
+func (engine *Engine) ApplySnapshotChunk(chunkIndex uint32, value []byte) (string, error) {
 	var bundle TendermintSsyncBundle
 
 	if err := json.Unmarshal(value, &bundle); err != nil {
 		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
 	}
 
-	nodeKey, err := tmP2P.LoadNodeKey(cc.config.NodeKeyFile())
+	nodeKey, err := tmP2P.LoadNodeKey(engine.config.NodeKeyFile())
 	if err != nil {
 		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("loading node key file failed: %w", err)
 	}
 
-	socketClient := abciClient.NewSocketClient(cc.config.ProxyApp, false)
+	socketClient := abciClient.NewSocketClient(engine.config.ProxyApp, false)
 
 	if err := socketClient.Start(); err != nil {
 		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("failed to start socket client: %w", err)
@@ -600,31 +604,31 @@ func (cc *CelestiaCoreEngine) ApplySnapshotChunk(chunkIndex uint32, value []byte
 	return res.Result.String(), nil
 }
 
-func (cc *CelestiaCoreEngine) BootstrapState(value []byte) error {
+func (engine *Engine) BootstrapState(value []byte) error {
 	var bundle TendermintSsyncBundle
 
 	if err := json.Unmarshal(value, &bundle); err != nil {
 		return fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
 	}
 
-	err := cc.stateStore.Bootstrap(*bundle[0].Value.State)
+	err := engine.stateStore.Bootstrap(*bundle[0].Value.State)
 	if err != nil {
 		return fmt.Errorf("failed to bootstrap state: %s\"", err)
 	}
 
-	err = cc.blockStore.SaveSeenCommit(bundle[0].Value.State.LastBlockHeight, bundle[0].Value.SeenCommit)
+	err = engine.blockStore.SaveSeenCommit(bundle[0].Value.State.LastBlockHeight, bundle[0].Value.SeenCommit)
 	if err != nil {
 		return fmt.Errorf("failed to save seen commit: %s\"", err)
 	}
 
 	blockParts := bundle[0].Value.Block.MakePartSet(tmTypes.BlockPartSizeBytes)
-	cc.blockStore.SaveBlock(bundle[0].Value.Block, blockParts, bundle[0].Value.SeenCommit)
+	engine.blockStore.SaveBlock(bundle[0].Value.Block, blockParts, bundle[0].Value.SeenCommit)
 
 	return nil
 }
 
-func (cc *CelestiaCoreEngine) PruneBlocks(toHeight int64) error {
-	blocksPruned, err := cc.blockStore.PruneBlocks(toHeight)
+func (engine *Engine) PruneBlocks(toHeight int64) error {
+	blocksPruned, err := engine.blockStore.PruneBlocks(toHeight)
 	if err != nil {
 		return fmt.Errorf("failed to prune blocks up to %d: %s", toHeight, err)
 	}
@@ -632,7 +636,7 @@ func (cc *CelestiaCoreEngine) PruneBlocks(toHeight int64) error {
 	base := toHeight - int64(blocksPruned)
 
 	if toHeight > base {
-		if err := cc.stateStore.PruneStates(base, toHeight); err != nil {
+		if err := engine.stateStore.PruneStates(base, toHeight); err != nil {
 			return fmt.Errorf("failed to prune state up to %d: %s", toHeight, err)
 		}
 	}
@@ -640,7 +644,7 @@ func (cc *CelestiaCoreEngine) PruneBlocks(toHeight int64) error {
 	return nil
 }
 
-func (cc *CelestiaCoreEngine) ResetAll(homePath string, keepAddrBook bool) error {
+func (engine *Engine) ResetAll(homePath string, keepAddrBook bool) error {
 	config, err := LoadConfig(homePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)

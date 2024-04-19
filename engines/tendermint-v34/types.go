@@ -1,17 +1,17 @@
-package cometbft
+package tendermint_v34
 
 import (
-	abciTypes "github.com/cometbft/cometbft/abci/types"
-	cometCfg "github.com/cometbft/cometbft/config"
-	cometState "github.com/cometbft/cometbft/state"
-	cometTypes "github.com/cometbft/cometbft/types"
+	abciTypes "github.com/tendermint/tendermint/abci/types"
+	tmCfg "github.com/tendermint/tendermint/config"
+	tmState "github.com/tendermint/tendermint/state"
+	tmTypes "github.com/tendermint/tendermint/types"
 )
 
-type Block = cometTypes.Block
-type LightBlock = cometTypes.LightBlock
+type Block = tmTypes.Block
+type LightBlock = tmTypes.LightBlock
 type Snapshot = abciTypes.Snapshot
-type Config = cometCfg.Config
-type GenesisDoc = cometTypes.GenesisDoc
+type Config = tmCfg.Config
+type GenesisDoc = tmTypes.GenesisDoc
 
 type TendermintValue struct {
 	Block struct {
@@ -40,8 +40,8 @@ type TendermintSsyncDataItem struct {
 	Value struct {
 		Snapshot   *abciTypes.Snapshot `json:"snapshot"`
 		Block      *Block              `json:"block"`
-		SeenCommit *cometTypes.Commit  `json:"seenCommit"`
-		State      *cometState.State   `json:"state"`
+		SeenCommit *tmTypes.Commit     `json:"seenCommit"`
+		State      *tmState.State      `json:"state"`
 		ChunkIndex uint32              `json:"chunkIndex"`
 		Chunk      []byte              `json:"chunk"`
 	} `json:"value"`
