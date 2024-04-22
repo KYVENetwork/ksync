@@ -15,7 +15,7 @@ var (
 )
 
 // getPaginationKeyForBlockHeight gets the pagination key right for the bundle so the StartBlockCollector can
-// directly start at the correct bundle. Therefore, it does not need to search though all the bundles until
+// directly start at the correct bundle. Therefore, it does not need to search through all the bundles until
 // it finds the correct one
 func getPaginationKeyForBlockHeight(chainRest string, blockPool types.PoolResponse, height int64) (string, error) {
 	finalizedBundle, err := bundles.GetFinalizedBundleForBlockHeight(chainRest, blockPool, height)
