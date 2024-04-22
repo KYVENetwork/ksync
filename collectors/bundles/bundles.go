@@ -9,13 +9,15 @@ import (
 	"strconv"
 )
 
-func GetFinalizedBundlesPage(restEndpoint string, poolId int64, paginationLimit int64, paginationKey string) ([]types.FinalizedBundle, string, error) {
+func GetFinalizedBundlesPageWithOffset(restEndpoint string, poolId int64, paginationLimit, paginationOffset int64, paginationKey string, reverse bool) ([]types.FinalizedBundle, string, error) {
 	raw, err := utils.GetFromUrlWithBackoff(fmt.Sprintf(
-		"%s/kyve/v1/bundles/%d?pagination.limit=%d&pagination.key=%s",
+		"%s/kyve/v1/bundles/%d?pagination.limit=%d&pagination.offset=%d&pagination.key=%s&pagination.reverse=%v",
 		restEndpoint,
 		poolId,
 		paginationLimit,
+		paginationOffset,
 		paginationKey,
+		reverse,
 	))
 	if err != nil {
 		return nil, "", err
@@ -32,7 +34,11 @@ func GetFinalizedBundlesPage(restEndpoint string, poolId int64, paginationLimit 
 	return bundlesResponse.FinalizedBundles, nextKey, nil
 }
 
-func GetFinalizedBundle(restEndpoint string, poolId int64, bundleId int64) (*types.FinalizedBundle, error) {
+func GetFinalizedBundlesPage(restEndpoint string, poolId int64, paginationLimit int64, paginationKey string, reverse bool) ([]types.FinalizedBundle, string, error) {
+	return GetFinalizedBundlesPageWithOffset(restEndpoint, poolId, paginationLimit, 0, paginationKey, reverse)
+}
+
+func GetFinalizedBundleById(restEndpoint string, poolId int64, bundleId int64) (*types.FinalizedBundle, error) {
 	raw, err := utils.GetFromUrlWithBackoff(fmt.Sprintf(
 		"%s/kyve/v1/bundles/%d/%d",
 		restEndpoint,
@@ -50,6 +56,40 @@ func GetFinalizedBundle(restEndpoint string, poolId int64, bundleId int64) (*typ
 	}
 
 	return &finalizedBundle, nil
+}
+
+func GetFinalizedBundleByIndex(restEndpoint string, poolId int64, index int64) (*types.FinalizedBundle, error) {
+	raw, err := utils.GetFromUrlWithBackoff(fmt.Sprintf(
+		"%s/kyve/v1/bundles/%d?index=%d",
+		restEndpoint,
+		poolId,
+		index,
+	))
+	if err != nil {
+		return nil, err
+	}
+
+	var bundlesResponse types.FinalizedBundlesResponse
+
+	if err := json.Unmarshal(raw, &bundlesResponse); err != nil {
+		return nil, err
+	}
+
+	if len(bundlesResponse.FinalizedBundles) == 1 {
+		return &bundlesResponse.FinalizedBundles[0], nil
+	}
+
+	return nil, fmt.Errorf("failed to find finalized bundle for index %d: %w", index, err)
+}
+
+func GetFinalizedBundleForBlockHeight(chainRest string, blockPool types.PoolResponse, height int64) (*types.FinalizedBundle, error) {
+	startKey, err := strconv.ParseInt(blockPool.Pool.Data.StartKey, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse start key %s: %w", blockPool.Pool.Data.StartKey, err)
+	}
+
+	// index is height - startKey
+	return GetFinalizedBundleByIndex(chainRest, blockPool.Pool.Id, height-startKey)
 }
 
 func GetDataFromFinalizedBundle(bundle types.FinalizedBundle, storageRest string) ([]byte, error) {

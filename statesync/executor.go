@@ -3,12 +3,12 @@ package statesync
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/collectors/bundles"
-	"github.com/KYVENetwork/ksync/collectors/snapshots"
-	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"
+	"github.com/KYVENetwork/ksync/utils"
 )
 
-func StartStateSyncExecutor(engine types.Engine, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64) error {
+// startStateSyncExecutor takes the bundle id of the first snapshot chunk and applies the snapshot from there
+func startStateSyncExecutor(engine types.Engine, chainRest, storageRest string, snapshotPoolId, snapshotBundleId int64) error {
 	logger.Info().Msg(fmt.Sprintf("applying state-sync snapshot"))
 
 	appHeight, err := engine.GetAppHeight()
@@ -20,23 +20,14 @@ func StartStateSyncExecutor(engine types.Engine, chainRest, storageRest string, 
 		return fmt.Errorf("app height %d is not zero, please reset with \"ksync reset-all\" or run the command with \"--reset-all\"", appHeight)
 	}
 
-	if snapshotHeight == 0 {
-		_, _, snapshotHeight, err = helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
-		if err != nil {
-			return fmt.Errorf("failed to get snapshot boundaries: %w", err)
-		}
-
-		logger.Info().Msg(fmt.Sprintf("no target height specified, syncing to latest available snapshot %d", snapshotHeight))
-	}
-
-	bundleId, err := snapshots.FindBundleIdBySnapshot(chainRest, snapshotPoolId, snapshotHeight)
-	if err != nil {
-		return fmt.Errorf("error getting bundle id from snapshot: %w", err)
-	}
-
-	finalizedBundle, err := bundles.GetFinalizedBundle(chainRest, snapshotPoolId, bundleId)
+	finalizedBundle, err := bundles.GetFinalizedBundleById(chainRest, snapshotPoolId, snapshotBundleId)
 	if err != nil {
 		return fmt.Errorf("failed getting finalized bundle: %w", err)
+	}
+
+	snapshotHeight, _, err := utils.ParseSnapshotFromKey(finalizedBundle.ToKey)
+	if err != nil {
+		return fmt.Errorf("failed getting snapshot height from to_key %s: %w", finalizedBundle.ToKey, err)
 	}
 
 	deflated, err := bundles.GetDataFromFinalizedBundle(*finalizedBundle, storageRest)
@@ -57,7 +48,7 @@ func StartStateSyncExecutor(engine types.Engine, chainRest, storageRest string, 
 	}
 
 	for chunkIndex := uint32(0); chunkIndex < chunks; chunkIndex++ {
-		chunkBundleFinalized, err := bundles.GetFinalizedBundle(chainRest, snapshotPoolId, bundleId+int64(chunkIndex))
+		chunkBundleFinalized, err := bundles.GetFinalizedBundleById(chainRest, snapshotPoolId, snapshotBundleId+int64(chunkIndex))
 		if err != nil {
 			return fmt.Errorf("failed getting finalized bundle: %w", err)
 		}

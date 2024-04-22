@@ -14,12 +14,43 @@ var (
 	logger = utils.KsyncLogger("collector")
 )
 
+// getPaginationKeyForBlockHeight gets the pagination key right for the bundle so the StartBlockCollector can
+// directly start at the correct bundle. Therefore, it does not need to search through all the bundles until
+// it finds the correct one
+func getPaginationKeyForBlockHeight(chainRest string, blockPool types.PoolResponse, height int64) (string, error) {
+	finalizedBundle, err := bundles.GetFinalizedBundleForBlockHeight(chainRest, blockPool, height)
+	if err != nil {
+		return "", fmt.Errorf("failed to get finalized bundle for block height %d: %w", height, err)
+	}
+
+	bundleId, err := strconv.ParseInt(finalizedBundle.Id, 10, 64)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse bundle id %s: %w", finalizedBundle.Id, err)
+	}
+
+	// if bundleId is zero we start from the beginning, meaning the paginationKey should be empty
+	if bundleId == 0 {
+		return "", nil
+	}
+
+	_, paginationKey, err := bundles.GetFinalizedBundlesPageWithOffset(chainRest, blockPool.Pool.Id, 1, bundleId-1, "", false)
+	if err != nil {
+		return "", fmt.Errorf("failed to get finalized bundles: %w", err)
+	}
+
+	return paginationKey, nil
+}
+
 func StartBlockCollector(itemCh chan<- types.DataItem, errorCh chan<- error, chainRest, storageRest string, blockPool types.PoolResponse, continuationHeight, targetHeight int64, mustExit bool) {
-	paginationKey := ""
+	paginationKey, err := getPaginationKeyForBlockHeight(chainRest, blockPool, continuationHeight)
+	if err != nil {
+		errorCh <- fmt.Errorf("failed to get pagination key for continuation height %d: %w", continuationHeight, err)
+		return
+	}
 
 BundleCollector:
 	for {
-		bundlesPage, nextKey, err := bundles.GetFinalizedBundlesPage(chainRest, blockPool.Pool.Id, utils.BundlesPageLimit, paginationKey)
+		bundlesPage, nextKey, err := bundles.GetFinalizedBundlesPage(chainRest, blockPool.Pool.Id, utils.BundlesPageLimit, paginationKey, false)
 		if err != nil {
 			errorCh <- fmt.Errorf("failed to get finalized bundles page: %w", err)
 			return
@@ -96,60 +127,35 @@ BundleCollector:
 }
 
 func RetrieveBlock(chainRest, storageRest string, blockPool types.PoolResponse, height int64) (*types.DataItem, error) {
-	paginationKey := ""
+	finalizedBundle, err := bundles.GetFinalizedBundleForBlockHeight(chainRest, blockPool, height)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get finalized bundle for block height %d: %w", height, err)
+	}
 
-	for {
-		bundlesPage, nextKey, err := bundles.GetFinalizedBundlesPage(chainRest, blockPool.Pool.Id, utils.BundlesPageLimit, paginationKey)
+	deflated, err := bundles.GetDataFromFinalizedBundle(*finalizedBundle, storageRest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get data from finalized bundle: %w", err)
+	}
+
+	// parse bundle
+	var bundle types.Bundle
+
+	if err := json.Unmarshal(deflated, &bundle); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal tendermint bundle: %w", err)
+	}
+
+	for _, dataItem := range bundle {
+		itemHeight, err := utils.ParseBlockHeightFromKey(dataItem.Key)
 		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve finalized bundles: %w", err)
+			return nil, fmt.Errorf("failed parse block height from key %s: %w", dataItem.Key, err)
 		}
 
-		for _, bundle := range bundlesPage {
-			toHeight, err := strconv.ParseInt(bundle.ToKey, 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse bundle to key to int64: %w", err)
-			}
-
-			if toHeight < height {
-				//logger.Info().Msg(fmt.Sprintf("skipping bundle with storage id %s", bundle.StorageId))
-				continue
-			} else {
-				//logger.Info().Msg(fmt.Sprintf("downloading bundle with storage id %s", bundle.StorageId))
-			}
-
-			deflated, err := bundles.GetDataFromFinalizedBundle(bundle, storageRest)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get data from finalized bundle: %w", err)
-			}
-
-			// parse bundle
-			var bundle types.Bundle
-
-			if err := json.Unmarshal(deflated, &bundle); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal tendermint bundle: %w", err)
-			}
-
-			for _, dataItem := range bundle {
-				itemHeight, err := utils.ParseBlockHeightFromKey(dataItem.Key)
-				if err != nil {
-					return nil, fmt.Errorf("failed parse block height from key %s: %w", dataItem.Key, err)
-				}
-
-				// skip blocks until we reach start height
-				if itemHeight < height {
-					continue
-				}
-
-				return &dataItem, nil
-			}
+		// skip blocks until we reach start height
+		if itemHeight < height {
+			continue
 		}
 
-		// if there is no new page we do not continue
-		if nextKey == "" {
-			break
-		}
-
-		paginationKey = nextKey
+		return &dataItem, nil
 	}
 
 	return nil, fmt.Errorf("failed to find bundle with block height %d", height)

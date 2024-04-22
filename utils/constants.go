@@ -41,7 +41,7 @@ const (
 )
 
 const (
-	BundlesPageLimit            = 500
+	BundlesPageLimit            = 1000
 	BlockBuffer                 = 300
 	PruningInterval             = 100
 	SnapshotPruningAheadFactor  = 3

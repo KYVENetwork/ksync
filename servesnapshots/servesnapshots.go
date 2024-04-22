@@ -6,9 +6,7 @@ import (
 	"github.com/KYVENetwork/ksync/blocksync"
 	"github.com/KYVENetwork/ksync/bootstrap"
 	"github.com/KYVENetwork/ksync/collectors/pool"
-	"github.com/KYVENetwork/ksync/collectors/snapshots"
 	"github.com/KYVENetwork/ksync/statesync"
-	"github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"os"
@@ -80,25 +78,9 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 
 	height := engine.GetHeight()
 
-	var snapshotHeight int64
-
-	if startHeight > 0 {
-		// if a start height is given we search for the nearest snapshot before that
-		// and continue from there
-		_, snapshotHeight, err = snapshots.FindNearestSnapshotBundleIdByHeight(chainRest, snapshotPoolId, startHeight)
-		if err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to get nearest snapshot of start height: %s", err))
-			os.Exit(1)
-		}
-	} else {
-		// state-sync to latest snapshot so we skip the block-syncing process.
-		// if no snapshot is available we block-sync from genesis
-		_, _, snapshotHeight, err = helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
-		if err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to get snapshot boundaries: %s", err))
-			os.Exit(1)
-		}
-	}
+	// we ignore if the state-sync validation checks fail because if there are no available snapshots we simply block-sync
+	// to the startHeight
+	snapshotBundleId, snapshotHeight, _ := statesync.PerformStateSyncValidationChecks(chainRest, snapshotPoolId, startHeight, false)
 
 	if err := blocksync.PerformBlockSyncValidationChecks(engine, chainRest, blockPoolId, targetHeight, false, false); err != nil {
 		logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
@@ -108,13 +90,6 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 	processId := 0
 
 	if height == 0 && snapshotHeight > 0 {
-		// if we can perform a state-sync we first make the validation checks
-		// we also ignore the nearest snapshot height since this was the input anyway
-		if _, err := statesync.PerformStateSyncValidationChecks(chainRest, snapshotPoolId, snapshotHeight, false); err != nil {
-			logger.Error().Msg(fmt.Sprintf("state-sync validation checks failed: %s", err))
-			os.Exit(1)
-		}
-
 		// start binary process thread
 		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, snapshotArgs)
 		if err != nil {
@@ -122,7 +97,9 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		}
 
 		// found snapshot, applying it and continuing block-sync from here
-		if statesync.StartStateSync(engine, chainRest, storageRest, snapshotPoolId, snapshotHeight) != nil {
+		if err := statesync.StartStateSync(engine, chainRest, storageRest, snapshotPoolId, snapshotBundleId); err != nil {
+			logger.Error().Msg(fmt.Sprintf("state-sync failed with: %s", err))
+
 			// stop binary process thread
 			if err := utils.StopProcessByProcessId(processId); err != nil {
 				panic(err)
@@ -132,7 +109,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 
 		// TODO: does app has to be restarted after a state-sync?
 		if engine.GetName() == utils.EngineCometBFTV37 || engine.GetName() == utils.EngineCometBFTV38 {
-			// ignore error, since process gets terminated anyway afterwards
+			// ignore error, since process gets terminated anyway afterward
 			e := engine.CloseDBs()
 			_ = e
 

@@ -16,83 +16,73 @@ var (
 	logger = utils.KsyncLogger("state-sync")
 )
 
-func StartStateSync(engine types.Engine, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64) error {
-	return StartStateSyncExecutor(engine, chainRest, storageRest, snapshotPoolId, snapshotHeight)
+func StartStateSync(engine types.Engine, chainRest, storageRest string, snapshotPoolId, snapshotBundleId int64) error {
+	return startStateSyncExecutor(engine, chainRest, storageRest, snapshotPoolId, snapshotBundleId)
 }
 
-func PerformStateSyncValidationChecks(chainRest string, snapshotPoolId, snapshotHeight int64, userInput bool) (int64, error) {
-	// perform boundary checks
-	_, startHeight, endHeight, err := helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
+// PerformStateSyncValidationChecks checks if a snapshot is available for the targetHeight and if not returns
+// the nearest available snapshot below the targetHeight. It also returns the bundle id for the snapshot
+func PerformStateSyncValidationChecks(chainRest string, snapshotPoolId, targetHeight int64, userInput bool) (snapshotBundleId, snapshotHeight int64, err error) {
+	// get lowest and highest complete snapshot
+	startHeight, endHeight, err := helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
 	if err != nil {
-		return 0, fmt.Errorf("failed get snapshot boundaries: %w", err)
+		return snapshotBundleId, snapshotHeight, fmt.Errorf("failed get snapshot boundaries: %w", err)
 	}
 
-	logger.Info().Msg(fmt.Sprintf("retrieved snapshot boundaries, earliest snapshot height = %d, latest snapshot height %d", startHeight, endHeight))
+	logger.Info().Msg(fmt.Sprintf("retrieved snapshot boundaries, earliest complete snapshot height = %d, latest complete snapshot height %d", startHeight, endHeight))
 
-	// if no snapshot height was specified we use the latest available snapshot from the pool
-	if snapshotHeight == 0 {
-		snapshotHeight = endHeight
-		logger.Info().Msg(fmt.Sprintf("no target height specified, syncing to latest available snapshot %d", snapshotHeight))
+	// if no snapshot height was specified we use the latest available snapshot from the pool as targetHeight
+	if targetHeight == 0 {
+		targetHeight = endHeight
+		logger.Info().Msg(fmt.Sprintf("no target height specified, syncing to latest available snapshot %d", targetHeight))
 	}
 
-	if snapshotHeight < startHeight {
-		return 0, fmt.Errorf("requested snapshot height %d but first available snapshot on pool is %d", snapshotHeight, startHeight)
+	if targetHeight < startHeight {
+		return snapshotBundleId, snapshotHeight, fmt.Errorf("requested snapshot height %d but first available snapshot on pool is %d", targetHeight, startHeight)
 	}
 
-	if snapshotHeight > endHeight {
-		return 0, fmt.Errorf("requested snapshot height %d but last available snapshot on pool is %d", snapshotHeight, endHeight)
+	if targetHeight > endHeight {
+		return snapshotBundleId, snapshotHeight, fmt.Errorf("requested snapshot height %d but last available snapshot on pool is %d", targetHeight, endHeight)
 	}
 
-	var nearestHeight int64
-
-	if _, err := snapshots.FindBundleIdBySnapshot(chainRest, snapshotPoolId, snapshotHeight); err != nil {
-		logger.Info().Msg(fmt.Sprintf("could not find snapshot with requested height %d", snapshotHeight))
-
-		// if we could not find the desired snapshot height we print out the nearest available snapshot height
-		_, nearestHeight, err = snapshots.FindNearestSnapshotBundleIdByHeight(chainRest, snapshotPoolId, snapshotHeight)
-		if err != nil {
-			return 0, fmt.Errorf("failed to find nearest snapshot height for target height %d: %w", snapshotHeight, err)
-		}
+	snapshotBundleId, snapshotHeight, err = snapshots.FindNearestSnapshotBundleIdByHeight(chainRest, snapshotPoolId, targetHeight)
+	if err != nil {
+		return
 	}
-
+	
 	if userInput {
 		answer := ""
 
-		if nearestHeight > 0 {
-			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m could not find snapshot with requested height %d, state-sync to nearest available snapshot with height %d instead? [y/N]: ", snapshotHeight, nearestHeight)
+		// if we found a different snapshotHeight as the requested targetHeight it means the targetHeight was not
+		// available, and we have to sync to the nearest height below
+		if targetHeight != snapshotHeight {
+			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m could not find snapshot with requested height %d, state-sync to nearest available snapshot with height %d instead? [y/N]: ", targetHeight, snapshotHeight)
 		} else {
 			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should snapshot with height %d be applied with state-sync [y/N]: ", snapshotHeight)
 		}
 
 		if _, err := fmt.Scan(&answer); err != nil {
-			return 0, fmt.Errorf("failed to read in user input: %s", err)
+			return snapshotBundleId, snapshotHeight, fmt.Errorf("failed to read in user input: %w", err)
 		}
 
 		if strings.ToLower(answer) != "y" {
-			return 0, errors.New("aborted state-sync")
+			return snapshotBundleId, snapshotHeight, errors.New("aborted state-sync")
 		}
 	}
 
-	// if nearest snapshot height is zero it means that the snapshotHeight was found, else
-	// this is the nearest available one
-	return nearestHeight, nil
+	return snapshotBundleId, snapshotHeight, nil
 }
 
-func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainId, chainRest, storageRest string, snapshotPoolId, snapshotHeight int64, optOut, debug, userInput bool) {
+func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainId, chainRest, storageRest string, snapshotPoolId, targetHeight int64, optOut, debug, userInput bool) {
 	logger.Info().Msg("starting state-sync")
 
-	utils.TrackSyncStartEvent(engine, utils.STATE_SYNC, chainId, chainRest, storageRest, snapshotHeight, optOut)
+	utils.TrackSyncStartEvent(engine, utils.STATE_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
 
 	// perform validation checks before booting state-sync process
-	nearestSnapshotHeight, err := PerformStateSyncValidationChecks(chainRest, snapshotPoolId, snapshotHeight, userInput)
+	snapshotBundleId, snapshotHeight, err := PerformStateSyncValidationChecks(chainRest, snapshotPoolId, targetHeight, userInput)
 	if err != nil {
 		logger.Error().Msg(fmt.Sprintf("state-sync validation checks failed: %s", err))
 		os.Exit(1)
-	}
-
-	// if nearest snapshot height was found we state-sync to that height instead
-	if nearestSnapshotHeight > 0 {
-		snapshotHeight = nearestSnapshotHeight
 	}
 
 	// start binary process thread
@@ -103,7 +93,7 @@ func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainId, chainRes
 
 	start := time.Now()
 
-	if err := StartStateSync(engine, chainRest, storageRest, snapshotPoolId, snapshotHeight); err != nil {
+	if err := StartStateSync(engine, chainRest, storageRest, snapshotPoolId, snapshotBundleId); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to start state-sync: %s", err))
 
 		// stop binary process thread
@@ -119,7 +109,7 @@ func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainId, chainRes
 	}
 
 	elapsed := time.Since(start).Seconds()
-	utils.TrackSyncCompletedEvent(snapshotHeight, 0, snapshotHeight, elapsed, optOut)
+	utils.TrackSyncCompletedEvent(snapshotHeight, 0, targetHeight, elapsed, optOut)
 
 	logger.Info().Msg(fmt.Sprintf("state-synced at height %d in %.2f seconds", snapshotHeight, elapsed))
 	logger.Info().Msg(fmt.Sprintf("successfully applied state-sync snapshot"))
