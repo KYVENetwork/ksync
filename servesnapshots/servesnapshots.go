@@ -93,7 +93,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 	} else {
 		// state-sync to latest snapshot so we skip the block-syncing process.
 		// if no snapshot is available we block-sync from genesis
-		_, _, snapshotHeight, err = helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
+		_, snapshotHeight, err = helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
 		if err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to get snapshot boundaries: %s", err))
 			os.Exit(1)

@@ -22,7 +22,7 @@ func StartStateSync(engine types.Engine, chainRest, storageRest string, snapshot
 
 func PerformStateSyncValidationChecks(chainRest string, snapshotPoolId, snapshotHeight int64, userInput bool) (int64, error) {
 	// perform boundary checks
-	_, startHeight, endHeight, err := helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
+	startHeight, endHeight, err := helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
 	if err != nil {
 		return 0, fmt.Errorf("failed get snapshot boundaries: %w", err)
 	}

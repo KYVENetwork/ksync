@@ -20,8 +20,9 @@ func StartStateSyncExecutor(engine types.Engine, chainRest, storageRest string, 
 		return fmt.Errorf("app height %d is not zero, please reset with \"ksync reset-all\" or run the command with \"--reset-all\"", appHeight)
 	}
 
+	// if no snapshot height was provided we automatically take the highest available snapshot
 	if snapshotHeight == 0 {
-		_, _, snapshotHeight, err = helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
+		_, snapshotHeight, err = helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
 		if err != nil {
 			return fmt.Errorf("failed to get snapshot boundaries: %w", err)
 		}
@@ -29,6 +30,7 @@ func StartStateSyncExecutor(engine types.Engine, chainRest, storageRest string, 
 		logger.Info().Msg(fmt.Sprintf("no target height specified, syncing to latest available snapshot %d", snapshotHeight))
 	}
 
+	// TODO: improve this
 	bundleId, err := snapshots.FindBundleIdBySnapshot(chainRest, snapshotPoolId, snapshotHeight)
 	if err != nil {
 		return fmt.Errorf("error getting bundle id from snapshot: %w", err)

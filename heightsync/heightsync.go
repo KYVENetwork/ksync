@@ -30,7 +30,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 		os.Exit(1)
 	}
 
-	_, _, snapshotEndHeight, err := helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
+	_, snapshotEndHeight, err := helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
 	if err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to get snapshot boundaries: %s", err))
 		os.Exit(1)
