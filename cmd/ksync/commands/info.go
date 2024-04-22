@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"github.com/KYVENetwork/ksync/sources"
+	"github.com/KYVENetwork/ksync/sources/helpers"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
@@ -34,7 +35,7 @@ var infoCmd = &cobra.Command{
 			return
 		}
 
-		sourceRegistry, err := sources.GetSourceRegistry(registryUrl)
+		sourceRegistry, err := helpers.GetSourceRegistry(registryUrl)
 		if err != nil {
 			logger.Error().Str("err", err.Error()).Msg("failed to get source registry")
 			return
@@ -46,9 +47,27 @@ var infoCmd = &cobra.Command{
 				return sourceRegistry.Entries[keys[i]].SourceID < sourceRegistry.Entries[keys[j]].SourceID
 			})
 		}
-		keys := make([]string, 0, len(sourceRegistry.Entries))
-		for key := range sourceRegistry.Entries {
-			keys = append(keys, key)
+
+		var keys []string
+		for key, entry := range sourceRegistry.Entries {
+			if chainId == utils.ChainIdMainnet {
+				if entry.Networks.Kyve != nil {
+					if entry.Networks.Kyve.Integrations != nil {
+						if entry.Networks.Kyve.Integrations.KSYNC != nil {
+							keys = append(keys, key)
+						}
+					}
+				}
+			}
+			if chainId == utils.ChainIdKaon {
+				if entry.Networks.Kaon != nil {
+					if entry.Networks.Kaon.Integrations != nil {
+						if entry.Networks.Kaon.Integrations.KSYNC != nil {
+							keys = append(keys, key)
+						}
+					}
+				}
+			}
 		}
 		sortFunc(keys)
 
@@ -63,19 +82,23 @@ var infoCmd = &cobra.Command{
 
 			if chainId == utils.ChainIdMainnet {
 				if entry.Networks.Kyve != nil {
-					if entry.Networks.Kyve.Integrations.KSYNC == nil {
-						continue
+					if entry.Networks.Kyve.Integrations != nil {
+						if entry.Networks.Kyve.Integrations.KSYNC == nil {
+							continue
+						}
+						title = entry.Networks.Kyve.SourceMetadata.Title
 					}
-					title = entry.Networks.Kyve.SourceMetadata.Title
 				} else {
 					continue
 				}
 			} else if chainId == utils.ChainIdKaon {
 				if entry.Networks.Kaon != nil {
-					if entry.Networks.Kaon.Integrations.KSYNC == nil {
-						continue
+					if entry.Networks.Kaon.Integrations != nil {
+						if entry.Networks.Kaon.Integrations.KSYNC == nil {
+							continue
+						}
+						title = entry.Networks.Kaon.SourceMetadata.Title
 					}
-					title = entry.Networks.Kaon.SourceMetadata.Title
 				} else {
 					continue
 				}
