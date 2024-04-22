@@ -46,10 +46,10 @@ as follows:
 git clone git@github.com:KYVENetwork/ksync.git
 cd ksync
 git checkout tags/vx.x.x -b vx.x.x
-make ksync
+make build
 ```
 
-This will build ksync in `/build` directory. Afterwards, you may want to put it into your machine's PATH like
+This will build ksync in `/build` directory. Afterward, you may want to put it into your machine's PATH like
 as follows:
 
 ```bash
