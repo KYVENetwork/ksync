@@ -33,7 +33,7 @@ func getPaginationKeyForBlockHeight(chainRest string, blockPool types.PoolRespon
 		return "", nil
 	}
 
-	_, paginationKey, err := bundles.GetFinalizedBundlesPageWithOffset(chainRest, blockPool.Pool.Id, 1, bundleId-1, "")
+	_, paginationKey, err := bundles.GetFinalizedBundlesPageWithOffset(chainRest, blockPool.Pool.Id, 1, bundleId-1, "", false)
 	if err != nil {
 		return "", fmt.Errorf("failed to get finalized bundles: %w", err)
 	}
@@ -50,7 +50,7 @@ func StartBlockCollector(itemCh chan<- types.DataItem, errorCh chan<- error, cha
 
 BundleCollector:
 	for {
-		bundlesPage, nextKey, err := bundles.GetFinalizedBundlesPage(chainRest, blockPool.Pool.Id, utils.BundlesPageLimit, paginationKey)
+		bundlesPage, nextKey, err := bundles.GetFinalizedBundlesPage(chainRest, blockPool.Pool.Id, utils.BundlesPageLimit, paginationKey, false)
 		if err != nil {
 			errorCh <- fmt.Errorf("failed to get finalized bundles page: %w", err)
 			return

@@ -36,43 +36,38 @@ func GetSnapshotPoolHeight(restEndpoint string, poolId int64) int64 {
 // GetSnapshotBoundaries returns the snapshot heights for the lowest complete snapshot and the
 // highest complete snapshot. A complete snapshot contains all chunks of the snapshot, a snapshot which is currently
 // still being archived can have the latest chunks missing, therefore being not usable.
-// TODO: throw error if no usable snapshot on pool?
-func GetSnapshotBoundaries(restEndpoint string, poolId int64) (startSnapshotHeight int64, endSnapshotHeight int64, err error) {
+func GetSnapshotBoundaries(restEndpoint string, poolId int64) (startHeight int64, endHeight int64, err error) {
 	// load start and latest height
 	poolResponse, err := pool.GetPoolInfo(restEndpoint, poolId)
 	if err != nil {
-		return startSnapshotHeight, endSnapshotHeight, fmt.Errorf("failed to get pool info: %w", err)
+		return startHeight, endHeight, fmt.Errorf("failed to get pool info: %w", err)
 	}
 
 	if poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermintSsync {
-		return startSnapshotHeight, endSnapshotHeight, fmt.Errorf("found invalid runtime on state-sync pool %d: Expected = %s Found = %s", poolId, utils.KSyncRuntimeTendermintSsync, poolResponse.Pool.Data.Runtime)
+		return startHeight, endHeight, fmt.Errorf("found invalid runtime on state-sync pool %d: Expected = %s Found = %s", poolId, utils.KSyncRuntimeTendermintSsync, poolResponse.Pool.Data.Runtime)
 	}
 
 	// if no bundles have been created yet or if the current key is empty
 	// is no complete snapshot on the pool yet
 	if poolResponse.Pool.Data.TotalBundles == 0 || poolResponse.Pool.Data.CurrentKey == "" {
-		return startSnapshotHeight, endSnapshotHeight, fmt.Errorf("pool has not produced any bundles yet and therefore has no complete snapshots available")
+		return startHeight, endHeight, fmt.Errorf("pool has not produced any bundles yet and therefore has no complete snapshots available")
 	}
 
-	startHeight, _, err := utils.ParseSnapshotFromKey(poolResponse.Pool.Data.StartKey)
+	startHeight, _, err = utils.ParseSnapshotFromKey(poolResponse.Pool.Data.StartKey)
 	if err != nil {
-		return startSnapshotHeight, endSnapshotHeight, fmt.Errorf("failed to parse snapshot start key %s: %w", poolResponse.Pool.Data.StartKey, err)
+		return startHeight, endHeight, fmt.Errorf("failed to parse snapshot start key %s: %w", poolResponse.Pool.Data.StartKey, err)
 	}
 
 	currentHeight, chunkIndex, err := utils.ParseSnapshotFromKey(poolResponse.Pool.Data.CurrentKey)
 	if err != nil {
-		return startSnapshotHeight, endSnapshotHeight, fmt.Errorf("failed to parse snapshot current key %s: %w", poolResponse.Pool.Data.CurrentKey, err)
+		return startHeight, endHeight, fmt.Errorf("failed to parse snapshot current key %s: %w", poolResponse.Pool.Data.CurrentKey, err)
 	}
 
 	// if the current height is equal to the start height the pool is still archiving the very first snapshot,
 	// therefore the pool has no complete snapshot
 	if startHeight == currentHeight {
-		return startSnapshotHeight, endSnapshotHeight, fmt.Errorf("pool is still archiving the first snapshot and therefore has no complete snapshots available")
+		return startHeight, endHeight, fmt.Errorf("pool is still archiving the first snapshot and therefore has no complete snapshots available")
 	}
-
-	// if current height is greater than the start height we can be sure that the snapshot at start height
-	// is complete
-	startSnapshotHeight = startHeight
 
 	// to get the current bundle id we subtract 1 from the total bundles and
 	// in order to get the last chunk of the previous complete snapshot we go back
@@ -84,12 +79,12 @@ func GetSnapshotBoundaries(restEndpoint string, poolId int64) (startSnapshotHeig
 
 	bundle, err := bundles.GetFinalizedBundleById(restEndpoint, poolId, highestUsableSnapshotBundleId)
 	if err != nil {
-		return startSnapshotHeight, endSnapshotHeight, fmt.Errorf("failed to get finalized bundle with id %d: %w", highestUsableSnapshotBundleId, err)
+		return startHeight, endHeight, fmt.Errorf("failed to get finalized bundle with id %d: %w", highestUsableSnapshotBundleId, err)
 	}
 
-	endSnapshotHeight, _, err = utils.ParseSnapshotFromKey(bundle.ToKey)
+	endHeight, _, err = utils.ParseSnapshotFromKey(bundle.ToKey)
 	if err != nil {
-		return startSnapshotHeight, endSnapshotHeight, fmt.Errorf("failed to parse snapshot key %s: %w", bundle.ToKey, err)
+		return startHeight, endHeight, fmt.Errorf("failed to parse snapshot key %s: %w", bundle.ToKey, err)
 	}
 
 	return

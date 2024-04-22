@@ -9,14 +9,15 @@ import (
 	"strconv"
 )
 
-func GetFinalizedBundlesPageWithOffset(restEndpoint string, poolId int64, paginationLimit, paginationOffset int64, paginationKey string) ([]types.FinalizedBundle, string, error) {
+func GetFinalizedBundlesPageWithOffset(restEndpoint string, poolId int64, paginationLimit, paginationOffset int64, paginationKey string, reverse bool) ([]types.FinalizedBundle, string, error) {
 	raw, err := utils.GetFromUrlWithBackoff(fmt.Sprintf(
-		"%s/kyve/v1/bundles/%d?pagination.limit=%d&pagination.offset=%d&pagination.key=%s",
+		"%s/kyve/v1/bundles/%d?pagination.limit=%d&pagination.offset=%d&pagination.key=%s&pagination.reverse=%v",
 		restEndpoint,
 		poolId,
 		paginationLimit,
 		paginationOffset,
 		paginationKey,
+		reverse,
 	))
 	if err != nil {
 		return nil, "", err
@@ -33,8 +34,8 @@ func GetFinalizedBundlesPageWithOffset(restEndpoint string, poolId int64, pagina
 	return bundlesResponse.FinalizedBundles, nextKey, nil
 }
 
-func GetFinalizedBundlesPage(restEndpoint string, poolId int64, paginationLimit int64, paginationKey string) ([]types.FinalizedBundle, string, error) {
-	return GetFinalizedBundlesPageWithOffset(restEndpoint, poolId, paginationLimit, 0, paginationKey)
+func GetFinalizedBundlesPage(restEndpoint string, poolId int64, paginationLimit int64, paginationKey string, reverse bool) ([]types.FinalizedBundle, string, error) {
+	return GetFinalizedBundlesPageWithOffset(restEndpoint, poolId, paginationLimit, 0, paginationKey, reverse)
 }
 
 func GetFinalizedBundleById(restEndpoint string, poolId int64, bundleId int64) (*types.FinalizedBundle, error) {

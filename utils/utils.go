@@ -31,8 +31,6 @@ func GetVersion() string {
 
 // GetFromUrl tries to fetch data from url with a custom User-Agent header
 func GetFromUrl(url string) ([]byte, error) {
-	// TODO: remove
-	fmt.Println(url)
 	// Create a custom http.Client with the desired User-Agent header
 	client := &http.Client{}
 
