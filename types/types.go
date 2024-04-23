@@ -128,10 +128,27 @@ type Pool struct {
 	Runtime string `yaml:"runtime"`
 }
 
+type Codebase struct {
+	GitUrl   string         `yaml:"git-url"`
+	Settings CosmosSettings `yaml:"settings"`
+}
+
+type CosmosSettings struct {
+	Upgrades []CosmosUpgrade `yaml:"upgrades"`
+}
+
+type CosmosUpgrade struct {
+	Name               string `yaml:"name"`
+	Height             string `yaml:"height"`
+	RecommendedVersion string `yaml:"recommended-version"`
+	Engine             string `yaml:"ksync-engine"`
+}
+
 type Entry struct {
 	ConfigVersion *int     `yaml:"config-version"`
 	Networks      Networks `yaml:"networks"`
 	SourceID      string   `yaml:"source-id"`
+	Codebase      Codebase `yaml:"codebase"`
 }
 
 type SourceRegistry struct {

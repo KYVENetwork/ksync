@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	stateSyncCmd.Flags().StringVarP(&engine, "engine", "e", utils.DefaultEngine, "consensus engine of the binary, list all engines with \"ksync engines\"")
+	stateSyncCmd.Flags().StringVarP(&engine, "engine", "e", "", fmt.Sprintf("consensus engine of the binary by default %s is used, list all engines with \"ksync engines\"", utils.DefaultEngine))
 
 	stateSyncCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced")
 	if err := stateSyncCmd.MarkFlagRequired("binary"); err != nil {
@@ -59,10 +59,9 @@ var stateSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		consensusEngine := engines.EngineFactory(engine)
-
+		tmEngine := engines.EngineFactory(utils.EngineTendermintV34)
 		if reset {
-			if err := consensusEngine.ResetAll(homePath, true); err != nil {
+			if err := tmEngine.ResetAll(homePath, true); err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
 				os.Exit(1)
 			}
@@ -75,7 +74,7 @@ var stateSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fmt.Println("continuationHeight", snapshotHeight)
+		consensusEngine := engines.EngineSourceFactory(engine, registryUrl, chainId, source, snapshotHeight)
 
 		if err := consensusEngine.OpenDBs(homePath); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))

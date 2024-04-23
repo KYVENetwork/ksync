@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	heightSyncCmd.Flags().StringVarP(&engine, "engine", "e", utils.DefaultEngine, "consensus engine of the binary, list all engines with \"ksync engines\"")
+	heightSyncCmd.Flags().StringVarP(&engine, "engine", "e", "", fmt.Sprintf("consensus engine of the binary by default %s is used, list all engines with \"ksync engines\"", utils.DefaultEngine))
 
 	heightSyncCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced")
 	if err := heightSyncCmd.MarkFlagRequired("binary"); err != nil {
@@ -91,14 +91,12 @@ var heightSyncCmd = &cobra.Command{
 			}
 		}
 
-		fmt.Println("continuationHeight", continuationHeight)
-
 		if err := tmEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
 			os.Exit(1)
 		}
 
-		consensusEngine := engines.EngineFactory(engine)
+		consensusEngine := engines.EngineSourceFactory(engine, registryUrl, chainId, source, continuationHeight)
 
 		if err := consensusEngine.OpenDBs(homePath); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
