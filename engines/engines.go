@@ -6,17 +6,51 @@ import (
 	"github.com/KYVENetwork/ksync/engines/cometbft-v37"
 	"github.com/KYVENetwork/ksync/engines/cometbft-v38"
 	"github.com/KYVENetwork/ksync/engines/tendermint-v34"
+	"github.com/KYVENetwork/ksync/sources/helpers"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"os"
+	"strconv"
 )
 
 var (
 	logger = utils.KsyncLogger("engines")
 )
 
+func EngineSourceFactory(engine, registryUrl, chainId, source string, continuationHeight int64) types.Engine {
+	// if the engine was specified by the user or the source is empty we determine the engine by the engine input
+	if engine != "" || source == "" {
+		return EngineFactory(engine)
+	}
+
+	entry, err := helpers.GetSourceRegistryEntry(registryUrl, chainId, source)
+	if err != nil {
+		logger.Error().Msg(fmt.Sprintf("failed to get source registry entry: %s", err))
+		os.Exit(1)
+	}
+
+	for _, upgrade := range entry.Codebase.Settings.Upgrades {
+		height, err := strconv.ParseInt(upgrade.Height, 10, 64)
+		if err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to parse upgrade height %s: %s", upgrade.Height, err))
+			os.Exit(1)
+		}
+
+		if continuationHeight < height {
+			break
+		}
+
+		engine = upgrade.Engine
+	}
+
+	logger.Info().Msg(fmt.Sprintf("using \"%s\" as consensus engine", engine))
+	return EngineFactory(engine)
+}
+
 func EngineFactory(engine string) types.Engine {
 	switch engine {
+	case "":
+		return &tendermint_v34.Engine{}
 	case utils.EngineTendermintV34:
 		return &tendermint_v34.Engine{}
 	case utils.EngineCometBFTV37:

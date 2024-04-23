@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	blockSyncCmd.Flags().StringVarP(&engine, "engine", "e", utils.DefaultEngine, "consensus engine of the binary, list all engines with \"ksync engines\"")
+	blockSyncCmd.Flags().StringVarP(&engine, "engine", "e", "", fmt.Sprintf("consensus engine of the binary by default %s is used, list all engines with \"ksync engines\"", utils.DefaultEngine))
 
 	blockSyncCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced")
 	if err := blockSyncCmd.MarkFlagRequired("binary"); err != nil {
@@ -76,21 +76,39 @@ var blockSyncCmd = &cobra.Command{
 			return
 		}
 
-		consensusEngine := engines.EngineFactory(engine)
-
+		tmEngine := engines.EngineFactory(utils.EngineTendermintV34)
 		if reset {
-			if err := consensusEngine.ResetAll(homePath, true); err != nil {
+			if err := tmEngine.ResetAll(homePath, true); err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
 				os.Exit(1)
 			}
 		}
+
+		if err := tmEngine.OpenDBs(homePath); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
+			os.Exit(1)
+		}
+
+		// perform validation checks before booting state-sync process
+		continuationHeight, err := blocksync.PerformBlockSyncValidationChecks(tmEngine, chainRest, bId, targetHeight, true, !y)
+		if err != nil {
+			logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
+			os.Exit(1)
+		}
+
+		if err := tmEngine.CloseDBs(); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
+			os.Exit(1)
+		}
+
+		consensusEngine := engines.EngineSourceFactory(engine, registryUrl, chainId, source, continuationHeight)
 
 		if err := consensusEngine.OpenDBs(homePath); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 			os.Exit(1)
 		}
 
-		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, bId, targetHeight, metrics, metricsPort, backupCfg, skipCrisisInvariants, optOut, debug, !y)
+		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, bId, targetHeight, metrics, metricsPort, backupCfg, skipCrisisInvariants, optOut, debug)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))

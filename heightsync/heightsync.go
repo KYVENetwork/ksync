@@ -17,11 +17,9 @@ var (
 	logger = utils.KsyncLogger("height-sync")
 )
 
-func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId, chainRest, storageRest string, snapshotPoolId, blockPoolId, targetHeight int64, optOut, debug, userInput bool) {
-	logger.Info().Msg("starting height-sync")
-
-	utils.TrackSyncStartEvent(engine, utils.HEIGHT_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
-
+// PerformHeightSyncValidationChecks checks if the targetHeight lies in the range of available blocks and checks
+// if a state-sync snapshot is available right before the targetHeight
+func PerformHeightSyncValidationChecks(engine types.Engine, chainRest string, snapshotPoolId, blockPoolId, targetHeight int64, userInput bool) (snapshotBundleId, snapshotHeight int64, err error) {
 	_, _, blockEndHeight, err := blocksyncHelpers.GetBlockBoundaries(chainRest, blockPoolId)
 	if err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to get block boundaries: %s", err))
@@ -34,14 +32,14 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 		logger.Info().Msg(fmt.Sprintf("target height not specified, searching for latest available block height"))
 	}
 
-	if err := blocksync.PerformBlockSyncValidationChecks(engine, chainRest, blockPoolId, targetHeight, true, false); err != nil {
+	if _, err := blocksync.PerformBlockSyncValidationChecks(engine, chainRest, blockPoolId, targetHeight, true, false); err != nil {
 		logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
 		os.Exit(1)
 	}
 
 	// we ignore if the state-sync validation checks fail because if there are no available snapshots we simply block-sync
 	// to the targetHeight
-	snapshotBundleId, snapshotHeight, _ := statesync.PerformStateSyncValidationChecks(chainRest, snapshotPoolId, targetHeight, false)
+	snapshotBundleId, snapshotHeight, _ = statesync.PerformStateSyncValidationChecks(chainRest, snapshotPoolId, targetHeight, false)
 
 	if userInput {
 		answer := ""
@@ -62,8 +60,17 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 		}
 	}
 
+	return
+}
+
+func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId, chainRest, storageRest string, snapshotPoolId, blockPoolId, targetHeight, snapshotBundleId, snapshotHeight int64, optOut, debug bool) {
+	logger.Info().Msg("starting height-sync")
+
+	utils.TrackSyncStartEvent(engine, utils.HEIGHT_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
+
 	start := time.Now()
 	processId := 0
+	var err error
 
 	// if there are snapshots available before the requested height we apply the nearest
 	if snapshotHeight > 0 {
