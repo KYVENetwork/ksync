@@ -23,10 +23,16 @@ const (
 )
 
 const (
-	EngineTendermintV34      = "tendermint-v34"
-	EngineCometBFTV37        = "cometbft-v37"
-	EngineCometBFTV38        = "cometbft-v38"
-	EngineCelestiaCoreV34    = "celestia-core-v34"
+	EngineTendermintV34   = "tendermint-v0.34"
+	EngineCometBFTV37     = "cometbft-v0.37"
+	EngineCometBFTV38     = "cometbft-v0.38"
+	EngineCelestiaCoreV34 = "celestia-core-v0.34"
+
+	EngineTendermintV34Legacy   = "tendermint-v34"
+	EngineCometBFTV37Legacy     = "cometbft-v37"
+	EngineCometBFTV38Legacy     = "cometbft-v38"
+	EngineCelestiaCoreV34Legacy = "celestia-core-v34"
+
 	EngineTendermintLegacy   = "tendermint"
 	EngineCometBFTLegacy     = "cometbft"
 	EngineCelestiaCoreLegacy = "tendermint-celestiacore"
