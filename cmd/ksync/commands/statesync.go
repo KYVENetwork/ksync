@@ -68,12 +68,21 @@ var stateSyncCmd = &cobra.Command{
 			}
 		}
 
+		// perform validation checks before booting state-sync process
+		snapshotBundleId, snapshotHeight, err := statesync.PerformStateSyncValidationChecks(chainRest, sId, targetHeight, !y)
+		if err != nil {
+			logger.Error().Msg(fmt.Sprintf("state-sync validation checks failed: %s", err))
+			os.Exit(1)
+		}
+
+		fmt.Println("continuationHeight", snapshotHeight)
+
 		if err := consensusEngine.OpenDBs(homePath); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 			os.Exit(1)
 		}
 
-		statesync.StartStateSyncWithBinary(consensusEngine, binaryPath, chainId, chainRest, storageRest, sId, targetHeight, optOut, debug, !y)
+		statesync.StartStateSyncWithBinary(consensusEngine, binaryPath, chainId, chainRest, storageRest, sId, targetHeight, snapshotBundleId, snapshotHeight, optOut, debug)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))

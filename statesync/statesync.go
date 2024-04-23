@@ -49,7 +49,7 @@ func PerformStateSyncValidationChecks(chainRest string, snapshotPoolId, targetHe
 	if err != nil {
 		return
 	}
-	
+
 	if userInput {
 		answer := ""
 
@@ -73,17 +73,10 @@ func PerformStateSyncValidationChecks(chainRest string, snapshotPoolId, targetHe
 	return snapshotBundleId, snapshotHeight, nil
 }
 
-func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainId, chainRest, storageRest string, snapshotPoolId, targetHeight int64, optOut, debug, userInput bool) {
+func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainId, chainRest, storageRest string, snapshotPoolId, targetHeight, snapshotBundleId, snapshotHeight int64, optOut, debug bool) {
 	logger.Info().Msg("starting state-sync")
 
 	utils.TrackSyncStartEvent(engine, utils.STATE_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
-
-	// perform validation checks before booting state-sync process
-	snapshotBundleId, snapshotHeight, err := PerformStateSyncValidationChecks(chainRest, snapshotPoolId, targetHeight, userInput)
-	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("state-sync validation checks failed: %s", err))
-		os.Exit(1)
-	}
 
 	// start binary process thread
 	processId, err := utils.StartBinaryProcessForDB(engine, binaryPath, debug, []string{})

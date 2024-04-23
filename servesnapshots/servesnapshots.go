@@ -18,7 +18,25 @@ var (
 	logger = utils.KsyncLogger("serve-snapshots")
 )
 
-func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort, startHeight, targetHeight int64, skipCrisisInvariants, pruning, keepSnapshots, skipWaiting, debug bool) {
+// PerformServeSnapshotsValidationChecks checks if the targetHeight lies in the range of available blocks and checks
+// if a state-sync snapshot is available right before the startHeight
+func PerformServeSnapshotsValidationChecks(engine types.Engine, chainRest string, snapshotPoolId, blockPoolId, startHeight, targetHeight int64) (snapshotBundleId, snapshotHeight int64, err error) {
+	height := engine.GetHeight()
+
+	// only if the app has not indexed any blocks yet we state-sync to the specified startHeight
+	if height == 0 {
+		snapshotBundleId, snapshotHeight, _ = statesync.PerformStateSyncValidationChecks(chainRest, snapshotPoolId, startHeight, false)
+	}
+
+	if _, err = blocksync.PerformBlockSyncValidationChecks(engine, chainRest, blockPoolId, targetHeight, false, false); err != nil {
+		logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
+		os.Exit(1)
+	}
+
+	return
+}
+
+func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort, targetHeight, snapshotBundleId, snapshotHeight int64, skipCrisisInvariants, pruning, keepSnapshots, skipWaiting, debug bool) {
 	logger.Info().Msg("starting serve-snapshots")
 
 	if pruning && skipWaiting {
@@ -77,16 +95,6 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 	}
 
 	height := engine.GetHeight()
-
-	// we ignore if the state-sync validation checks fail because if there are no available snapshots we simply block-sync
-	// to the startHeight
-	snapshotBundleId, snapshotHeight, _ := statesync.PerformStateSyncValidationChecks(chainRest, snapshotPoolId, startHeight, false)
-
-	if err := blocksync.PerformBlockSyncValidationChecks(engine, chainRest, blockPoolId, targetHeight, false, false); err != nil {
-		logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
-		os.Exit(1)
-	}
-
 	processId := 0
 
 	if height == 0 && snapshotHeight > 0 {

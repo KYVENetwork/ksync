@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/blocksync"
 	"github.com/KYVENetwork/ksync/engines"
 	"github.com/KYVENetwork/ksync/servesnapshots"
 	"github.com/KYVENetwork/ksync/sources"
@@ -71,14 +72,44 @@ var serveCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		consensusEngine := engines.EngineFactory(engine)
-
+		tmEngine := engines.EngineFactory(utils.EngineTendermintV34)
 		if reset {
-			if err := consensusEngine.ResetAll(homePath, true); err != nil {
+			if err := tmEngine.ResetAll(homePath, true); err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
 				os.Exit(1)
 			}
 		}
+
+		if err := tmEngine.OpenDBs(homePath); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
+			os.Exit(1)
+		}
+
+		// perform validation checks before booting state-sync process
+		snapshotBundleId, snapshotHeight, err := servesnapshots.PerformServeSnapshotsValidationChecks(tmEngine, chainRest, sId, bId, startHeight, targetHeight)
+		if err != nil {
+			logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
+			os.Exit(1)
+		}
+
+		continuationHeight := snapshotHeight
+
+		if continuationHeight == 0 {
+			continuationHeight, err = blocksync.PerformBlockSyncValidationChecks(tmEngine, chainRest, bId, targetHeight, false, false)
+			if err != nil {
+				logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
+				os.Exit(1)
+			}
+		}
+
+		fmt.Println("continuationHeight", continuationHeight)
+
+		if err := tmEngine.CloseDBs(); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
+			os.Exit(1)
+		}
+
+		consensusEngine := engines.EngineFactory(engine)
 
 		if err := consensusEngine.OpenDBs(homePath); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs engine: %s", err))
@@ -86,7 +117,7 @@ var serveCmd = &cobra.Command{
 		}
 
 		utils.TrackServeSnapshotsEvent(consensusEngine, chainId, chainRest, storageRest, snapshotPort, metrics, metricsPort, startHeight, pruning, keepSnapshots, debug, optOut)
-		servesnapshots.StartServeSnapshotsWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, bId, metrics, metricsPort, sId, snapshotPort, startHeight, targetHeight, skipCrisisInvariants, pruning, keepSnapshots, skipWaiting, debug)
+		servesnapshots.StartServeSnapshotsWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, bId, metrics, metricsPort, sId, snapshotPort, targetHeight, snapshotBundleId, snapshotHeight, skipCrisisInvariants, pruning, keepSnapshots, skipWaiting, debug)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))

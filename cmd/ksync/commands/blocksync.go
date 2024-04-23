@@ -76,21 +76,41 @@ var blockSyncCmd = &cobra.Command{
 			return
 		}
 
-		consensusEngine := engines.EngineFactory(engine)
-
+		tmEngine := engines.EngineFactory(utils.EngineTendermintV34)
 		if reset {
-			if err := consensusEngine.ResetAll(homePath, true); err != nil {
+			if err := tmEngine.ResetAll(homePath, true); err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
 				os.Exit(1)
 			}
 		}
+
+		if err := tmEngine.OpenDBs(homePath); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
+			os.Exit(1)
+		}
+
+		// perform validation checks before booting state-sync process
+		continuationHeight, err := blocksync.PerformBlockSyncValidationChecks(tmEngine, chainRest, bId, targetHeight, true, !y)
+		if err != nil {
+			logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
+			os.Exit(1)
+		}
+
+		fmt.Println("continuationHeight", continuationHeight)
+
+		if err := tmEngine.CloseDBs(); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
+			os.Exit(1)
+		}
+
+		consensusEngine := engines.EngineFactory(engine)
 
 		if err := consensusEngine.OpenDBs(homePath); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 			os.Exit(1)
 		}
 
-		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, bId, targetHeight, metrics, metricsPort, backupCfg, skipCrisisInvariants, optOut, debug, !y)
+		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, bId, targetHeight, metrics, metricsPort, backupCfg, skipCrisisInvariants, optOut, debug)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
