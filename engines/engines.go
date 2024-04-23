@@ -59,6 +59,21 @@ func EngineFactory(engine string) types.Engine {
 		return &cometbft_v38.Engine{}
 	case utils.EngineCelestiaCoreV34:
 		return &celestia_core_v34.Engine{}
+
+	// These engines are deprecated and will be removed soon
+	case utils.EngineTendermintV34Legacy:
+		logger.Warn().Msg(fmt.Sprintf("engine %s is deprecated and will soon be removed, use %s instead", utils.EngineTendermintV34Legacy, utils.EngineTendermintV34))
+		return &tendermint_v34.Engine{}
+	case utils.EngineCometBFTV37Legacy:
+		logger.Warn().Msg(fmt.Sprintf("engine %s is deprecated and will soon be removed, use %s instead", utils.EngineCometBFTV37Legacy, utils.EngineCometBFTV37))
+		return &cometbft_v37.Engine{}
+	case utils.EngineCometBFTV38Legacy:
+		logger.Warn().Msg(fmt.Sprintf("engine %s is deprecated and will soon be removed, use %s instead", utils.EngineCometBFTV38Legacy, utils.EngineCometBFTV38))
+		return &cometbft_v38.Engine{}
+	case utils.EngineCelestiaCoreV34Legacy:
+		logger.Warn().Msg(fmt.Sprintf("engine %s is deprecated and will soon be removed, use %s instead", utils.EngineCelestiaCoreV34Legacy, utils.EngineCelestiaCoreV34))
+		return &celestia_core_v34.Engine{}
+
 	// These engines are deprecated and will be removed soon
 	case utils.EngineTendermintLegacy:
 		logger.Warn().Msg(fmt.Sprintf("engine %s is deprecated and will soon be removed, use %s instead", utils.EngineTendermintLegacy, utils.EngineTendermintV34))
