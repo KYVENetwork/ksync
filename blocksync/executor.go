@@ -23,6 +23,11 @@ func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPo
 		return fmt.Errorf("failed to get continuation height from engine: %w", err)
 	}
 
+	appHeight, err := engine.GetAppHeight()
+	if err != nil {
+		return fmt.Errorf("failed to get app height from engine: %w", err)
+	}
+
 	if err := engine.StartProxyApp(); err != nil {
 		return fmt.Errorf("failed to start proxy app: %w", err)
 	}
@@ -91,16 +96,12 @@ func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPo
 				return fmt.Errorf("failed to apply block in engine: %w", err)
 			}
 
-			// skip below operations because we don't want to execute them already
-			// on the first block
-			if height == continuationHeight {
-				continue
-			}
-
 			// if we have reached a height where a snapshot should be created by the app
 			// we wait until it is created, else if KSYNC moves to fast the snapshot can
-			// not be properly written to disk.
-			if snapshotInterval > 0 && prevHeight%snapshotInterval == 0 {
+			// not be properly written to disk. We check if the initial app height is smaller
+			// than the current applied height since in this case the app has not created the
+			// snapshot yet.
+			if snapshotInterval > 0 && prevHeight%snapshotInterval == 0 && appHeight < prevHeight {
 				for {
 					logger.Info().Msg(fmt.Sprintf("waiting until snapshot at height %d is created by app", prevHeight))
 
@@ -123,6 +124,12 @@ func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPo
 
 				// refresh snapshot pool height here, because we don't want to fetch this on every block
 				snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(chainRest, snapshotPoolId)
+			}
+
+			// skip below operations because we don't want to execute them already
+			// on the first block
+			if height == continuationHeight {
+				continue
 			}
 
 			if pruning && prevHeight%utils.PruningInterval == 0 {
