@@ -72,21 +72,22 @@ var serveCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		tmEngine := engines.EngineFactory(utils.EngineTendermintV34)
+		// always use the newest engine as default version since they are backwards compatible
+		defaultEngine := engines.EngineFactory(utils.LatestEngine)
 		if reset {
-			if err := tmEngine.ResetAll(homePath, true); err != nil {
+			if err := defaultEngine.ResetAll(homePath, true); err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
 				os.Exit(1)
 			}
 		}
 
-		if err := tmEngine.OpenDBs(homePath); err != nil {
+		if err := defaultEngine.OpenDBs(homePath); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 			os.Exit(1)
 		}
 
 		// perform validation checks before booting state-sync process
-		snapshotBundleId, snapshotHeight, err := servesnapshots.PerformServeSnapshotsValidationChecks(tmEngine, chainRest, sId, bId, startHeight, targetHeight)
+		snapshotBundleId, snapshotHeight, err := servesnapshots.PerformServeSnapshotsValidationChecks(defaultEngine, chainRest, sId, bId, startHeight, targetHeight)
 		if err != nil {
 			logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
 			os.Exit(1)
@@ -95,14 +96,14 @@ var serveCmd = &cobra.Command{
 		continuationHeight := snapshotHeight
 
 		if continuationHeight == 0 {
-			continuationHeight, err = blocksync.PerformBlockSyncValidationChecks(tmEngine, chainRest, bId, targetHeight, false, false)
+			continuationHeight, err = blocksync.PerformBlockSyncValidationChecks(defaultEngine, chainRest, bId, targetHeight, false, false)
 			if err != nil {
 				logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
 				os.Exit(1)
 			}
 		}
 
-		if err := tmEngine.CloseDBs(); err != nil {
+		if err := defaultEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
 			os.Exit(1)
 		}

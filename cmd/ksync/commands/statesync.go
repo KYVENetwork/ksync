@@ -59,9 +59,10 @@ var stateSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		tmEngine := engines.EngineFactory(utils.EngineTendermintV34)
+		// always use the newest engine as default version since they are backwards compatible
+		defaultEngine := engines.EngineFactory(utils.LatestEngine)
 		if reset {
-			if err := tmEngine.ResetAll(homePath, true); err != nil {
+			if err := defaultEngine.ResetAll(homePath, true); err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
 				os.Exit(1)
 			}

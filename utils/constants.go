@@ -23,6 +23,8 @@ const (
 )
 
 const (
+	LatestEngine = EngineCometBFTV38
+
 	EngineTendermintV34   = "tendermint-v0.34"
 	EngineCometBFTV37     = "cometbft-v0.37"
 	EngineCometBFTV38     = "cometbft-v0.38"
