@@ -59,9 +59,9 @@ var stateSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		tmEngine := engines.EngineFactory(utils.EngineTendermintV34)
+		defaultEngine := engines.EngineFactory(utils.DefaultEngine)
 		if reset {
-			if err := tmEngine.ResetAll(homePath, true); err != nil {
+			if err := defaultEngine.ResetAll(homePath, true); err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
 				os.Exit(1)
 			}

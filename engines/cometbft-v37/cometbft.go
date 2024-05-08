@@ -159,16 +159,15 @@ func (engine *Engine) GetMetrics() ([]byte, error) {
 func (engine *Engine) GetContinuationHeight() (int64, error) {
 	height := engine.blockStore.Height()
 
-	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(engine.config)
-	_, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(engine.stateDB, defaultDocProvider)
+	initialHeight, err := utils.GetInitialHeightFromGenesisFile(engine.GetGenesisPath())
 	if err != nil {
-		return 0, fmt.Errorf("failed to load state and genDoc: %w", err)
+		return 0, fmt.Errorf("failed to load initial height from genesis file: %w", err)
 	}
 
 	continuationHeight := height + 1
 
-	if continuationHeight < genDoc.InitialHeight {
-		continuationHeight = genDoc.InitialHeight
+	if continuationHeight < initialHeight {
+		continuationHeight = initialHeight
 	}
 
 	return continuationHeight, nil
