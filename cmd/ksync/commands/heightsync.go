@@ -61,8 +61,7 @@ var heightSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// always use the newest engine as default version since they are backwards compatible
-		defaultEngine := engines.EngineFactory(utils.LatestEngine)
+		defaultEngine := engines.EngineFactory(utils.DefaultEngine)
 		if reset {
 			if err := defaultEngine.ResetAll(homePath, true); err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))

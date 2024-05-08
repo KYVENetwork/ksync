@@ -7,6 +7,23 @@ import (
 	"strconv"
 )
 
+func GetInitialHeightFromGenesisFile(genesisPath string) (int64, error) {
+	genesisFile, err := os.ReadFile(genesisPath)
+	if err != nil {
+		return 0, fmt.Errorf("error opening genesis.json at %s: %w", genesisPath, err)
+	}
+
+	var value struct {
+		InitialHeight string `json:"initial_height"`
+	}
+
+	if err := json.Unmarshal(genesisFile, &value); err != nil {
+		return 0, err
+	}
+
+	return strconv.ParseInt(value.InitialHeight, 10, 64)
+}
+
 func FormatGenesisFile(genesisPath string) error {
 	genesisFile, err := os.ReadFile(genesisPath)
 	if err != nil {
