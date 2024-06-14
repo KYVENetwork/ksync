@@ -19,12 +19,12 @@ func GetSnapshotPoolHeight(restEndpoint string, poolId int64) int64 {
 	var snapshotHeight int64
 
 	if snapshotPool.Pool.Data.CurrentKey == "" {
-		snapshotHeight, _, err = utils.ParseSnapshotFromKey(snapshotPool.Pool.Data.StartKey)
+		snapshotHeight, _, _, _, err = utils.ParseSnapshotFromKey(snapshotPool.Pool.Data.StartKey)
 		if err != nil {
 			panic(fmt.Errorf("could not parse snapshot height from start key: %w", err))
 		}
 	} else {
-		snapshotHeight, _, err = utils.ParseSnapshotFromKey(snapshotPool.Pool.Data.CurrentKey)
+		snapshotHeight, _, _, _, err = utils.ParseSnapshotFromKey(snapshotPool.Pool.Data.CurrentKey)
 		if err != nil {
 			panic(fmt.Errorf("could not parse snapshot height from current key: %w", err))
 		}
@@ -53,12 +53,12 @@ func GetSnapshotBoundaries(restEndpoint string, poolId int64) (startHeight int64
 		return startHeight, endHeight, fmt.Errorf("pool has not produced any bundles yet and therefore has no complete snapshots available")
 	}
 
-	startHeight, _, err = utils.ParseSnapshotFromKey(poolResponse.Pool.Data.StartKey)
+	startHeight, _, _, _, err = utils.ParseSnapshotFromKey(poolResponse.Pool.Data.StartKey)
 	if err != nil {
 		return startHeight, endHeight, fmt.Errorf("failed to parse snapshot start key %s: %w", poolResponse.Pool.Data.StartKey, err)
 	}
 
-	currentHeight, chunkIndex, err := utils.ParseSnapshotFromKey(poolResponse.Pool.Data.CurrentKey)
+	currentHeight, _, chunkIndex, _, err := utils.ParseSnapshotFromKey(poolResponse.Pool.Data.CurrentKey)
 	if err != nil {
 		return startHeight, endHeight, fmt.Errorf("failed to parse snapshot current key %s: %w", poolResponse.Pool.Data.CurrentKey, err)
 	}
@@ -82,7 +82,7 @@ func GetSnapshotBoundaries(restEndpoint string, poolId int64) (startHeight int64
 		return startHeight, endHeight, fmt.Errorf("failed to get finalized bundle with id %d: %w", highestUsableSnapshotBundleId, err)
 	}
 
-	endHeight, _, err = utils.ParseSnapshotFromKey(bundle.ToKey)
+	endHeight, _, _, _, err = utils.ParseSnapshotFromKey(bundle.ToKey)
 	if err != nil {
 		return startHeight, endHeight, fmt.Errorf("failed to parse snapshot key %s: %w", bundle.ToKey, err)
 	}

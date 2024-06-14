@@ -141,26 +141,45 @@ func ParseBlockHeightFromKey(key string) (int64, error) {
 	return strconv.ParseInt(key, 10, 64)
 }
 
-func ParseSnapshotFromKey(key string) (height int64, chunkIndex int64, err error) {
-	// if key is empty we are at height 0
-	if key == "" {
-		return
-	}
-
+func ParseSnapshotFromKey(key string) (height, format, chunkIndex, chunks int64, err error) {
 	s := strings.Split(key, "/")
 
-	if len(s) != 2 {
-		return height, chunkIndex, fmt.Errorf("error parsing key %s", key)
-	}
+	if len(s) == 0 {
+		// if key is empty we are at the genesis state
+		return
+	} else if len(s) == 2 {
+		height, err = strconv.ParseInt(s[0], 10, 64)
+		if err != nil {
+			return
+		}
 
-	height, err = strconv.ParseInt(s[0], 10, 64)
-	if err != nil {
-		return height, chunkIndex, fmt.Errorf("could not parse int from %s: %w", s[0], err)
-	}
+		chunkIndex, err = strconv.ParseInt(s[1], 10, 64)
+		if err != nil {
+			return
+		}
+	} else if len(s) == 4 {
+		height, err = strconv.ParseInt(s[0], 10, 64)
+		if err != nil {
+			return
+		}
 
-	chunkIndex, err = strconv.ParseInt(s[1], 10, 64)
-	if err != nil {
-		return height, chunkIndex, fmt.Errorf("could not parse int from %s: %w", s[1], err)
+		format, err = strconv.ParseInt(s[1], 10, 64)
+		if err != nil {
+			return
+		}
+
+		chunkIndex, err = strconv.ParseInt(s[2], 10, 64)
+		if err != nil {
+			return
+		}
+
+		chunks, err = strconv.ParseInt(s[3], 10, 64)
+		if err != nil {
+			return
+		}
+	} else {
+		err = fmt.Errorf("error parsing key %s", key)
+		return
 	}
 
 	return

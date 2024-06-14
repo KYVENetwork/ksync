@@ -25,7 +25,7 @@ func startStateSyncExecutor(engine types.Engine, chainRest, storageRest string, 
 		return fmt.Errorf("failed getting finalized bundle: %w", err)
 	}
 
-	snapshotHeight, _, err := utils.ParseSnapshotFromKey(finalizedBundle.ToKey)
+	snapshotHeight, _, _, _, err := utils.ParseSnapshotFromKey(finalizedBundle.ToKey)
 	if err != nil {
 		return fmt.Errorf("failed getting snapshot height from to_key %s: %w", finalizedBundle.ToKey, err)
 	}

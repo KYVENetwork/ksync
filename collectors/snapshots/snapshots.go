@@ -20,9 +20,9 @@ func FindNearestSnapshotBundleIdByHeight(restEndpoint string, poolId int64, targ
 		if pageErr != nil {
 			return snapshotBundleId, snapshotHeight, fmt.Errorf("failed to retrieve finalized bundles: %w", pageErr)
 		}
-		
+
 		bundle := bundlesPage[len(bundlesPage)-1]
-		height, chunkIndex, keyErr := utils.ParseSnapshotFromKey(bundle.ToKey)
+		height, _, chunkIndex, _, keyErr := utils.ParseSnapshotFromKey(bundle.ToKey)
 		if keyErr != nil {
 			return snapshotBundleId, snapshotHeight, fmt.Errorf("failed to parse snapshot from to_key %s: %w", bundle.ToKey, keyErr)
 		}
@@ -31,7 +31,7 @@ func FindNearestSnapshotBundleIdByHeight(restEndpoint string, poolId int64, targ
 		// we skip iterating though it and directly continue searching on the next bundles page
 		if height <= targetHeight {
 			for _, bundle = range bundlesPage {
-				height, chunkIndex, keyErr = utils.ParseSnapshotFromKey(bundle.ToKey)
+				height, _, chunkIndex, _, keyErr = utils.ParseSnapshotFromKey(bundle.ToKey)
 				if keyErr != nil {
 					return snapshotBundleId, snapshotHeight, fmt.Errorf("failed to parse snapshot from to_key %s: %w", bundle.ToKey, keyErr)
 				}
