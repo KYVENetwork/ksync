@@ -218,7 +218,13 @@ func (engine *Engine) ApplyBlock(runtime *string, value []byte) error {
 	var block *Block
 
 	if runtime == nil {
-		return fmt.Errorf("syncing from archival node is not yet implemented")
+		// if runtime is nil we sync from another cometbft node
+		var blockResponse BlockResponse
+		err := json.Unmarshal(value, &blockResponse)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal block response: %w", err)
+		}
+		block = &blockResponse.Result.Block
 	} else if *runtime == utils.KSyncRuntimeTendermint {
 		var parsed TendermintValue
 
