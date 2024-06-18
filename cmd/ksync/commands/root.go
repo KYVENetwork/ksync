@@ -13,6 +13,7 @@ var (
 	chainId              string
 	chainRest            string
 	storageRest          string
+	blockRpc             string
 	snapshotPoolId       string
 	blockPoolId          string
 	startHeight          int64

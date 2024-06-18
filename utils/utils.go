@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"math"
@@ -29,10 +30,10 @@ func GetVersion() string {
 	return strings.TrimSpace(version.Main.Version)
 }
 
-// GetFromUrl tries to fetch data from url with a custom User-Agent header
-func GetFromUrl(url string) ([]byte, error) {
+// getFromUrl tries to fetch data from url with a custom User-Agent header
+func getFromUrl(url string, transport *http.Transport) ([]byte, error) {
 	// Create a custom http.Client with the desired User-Agent header
-	client := &http.Client{}
+	client := &http.Client{Transport: transport}
 
 	// Create a new GET request
 	request, err := http.NewRequest("GET", url, nil)
@@ -69,6 +70,26 @@ func GetFromUrl(url string) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+// GetFromUrl tries to fetch data from url with a custom User-Agent header
+func GetFromUrl(url string) ([]byte, error) {
+	return getFromUrl(url, nil)
+}
+
+type GetFromUrlOptions struct {
+	SkipTLSVerification bool
+}
+
+// GetFromUrlWithOptions tries to fetch data from url with a custom User-Agent header and custom options
+func GetFromUrlWithOptions(url string, options GetFromUrlOptions) ([]byte, error) {
+	if options.SkipTLSVerification {
+		transport := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		return getFromUrl(url, transport)
+	}
+	return getFromUrl(url, nil)
 }
 
 // GetFromUrlWithBackoff tries to fetch data from url with exponential backoff

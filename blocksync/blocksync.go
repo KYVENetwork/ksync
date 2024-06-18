@@ -16,11 +16,11 @@ var (
 	logger = utils.KsyncLogger("block-sync")
 )
 
-func StartBlockSync(engine types.Engine, chainRest, storageRest string, poolId, targetHeight int64, metrics bool, port int64, backupCfg *types.BackupConfig) error {
-	return StartDBExecutor(engine, chainRest, storageRest, poolId, targetHeight, metrics, port, 0, 0, utils.DefaultSnapshotServerPort, false, false, backupCfg)
+func StartBlockSync(engine types.Engine, chainRest, storageRest string, blockRpc *string, poolId *int64, targetHeight int64, metrics bool, port int64, backupCfg *types.BackupConfig) error {
+	return StartDBExecutor(engine, chainRest, storageRest, blockRpc, poolId, targetHeight, metrics, port, 0, 0, utils.DefaultSnapshotServerPort, false, false, backupCfg)
 }
 
-func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blockPoolId, targetHeight int64, checkEndHeight, userInput bool) (continuationHeight int64, err error) {
+func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blockRpc *string, blockPoolId *int64, targetHeight int64, checkEndHeight, userInput bool) (continuationHeight int64, err error) {
 	continuationHeight, err = engine.GetContinuationHeight()
 	if err != nil {
 		return continuationHeight, fmt.Errorf("failed to get continuation height from engine: %w", err)
@@ -29,7 +29,7 @@ func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blo
 	logger.Info().Msg(fmt.Sprintf("loaded current block height of node: %d", continuationHeight-1))
 
 	// perform boundary checks
-	_, startHeight, endHeight, err := helpers.GetBlockBoundaries(chainRest, blockPoolId)
+	_, startHeight, endHeight, err := helpers.GetBlockBoundaries(chainRest, blockRpc, blockPoolId)
 	if err != nil {
 		return continuationHeight, fmt.Errorf("failed to get block boundaries: %w", err)
 	}
@@ -77,12 +77,12 @@ func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blo
 	return
 }
 
-func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId, chainRest, storageRest string, blockPoolId, targetHeight int64, metrics bool, port int64, backupCfg *types.BackupConfig, skipCrisisInvariants, optOut, debug bool) {
+func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId, chainRest, storageRest string, blockRpc *string, blockPoolId *int64, targetHeight int64, metrics bool, port int64, backupCfg *types.BackupConfig, skipCrisisInvariants, optOut, debug bool) {
 	logger.Info().Msg("starting block-sync")
 
 	utils.TrackSyncStartEvent(engine, utils.BLOCK_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
 
-	if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, blockPoolId, skipCrisisInvariants, debug); err != nil {
+	if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, blockRpc, blockPoolId, skipCrisisInvariants, debug); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
 		os.Exit(1)
 	}
@@ -103,7 +103,7 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId
 	currentHeight := engine.GetHeight()
 
 	// db executes blocks against app until target height is reached
-	if err := StartBlockSync(engine, chainRest, storageRest, blockPoolId, targetHeight, metrics, port, backupCfg); err != nil {
+	if err := StartBlockSync(engine, chainRest, storageRest, blockRpc, blockPoolId, targetHeight, metrics, port, backupCfg); err != nil {
 		logger.Error().Msg(fmt.Sprintf("%s", err))
 
 		// stop binary process thread

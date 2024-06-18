@@ -75,7 +75,7 @@ var heightSyncCmd = &cobra.Command{
 		}
 
 		// perform validation checks before booting state-sync process
-		snapshotBundleId, snapshotHeight, err := heightsync.PerformHeightSyncValidationChecks(defaultEngine, chainRest, sId, bId, targetHeight, !y)
+		snapshotBundleId, snapshotHeight, err := heightsync.PerformHeightSyncValidationChecks(defaultEngine, chainRest, sId, &bId, targetHeight, !y)
 		if err != nil {
 			logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
 			os.Exit(1)
@@ -84,7 +84,7 @@ var heightSyncCmd = &cobra.Command{
 		continuationHeight := snapshotHeight
 
 		if continuationHeight == 0 {
-			continuationHeight, err = blocksync.PerformBlockSyncValidationChecks(defaultEngine, chainRest, bId, targetHeight, true, false)
+			continuationHeight, err = blocksync.PerformBlockSyncValidationChecks(defaultEngine, chainRest, nil, &bId, targetHeight, true, false)
 			if err != nil {
 				logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
 				os.Exit(1)
@@ -103,7 +103,7 @@ var heightSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		heightsync.StartHeightSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, sId, bId, targetHeight, snapshotBundleId, snapshotHeight, optOut, debug)
+		heightsync.StartHeightSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, sId, &bId, targetHeight, snapshotBundleId, snapshotHeight, optOut, debug)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))

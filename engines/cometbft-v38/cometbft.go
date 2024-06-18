@@ -216,10 +216,12 @@ func (engine *Engine) DoHandshake() error {
 	return nil
 }
 
-func (engine *Engine) ApplyBlock(runtime string, value []byte) error {
+func (engine *Engine) ApplyBlock(runtime *string, value []byte) error {
 	var block *Block
 
-	if runtime == utils.KSyncRuntimeTendermint {
+	if runtime == nil {
+		return fmt.Errorf("syncing from archival node is not yet implemented")
+	} else if *runtime == utils.KSyncRuntimeTendermint {
 		var parsed TendermintValue
 
 		if err := json.Unmarshal(value, &parsed); err != nil {
@@ -227,7 +229,7 @@ func (engine *Engine) ApplyBlock(runtime string, value []byte) error {
 		}
 
 		block = parsed.Block.Block
-	} else if runtime == utils.KSyncRuntimeTendermintBsync {
+	} else if *runtime == utils.KSyncRuntimeTendermintBsync {
 		if err := json.Unmarshal(value, &block); err != nil {
 			return fmt.Errorf("failed to unmarshal value: %w", err)
 		}

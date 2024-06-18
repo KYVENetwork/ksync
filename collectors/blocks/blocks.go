@@ -1,11 +1,12 @@
 package blocks
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/KYVENetwork/ksync/collectors/bundles"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
-	"github.com/tendermint/tendermint/libs/json"
+	tmjson "github.com/tendermint/tendermint/libs/json"
 	"strconv"
 	"time"
 )
@@ -41,7 +42,15 @@ func getPaginationKeyForBlockHeight(chainRest string, blockPool types.PoolRespon
 	return paginationKey, nil
 }
 
-func StartBlockCollector(itemCh chan<- types.DataItem, errorCh chan<- error, chainRest, storageRest string, blockPool types.PoolResponse, continuationHeight, targetHeight int64, mustExit bool) {
+func StartBlockCollector(itemCh chan<- types.DataItem, errorCh chan<- error, chainRest string, storageRest string, blockRpc *string, blockPool *types.PoolResponse, continuationHeight, targetHeight int64, mustExit bool) {
+	if blockRpc == nil {
+		startBlockCollectorFromBundles(itemCh, errorCh, chainRest, storageRest, *blockPool, continuationHeight, targetHeight, mustExit)
+	} else {
+		startBlockCollectorFromRpc(itemCh, errorCh, *blockRpc, continuationHeight, targetHeight, mustExit)
+	}
+}
+
+func startBlockCollectorFromBundles(itemCh chan<- types.DataItem, errorCh chan<- error, chainRest, storageRest string, blockPool types.PoolResponse, continuationHeight, targetHeight int64, mustExit bool) {
 	paginationKey, err := getPaginationKeyForBlockHeight(chainRest, blockPool, continuationHeight)
 	if err != nil {
 		errorCh <- fmt.Errorf("failed to get pagination key for continuation height %d: %w", continuationHeight, err)
@@ -126,7 +135,32 @@ BundleCollector:
 	}
 }
 
-func RetrieveBlock(chainRest, storageRest string, blockPool types.PoolResponse, height int64) (*types.DataItem, error) {
+// startBlockCollectorFromRpc starts the block collector from the block rpc (must be an archive node which has all blocks)
+func startBlockCollectorFromRpc(itemCh chan<- types.DataItem, errorCh chan<- error, blockRpc string, continuationHeight, targetHeight int64, mustExit bool) {
+	//	make a for loop starting with the continuation height
+	//		- get the block from the block rpc
+	//		- send the block to the item channel
+	//		- increment the continuation height
+	//		- if mustExit is true and target height is reached, break the loop
+	for {
+		dataItem, err := retrieveBlockFromRpc(blockRpc, continuationHeight)
+		if err != nil {
+			errorCh <- fmt.Errorf("failed to get block from rpc: %w", err)
+			return
+		}
+
+		itemCh <- *dataItem
+		continuationHeight++
+
+		if mustExit && targetHeight > 0 && continuationHeight >= targetHeight+1 {
+			break
+		}
+
+		time.Sleep(utils.RequestTimeoutMS)
+	}
+}
+
+func retrieveBlockFromBundle(chainRest, storageRest string, blockPool types.PoolResponse, height int64) (*types.DataItem, error) {
 	finalizedBundle, err := bundles.GetFinalizedBundleForBlockHeight(chainRest, blockPool, height)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get finalized bundle for block height %d: %w", height, err)
@@ -140,7 +174,7 @@ func RetrieveBlock(chainRest, storageRest string, blockPool types.PoolResponse, 
 	// parse bundle
 	var bundle types.Bundle
 
-	if err := json.Unmarshal(deflated, &bundle); err != nil {
+	if err := tmjson.Unmarshal(deflated, &bundle); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal tendermint bundle: %w", err)
 	}
 
@@ -159,4 +193,26 @@ func RetrieveBlock(chainRest, storageRest string, blockPool types.PoolResponse, 
 	}
 
 	return nil, fmt.Errorf("failed to find bundle with block height %d", height)
+}
+
+func retrieveBlockFromRpc(blockRpc string, height int64) (*types.DataItem, error) {
+	logger.Info().Msg(fmt.Sprintf("downloading block with height %d", height))
+	result, err := utils.GetFromUrlWithOptions(fmt.Sprintf("%s/block?height=%d", blockRpc, height),
+		utils.GetFromUrlOptions{SkipTLSVerification: true},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.DataItem{
+		Key:   strconv.FormatInt(height, 10),
+		Value: result,
+	}, nil
+}
+
+func RetrieveBlock(chainRest, storageRest string, blockRpc *string, blockPool *types.PoolResponse, height int64) (*types.DataItem, error) {
+	if blockRpc == nil {
+		return retrieveBlockFromBundle(chainRest, storageRest, *blockPool, height)
+	}
+	return retrieveBlockFromRpc(*blockRpc, height)
 }

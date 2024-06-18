@@ -90,7 +90,7 @@ var blockSyncCmd = &cobra.Command{
 		}
 
 		// perform validation checks before booting state-sync process
-		continuationHeight, err := blocksync.PerformBlockSyncValidationChecks(defaultEngine, chainRest, bId, targetHeight, true, !y)
+		continuationHeight, err := blocksync.PerformBlockSyncValidationChecks(defaultEngine, chainRest, nil, &bId, targetHeight, true, !y)
 		if err != nil {
 			logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
 			os.Exit(1)
@@ -108,7 +108,7 @@ var blockSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, bId, targetHeight, metrics, metricsPort, backupCfg, skipCrisisInvariants, optOut, debug)
+		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, nil, &bId, targetHeight, metrics, metricsPort, backupCfg, skipCrisisInvariants, optOut, debug)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))

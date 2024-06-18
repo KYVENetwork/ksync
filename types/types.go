@@ -13,6 +13,15 @@ type HeightResponse struct {
 	} `json:"result"`
 }
 
+type StatusResponse struct {
+	Result struct {
+		SyncInfo struct {
+			LatestBlockHeight   string `json:"latest_block_height"`
+			EarliestBlockHeight string `json:"earliest_block_height"`
+		} `json:"sync_info"`
+	} `json:"result"`
+}
+
 type PoolResponse = struct {
 	Pool struct {
 		Id   int64 `json:"id"`

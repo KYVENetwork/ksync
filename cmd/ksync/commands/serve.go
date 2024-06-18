@@ -96,7 +96,7 @@ var serveCmd = &cobra.Command{
 		continuationHeight := snapshotHeight
 
 		if continuationHeight == 0 {
-			continuationHeight, err = blocksync.PerformBlockSyncValidationChecks(defaultEngine, chainRest, bId, targetHeight, false, false)
+			continuationHeight, err = blocksync.PerformBlockSyncValidationChecks(defaultEngine, chainRest, nil, &bId, targetHeight, false, false)
 			if err != nil {
 				logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
 				os.Exit(1)
@@ -116,7 +116,7 @@ var serveCmd = &cobra.Command{
 		}
 
 		utils.TrackServeSnapshotsEvent(consensusEngine, chainId, chainRest, storageRest, snapshotPort, metrics, metricsPort, startHeight, pruning, keepSnapshots, debug, optOut)
-		servesnapshots.StartServeSnapshotsWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, bId, metrics, metricsPort, sId, snapshotPort, targetHeight, snapshotBundleId, snapshotHeight, skipCrisisInvariants, pruning, keepSnapshots, skipWaiting, debug)
+		servesnapshots.StartServeSnapshotsWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, &bId, metrics, metricsPort, sId, snapshotPort, targetHeight, snapshotBundleId, snapshotHeight, skipCrisisInvariants, pruning, keepSnapshots, skipWaiting, debug)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))

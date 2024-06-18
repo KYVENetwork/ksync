@@ -41,7 +41,7 @@ type Engine interface {
 
 	// ApplyBlock takes the block in the raw format and applies it against
 	// the app
-	ApplyBlock(runtime string, value []byte) error
+	ApplyBlock(runtime *string, value []byte) error
 
 	// ApplyFirstBlockOverP2P applies the first block over the P2P reactor
 	// which is necessary, if the genesis file is bigger than 100MB
