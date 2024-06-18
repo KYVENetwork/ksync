@@ -10,6 +10,7 @@ import (
 	cmtos "github.com/KYVENetwork/celestia-core/libs/os"
 	nm "github.com/KYVENetwork/celestia-core/node"
 	tmP2P "github.com/KYVENetwork/celestia-core/p2p"
+	"github.com/KYVENetwork/celestia-core/pkg/trace"
 	"github.com/KYVENetwork/celestia-core/privval"
 	tmProtoState "github.com/KYVENetwork/celestia-core/proto/celestiacore/state"
 	"github.com/KYVENetwork/celestia-core/proxy"
@@ -260,6 +261,10 @@ func (engine *Engine) ApplyBlock(runtime *string, value []byte) error {
 		return fmt.Errorf("failed to apply block at height %d: %w", engine.prevBlock.Height, err)
 	}
 
+	// TODO: why does the returned state of ApplyBlock contain zero as app version?
+	// set app version in state to the app version found on the block
+	state.Version.Consensus.App = engine.prevBlock.Version.App
+
 	// store block
 	engine.blockStore.SaveBlock(engine.prevBlock, blockParts, block.LastCommit)
 
@@ -328,7 +333,7 @@ func (engine *Engine) ApplyFirstBlockOverP2P(runtime string, value, nextValue []
 	}
 
 	nodeInfo, err := MakeNodeInfo(engine.config, ksyncNodeKey, genDoc)
-	transport := tmP2P.NewMultiplexTransport(nodeInfo, *ksyncNodeKey, tmP2P.MConnConfig(engine.config.P2P))
+	transport := tmP2P.NewMultiplexTransport(nodeInfo, *ksyncNodeKey, tmP2P.MConnConfig(engine.config.P2P), trace.NoOpTracer())
 	bcR := NewBlockchainReactor(block, nextBlock)
 	sw := CreateSwitch(engine.config, transport, bcR, nodeInfo, ksyncNodeKey, tmLogger)
 

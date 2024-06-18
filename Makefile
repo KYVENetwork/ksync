@@ -12,6 +12,6 @@ build: ensure_version
 ###############################################################################
 
 ensure_version:
-ifneq ($(GO_VERSION),1.21)
-	$(error ❌  Please run Go v1.21.x..)
+ifneq ($(GO_VERSION),1.22)
+	$(error ❌  Please run Go v1.22.x..)
 endif
