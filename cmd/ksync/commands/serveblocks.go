@@ -44,6 +44,11 @@ var serveBlocksCmd = &cobra.Command{
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
 
+		if blockRpc == "" {
+			logger.Error().Msg("--block-rpc is required")
+			os.Exit(1)
+		}
+
 		// if no home path was given get the default one
 		if homePath == "" {
 			homePath = utils.GetHomePathFromBinary(binaryPath)
