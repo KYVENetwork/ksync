@@ -7,7 +7,6 @@ import (
 	tmLog "github.com/KYVENetwork/celestia-core/libs/log"
 	"github.com/KYVENetwork/celestia-core/p2p"
 	bcproto "github.com/KYVENetwork/celestia-core/proto/celestiacore/blockchain"
-	sm "github.com/KYVENetwork/celestia-core/state"
 	"github.com/KYVENetwork/celestia-core/version"
 	log "github.com/KYVENetwork/ksync/utils"
 	"reflect"
@@ -132,11 +131,6 @@ func MakeNodeInfo(
 	genDoc *GenesisDoc,
 ) (p2p.NodeInfo, error) {
 	nodeInfo := p2p.DefaultNodeInfo{
-		ProtocolVersion: p2p.NewProtocolVersion(
-			version.P2PProtocol,
-			sm.InitStateVersion.Consensus.Block,
-			sm.InitStateVersion.Consensus.App,
-		),
 		DefaultNodeID: nodeKey.ID(),
 		Network:       genDoc.ChainID,
 		Version:       version.TMCoreSemVer,
