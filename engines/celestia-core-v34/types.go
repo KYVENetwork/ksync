@@ -46,3 +46,9 @@ type TendermintSsyncDataItem struct {
 		Chunk      []byte              `json:"chunk"`
 	} `json:"value"`
 }
+
+type BlockResponse struct {
+	Result struct {
+		Block tmTypes.Block `json:"block"`
+	} `json:"result"`
+}
