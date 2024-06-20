@@ -5,6 +5,7 @@ import (
 	"github.com/KYVENetwork/ksync/backup"
 	"github.com/KYVENetwork/ksync/blocksync"
 	"github.com/KYVENetwork/ksync/engines"
+	"github.com/KYVENetwork/ksync/server"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"os"
@@ -92,6 +93,8 @@ var serveBlocksCmd = &cobra.Command{
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 			os.Exit(1)
 		}
+
+		go server.StartBlockApiServer(consensusEngine, blockApiPort)
 
 		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, &blockRpc, nil, targetHeight, metrics, metricsPort, backupCfg, skipCrisisInvariants, optOut, debug)
 

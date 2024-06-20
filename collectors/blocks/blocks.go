@@ -198,7 +198,7 @@ func retrieveBlockFromBundle(chainRest, storageRest string, blockPool types.Pool
 func retrieveBlockFromRpc(blockRpc string, height int64) (*types.DataItem, error) {
 	logger.Info().Msg(fmt.Sprintf("downloading block with height %d", height))
 	result, err := utils.GetFromUrlWithOptions(fmt.Sprintf("%s/block?height=%d", blockRpc, height),
-		utils.GetFromUrlOptions{SkipTLSVerification: true},
+		utils.GetFromUrlOptions{SkipTLSVerification: true, WithBackoff: true},
 	)
 	if err != nil {
 		return nil, err

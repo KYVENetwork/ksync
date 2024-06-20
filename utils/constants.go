@@ -44,6 +44,7 @@ const (
 	DefaultBackupPath         = "~/.ksync/backups"
 	DefaultMetricsServerPort  = 8080
 	DefaultSnapshotServerPort = 7878
+	DefaultBlockApiPort       = 7879
 )
 
 const (

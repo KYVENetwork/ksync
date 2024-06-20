@@ -15,9 +15,12 @@ import (
 	"github.com/tendermint/tendermint/privval"
 	tmProtoState "github.com/tendermint/tendermint/proto/tendermint/state"
 	"github.com/tendermint/tendermint/proxy"
+	cTypes "github.com/tendermint/tendermint/rpc/core/types"
+	_ "github.com/tendermint/tendermint/rpc/jsonrpc/types"
 	tmState "github.com/tendermint/tendermint/state"
 	tmStore "github.com/tendermint/tendermint/store"
 	tmTypes "github.com/tendermint/tendermint/types"
+
 	db "github.com/tendermint/tm-db"
 	"net/url"
 	"os"
@@ -488,6 +491,35 @@ func (engine *Engine) GetSnapshotChunk(height, format, chunk int64) ([]byte, err
 func (engine *Engine) GetBlock(height int64) ([]byte, error) {
 	block := engine.blockStore.LoadBlock(height)
 	return json.Marshal(block)
+}
+
+func (engine *Engine) GetBlockWithMeta(height int64) ([]byte, error) {
+	block := engine.blockStore.LoadBlock(height)
+	if block == nil {
+		return nil, fmt.Errorf("failed to load block at height %d", height)
+	}
+	blockMeta := engine.blockStore.LoadBlockMeta(height)
+	if blockMeta == nil {
+		return json.Marshal(cTypes.ResultBlock{BlockID: tmTypes.BlockID{}, Block: block})
+	}
+	return json.Marshal(cTypes.ResultBlock{BlockID: blockMeta.BlockID, Block: block})
+}
+
+func (engine *Engine) GetBlockResults(height int64) ([]byte, error) {
+	responses, err := engine.stateStore.LoadABCIResponses(height)
+	if err != nil {
+		return nil, err
+	}
+
+	results := &cTypes.ResultBlockResults{
+		Height:                height,
+		TxsResults:            responses.DeliverTxs,
+		BeginBlockEvents:      responses.BeginBlock.Events,
+		EndBlockEvents:        responses.EndBlock.Events,
+		ValidatorUpdates:      responses.EndBlock.ValidatorUpdates,
+		ConsensusParamUpdates: responses.EndBlock.ConsensusParamUpdates,
+	}
+	return json.Marshal(results)
 }
 
 func (engine *Engine) GetState(height int64) ([]byte, error) {

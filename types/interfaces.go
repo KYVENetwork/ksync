@@ -76,6 +76,12 @@ type Engine interface {
 	// GetBlock loads the requested block from the blockstore.db
 	GetBlock(height int64) ([]byte, error)
 
+	// GetBlockWithMeta loads the requested block from the blockstore.db with meta data
+	GetBlockWithMeta(height int64) ([]byte, error)
+
+	// GetBlockResults loads the requested block results from the state.db
+	GetBlockResults(height int64) ([]byte, error)
+
 	// GetState rebuilds the requested state from the blockstore and state.db
 	GetState(height int64) ([]byte, error)
 

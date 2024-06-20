@@ -72,30 +72,10 @@ func getFromUrl(url string, transport *http.Transport) ([]byte, error) {
 	return data, nil
 }
 
-// GetFromUrl tries to fetch data from url with a custom User-Agent header
-func GetFromUrl(url string) ([]byte, error) {
-	return getFromUrl(url, nil)
-}
-
-type GetFromUrlOptions struct {
-	SkipTLSVerification bool
-}
-
-// GetFromUrlWithOptions tries to fetch data from url with a custom User-Agent header and custom options
-func GetFromUrlWithOptions(url string, options GetFromUrlOptions) ([]byte, error) {
-	if options.SkipTLSVerification {
-		transport := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		return getFromUrl(url, transport)
-	}
-	return getFromUrl(url, nil)
-}
-
-// GetFromUrlWithBackoff tries to fetch data from url with exponential backoff
-func GetFromUrlWithBackoff(url string) (data []byte, err error) {
+// getFromUrlWithBackoff tries to fetch data from url with exponential backoff
+func getFromUrlWithBackoff(url string, transport *http.Transport) (data []byte, err error) {
 	for i := 0; i < BackoffMaxRetries; i++ {
-		data, err = GetFromUrl(url)
+		data, err = getFromUrl(url, transport)
 		if err != nil {
 			delaySec := math.Pow(2, float64(i))
 			delay := time.Duration(delaySec) * time.Second
@@ -115,6 +95,35 @@ func GetFromUrlWithBackoff(url string) (data []byte, err error) {
 
 	logger.Error().Msg(fmt.Sprintf("failed to fetch data from url within maximum retry limit of %d", BackoffMaxRetries))
 	return
+}
+
+// GetFromUrl tries to fetch data from url with a custom User-Agent header
+func GetFromUrl(url string) ([]byte, error) {
+	return getFromUrl(url, nil)
+}
+
+type GetFromUrlOptions struct {
+	SkipTLSVerification bool
+	WithBackoff         bool
+}
+
+// GetFromUrlWithOptions tries to fetch data from url with a custom User-Agent header and custom options
+func GetFromUrlWithOptions(url string, options GetFromUrlOptions) ([]byte, error) {
+	var transport *http.Transport
+	if options.SkipTLSVerification {
+		transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	}
+	if options.WithBackoff {
+		return getFromUrlWithBackoff(url, transport)
+	}
+	return getFromUrl(url, transport)
+}
+
+// GetFromUrlWithBackoff tries to fetch data from url with exponential backoff
+func GetFromUrlWithBackoff(url string) (data []byte, err error) {
+	return GetFromUrlWithOptions(url, GetFromUrlOptions{SkipTLSVerification: true})
 }
 
 func CreateSha256Checksum(input []byte) (hash string) {
