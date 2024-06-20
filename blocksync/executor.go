@@ -17,7 +17,7 @@ var (
 	errorCh = make(chan error)
 )
 
-func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockRpc *string, blockPoolId *int64, targetHeight int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning, skipWaiting bool, backupCfg *types.BackupConfig) error {
+func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, targetHeight int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning, skipWaiting bool, backupCfg *types.BackupConfig) error {
 	continuationHeight, err := engine.GetContinuationHeight()
 	if err != nil {
 		return fmt.Errorf("failed to get continuation height from engine: %w", err)
@@ -57,7 +57,7 @@ func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockRp
 	}
 
 	// start block collector. we must exit if snapshot interval is zero
-	go blocks.StartBlockCollector(itemCh, errorCh, chainRest, storageRest, blockRpc, poolResponse, continuationHeight, targetHeight, snapshotInterval == 0)
+	go blocks.StartBlockCollector(itemCh, errorCh, chainRest, storageRest, blockRpcConfig, poolResponse, continuationHeight, targetHeight, snapshotInterval == 0)
 
 	snapshotPoolHeight := int64(0)
 

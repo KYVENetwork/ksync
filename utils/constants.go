@@ -44,7 +44,7 @@ const (
 	DefaultBackupPath         = "~/.ksync/backups"
 	DefaultMetricsServerPort  = 8080
 	DefaultSnapshotServerPort = 7878
-	DefaultBlockApiPort       = 7879
+	DefaultBlocksServerPort   = 7879
 )
 
 const (
@@ -55,6 +55,7 @@ const (
 	SnapshotPruningWindowFactor = 6
 	BackoffMaxRetries           = 10
 	RequestTimeoutMS            = 250
+	RequestBlocksTimeoutMS      = 250
 )
 
 const (

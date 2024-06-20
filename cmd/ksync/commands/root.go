@@ -21,7 +21,8 @@ var (
 	metrics              bool
 	metricsPort          int64
 	snapshotPort         int64
-	blockApiPort         int64
+	blocksServerPort     int64
+	blockRpcReqTimeout   int64
 	source               string
 	pruning              bool
 	keepSnapshots        bool

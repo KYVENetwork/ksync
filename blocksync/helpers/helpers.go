@@ -7,12 +7,12 @@ import (
 	"github.com/KYVENetwork/ksync/utils"
 )
 
-func GetBlockBoundaries(restEndpoint string, blockRpc *string, poolId *int64) (*types.PoolResponse, int64, int64, error) {
+func GetBlockBoundaries(restEndpoint string, blockRpcConfig *types.BlockRpcConfig, poolId *int64) (*types.PoolResponse, int64, int64, error) {
 	if poolId != nil {
 		return getBlockBoundariesFromPool(restEndpoint, *poolId)
 	}
-	if blockRpc != nil {
-		return getBlockBoundariesFromRpc(*blockRpc)
+	if blockRpcConfig != nil {
+		return getBlockBoundariesFromRpc(*blockRpcConfig)
 	}
 	return nil, 0, 0, fmt.Errorf("both block rpc and pool id are nil")
 }
@@ -41,8 +41,8 @@ func getBlockBoundariesFromPool(restEndpoint string, poolId int64) (*types.PoolR
 	return poolResponse, startHeight, endHeight, nil
 }
 
-func getBlockBoundariesFromRpc(blockRpc string) (*types.PoolResponse, int64, int64, error) {
-	status, err := utils.GetStatusFromRpc(blockRpc)
+func getBlockBoundariesFromRpc(blockRpcConfig types.BlockRpcConfig) (*types.PoolResponse, int64, int64, error) {
+	status, err := utils.GetStatusFromRpc(blockRpcConfig)
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("failed to get status from rpc: %w", err)
 	}

@@ -163,3 +163,8 @@ type Entry struct {
 type SourceRegistry struct {
 	Entries map[string]Entry `yaml:",inline"`
 }
+
+type BlockRpcConfig struct {
+	Endpoint       string
+	RequestTimeout time.Duration
+}

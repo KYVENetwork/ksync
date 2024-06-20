@@ -6,8 +6,8 @@ import (
 	"github.com/tendermint/tendermint/libs/json"
 )
 
-func GetStatusFromRpc(blockRpc string) (*types.StatusResponse, error) {
-	result, err := GetFromUrlWithOptions(fmt.Sprintf("%s/status", blockRpc),
+func GetStatusFromRpc(blockRpcConfig types.BlockRpcConfig) (*types.StatusResponse, error) {
+	result, err := GetFromUrlWithOptions(fmt.Sprintf("%s/status", blockRpcConfig.Endpoint),
 		GetFromUrlOptions{SkipTLSVerification: true},
 	)
 	if err != nil {

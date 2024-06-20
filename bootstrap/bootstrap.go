@@ -14,7 +14,7 @@ var (
 	logger = utils.KsyncLogger("bootstrap")
 )
 
-func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockRpc *string, poolId *int64, skipCrisisInvariants, debug bool) error {
+func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, poolId *int64, skipCrisisInvariants, debug bool) error {
 	logger.Info().Msg("starting bootstrap")
 
 	gt100, err := utils.IsFileGreaterThanOrEqualTo100MB(engine.GetGenesisPath())
@@ -40,7 +40,7 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 	}
 
 	// if we reached this point we have to sync over p2p
-	poolResponse, startHeight, endHeight, err := blocksyncHelpers.GetBlockBoundaries(chainRest, blockRpc, poolId)
+	poolResponse, startHeight, endHeight, err := blocksyncHelpers.GetBlockBoundaries(chainRest, blockRpcConfig, poolId)
 	if err != nil {
 		return fmt.Errorf("failed to get block boundaries: %w", err)
 	}
@@ -53,12 +53,12 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 		return fmt.Errorf(fmt.Sprintf("genesis height %d bigger than latest pool height %d", genesisHeight+1, endHeight))
 	}
 
-	item, err := blocks.RetrieveBlock(chainRest, storageRest, blockRpc, poolResponse, genesisHeight)
+	item, err := blocks.RetrieveBlock(chainRest, storageRest, blockRpcConfig, poolResponse, genesisHeight)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve block %d from pool", genesisHeight)
 	}
 
-	nextItem, err := blocks.RetrieveBlock(chainRest, storageRest, blockRpc, poolResponse, genesisHeight+1)
+	nextItem, err := blocks.RetrieveBlock(chainRest, storageRest, blockRpcConfig, poolResponse, genesisHeight+1)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve block %d from pool", genesisHeight+1)
 	}

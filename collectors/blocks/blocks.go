@@ -42,11 +42,11 @@ func getPaginationKeyForBlockHeight(chainRest string, blockPool types.PoolRespon
 	return paginationKey, nil
 }
 
-func StartBlockCollector(itemCh chan<- types.DataItem, errorCh chan<- error, chainRest string, storageRest string, blockRpc *string, blockPool *types.PoolResponse, continuationHeight, targetHeight int64, mustExit bool) {
-	if blockRpc == nil {
+func StartBlockCollector(itemCh chan<- types.DataItem, errorCh chan<- error, chainRest string, storageRest string, blockRpcConfig *types.BlockRpcConfig, blockPool *types.PoolResponse, continuationHeight, targetHeight int64, mustExit bool) {
+	if blockRpcConfig == nil {
 		startBlockCollectorFromBundles(itemCh, errorCh, chainRest, storageRest, *blockPool, continuationHeight, targetHeight, mustExit)
 	} else {
-		startBlockCollectorFromRpc(itemCh, errorCh, *blockRpc, continuationHeight, targetHeight, mustExit)
+		startBlockCollectorFromRpc(itemCh, errorCh, *blockRpcConfig, continuationHeight, targetHeight, mustExit)
 	}
 }
 
@@ -136,14 +136,14 @@ BundleCollector:
 }
 
 // startBlockCollectorFromRpc starts the block collector from the block rpc (must be an archive node which has all blocks)
-func startBlockCollectorFromRpc(itemCh chan<- types.DataItem, errorCh chan<- error, blockRpc string, continuationHeight, targetHeight int64, mustExit bool) {
+func startBlockCollectorFromRpc(itemCh chan<- types.DataItem, errorCh chan<- error, blockRpcConfig types.BlockRpcConfig, continuationHeight, targetHeight int64, mustExit bool) {
 	//	make a for loop starting with the continuation height
 	//		- get the block from the block rpc
 	//		- send the block to the item channel
 	//		- increment the continuation height
 	//		- if mustExit is true and target height is reached, break the loop
 	for {
-		dataItem, err := retrieveBlockFromRpc(blockRpc, continuationHeight)
+		dataItem, err := retrieveBlockFromRpc(blockRpcConfig, continuationHeight)
 		if err != nil {
 			errorCh <- fmt.Errorf("failed to get block from rpc: %w", err)
 			return
@@ -156,7 +156,7 @@ func startBlockCollectorFromRpc(itemCh chan<- types.DataItem, errorCh chan<- err
 			break
 		}
 
-		time.Sleep(utils.RequestTimeoutMS)
+		time.Sleep(blockRpcConfig.RequestTimeout)
 	}
 }
 
@@ -195,9 +195,9 @@ func retrieveBlockFromBundle(chainRest, storageRest string, blockPool types.Pool
 	return nil, fmt.Errorf("failed to find bundle with block height %d", height)
 }
 
-func retrieveBlockFromRpc(blockRpc string, height int64) (*types.DataItem, error) {
+func retrieveBlockFromRpc(blockRpcConfig types.BlockRpcConfig, height int64) (*types.DataItem, error) {
 	logger.Info().Msg(fmt.Sprintf("downloading block with height %d", height))
-	result, err := utils.GetFromUrlWithOptions(fmt.Sprintf("%s/block?height=%d", blockRpc, height),
+	result, err := utils.GetFromUrlWithOptions(fmt.Sprintf("%s/block?height=%d", blockRpcConfig.Endpoint, height),
 		utils.GetFromUrlOptions{SkipTLSVerification: true, WithBackoff: true},
 	)
 	if err != nil {
@@ -210,9 +210,9 @@ func retrieveBlockFromRpc(blockRpc string, height int64) (*types.DataItem, error
 	}, nil
 }
 
-func RetrieveBlock(chainRest, storageRest string, blockRpc *string, blockPool *types.PoolResponse, height int64) (*types.DataItem, error) {
-	if blockRpc == nil {
+func RetrieveBlock(chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, blockPool *types.PoolResponse, height int64) (*types.DataItem, error) {
+	if blockRpcConfig == nil {
 		return retrieveBlockFromBundle(chainRest, storageRest, *blockPool, height)
 	}
-	return retrieveBlockFromRpc(*blockRpc, height)
+	return retrieveBlockFromRpc(*blockRpcConfig, height)
 }

@@ -6,10 +6,12 @@ import (
 	"github.com/KYVENetwork/ksync/blocksync"
 	"github.com/KYVENetwork/ksync/engines"
 	"github.com/KYVENetwork/ksync/server"
+	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"os"
 	"strings"
+	"time"
 )
 
 func init() {
@@ -27,7 +29,8 @@ func init() {
 	serveBlocksCmd.Flags().StringVar(&chainRest, "chain-rest", "", "rest endpoint for KYVE chain")
 
 	serveBlocksCmd.Flags().StringVar(&blockRpc, "block-rpc", "", "rpc endpoint of the source node to sync blocks from")
-	serveBlocksCmd.Flags().Int64Var(&blockApiPort, "block-api-port", utils.DefaultBlockApiPort, "port where the block api server will be started")
+	serveBlocksCmd.Flags().Int64Var(&blockRpcReqTimeout, "block-rpc-req-timeout", utils.RequestBlocksTimeoutMS, "port where the block api server will be started")
+	serveBlocksCmd.Flags().Int64Var(&blocksServerPort, "block-api-port", utils.DefaultBlocksServerPort, "port where the block api server will be started")
 
 	serveBlocksCmd.Flags().StringVar(&registryUrl, "registry-url", utils.DefaultRegistryURL, "URL to fetch latest KYVE Source-Registry")
 
@@ -49,6 +52,10 @@ var serveBlocksCmd = &cobra.Command{
 		if blockRpc == "" {
 			logger.Error().Msg("--block-rpc is required")
 			os.Exit(1)
+		}
+		blockRpcConfig := types.BlockRpcConfig{
+			Endpoint:       blockRpc,
+			RequestTimeout: time.Duration(blockRpcReqTimeout * int64(time.Millisecond)),
 		}
 
 		// if no home path was given get the default one
@@ -76,7 +83,7 @@ var serveBlocksCmd = &cobra.Command{
 		}
 
 		// perform validation checks before booting block-sync process
-		continuationHeight, err := blocksync.PerformBlockSyncValidationChecks(defaultEngine, chainRest, &blockRpc, nil, targetHeight, true, !y)
+		continuationHeight, err := blocksync.PerformBlockSyncValidationChecks(defaultEngine, chainRest, &blockRpcConfig, nil, targetHeight, true, !y)
 		if err != nil {
 			logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
 			os.Exit(1)
@@ -94,9 +101,9 @@ var serveBlocksCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		go server.StartBlockApiServer(consensusEngine, blockApiPort)
+		go server.StartBlockApiServer(consensusEngine, blocksServerPort)
 
-		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, &blockRpc, nil, targetHeight, metrics, metricsPort, backupCfg, skipCrisisInvariants, optOut, debug)
+		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, &blockRpcConfig, nil, targetHeight, metrics, metricsPort, backupCfg, skipCrisisInvariants, optOut, debug)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
