@@ -25,7 +25,8 @@ func init() {
 
 	serveBlocksCmd.Flags().StringVar(&chainRest, "chain-rest", "", "rest endpoint for KYVE chain")
 
-	serveBlocksCmd.Flags().StringVar(&blockRpc, "block-rpc", "", "rpc endpoint of the source node that serves blocks")
+	serveBlocksCmd.Flags().StringVar(&blockRpc, "block-rpc", "", "rpc endpoint of the source node to sync blocks from")
+	serveBlocksCmd.Flags().Int64Var(&blockApiPort, "block-api-port", utils.DefaultBlockApiPort, "port where the block api server will be started")
 
 	serveBlocksCmd.Flags().StringVar(&registryUrl, "registry-url", utils.DefaultRegistryURL, "URL to fetch latest KYVE Source-Registry")
 
