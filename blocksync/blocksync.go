@@ -17,7 +17,7 @@ var (
 )
 
 func StartBlockSync(engine types.Engine, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, poolId *int64, targetHeight int64, metrics bool, port int64, backupCfg *types.BackupConfig) error {
-	return StartDBExecutor(engine, chainRest, storageRest, blockRpcConfig, poolId, targetHeight, metrics, port, 0, 0, utils.DefaultSnapshotServerPort, false, false, backupCfg)
+	return StartDBExecutor(engine, chainRest, storageRest, blockRpcConfig, poolId, targetHeight, metrics, port, 0, 0, false, false, backupCfg)
 }
 
 func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, targetHeight int64, checkEndHeight, userInput bool) (continuationHeight int64, err error) {
