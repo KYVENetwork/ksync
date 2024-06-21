@@ -74,7 +74,7 @@ var stateSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		consensusEngine := engines.EngineSourceFactory(engine, registryUrl, chainId, source, snapshotHeight)
+		consensusEngine := engines.EngineSourceFactory(engine, registryUrl, source, snapshotHeight)
 
 		if err := consensusEngine.OpenDBs(homePath); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))

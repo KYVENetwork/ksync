@@ -70,7 +70,7 @@ func getPoolsBySource(chainId, source, registryUrl string) (*int, *int, error) {
 		return nil, nil, fmt.Errorf("chain ID %s is not supported", chainId)
 	}
 
-	entry, err := helpers.GetSourceRegistryEntry(registryUrl, chainId, source)
+	entry, err := helpers.GetSourceRegistryEntry(registryUrl, source)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get source registry entry: %v", err)
 	}

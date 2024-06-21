@@ -24,11 +24,13 @@ func init() {
 
 	serveBlocksCmd.Flags().StringVarP(&homePath, "home", "h", "", "home directory")
 
-	serveBlocksCmd.Flags().StringVarP(&chainId, "chain-id", "c", utils.DefaultChainId, fmt.Sprintf("KYVE chain id [\"%s\",\"%s\",\"%s\"]", utils.ChainIdMainnet, utils.ChainIdKaon, utils.ChainIdKorellia))
-
 	serveBlocksCmd.Flags().StringVar(&chainRest, "chain-rest", "", "rest endpoint for KYVE chain")
 
 	serveBlocksCmd.Flags().StringVar(&blockRpc, "block-rpc", "", "rpc endpoint of the source node to sync blocks from")
+	if err := serveBlocksCmd.MarkFlagRequired("block-rpc"); err != nil {
+		panic(fmt.Errorf("flag 'block-rpc' should be required: %w", err))
+	}
+
 	serveBlocksCmd.Flags().Int64Var(&blockRpcReqTimeout, "block-rpc-req-timeout", utils.RequestBlocksTimeoutMS, "port where the block api server will be started")
 	serveBlocksCmd.Flags().Int64Var(&blocksServerPort, "block-api-port", utils.DefaultBlocksServerPort, "port where the block api server will be started")
 
@@ -49,10 +51,6 @@ var serveBlocksCmd = &cobra.Command{
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
 
-		if blockRpc == "" {
-			logger.Error().Msg("--block-rpc is required")
-			os.Exit(1)
-		}
 		blockRpcConfig := types.BlockRpcConfig{
 			Endpoint:       blockRpc,
 			RequestTimeout: time.Duration(blockRpcReqTimeout * int64(time.Millisecond)),
@@ -94,7 +92,7 @@ var serveBlocksCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		consensusEngine := engines.EngineSourceFactory(engine, registryUrl, chainId, source, continuationHeight)
+		consensusEngine := engines.EngineSourceFactory(engine, registryUrl, source, continuationHeight)
 
 		if err := consensusEngine.OpenDBs(homePath); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))

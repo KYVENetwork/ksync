@@ -96,7 +96,7 @@ var heightSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		consensusEngine := engines.EngineSourceFactory(engine, registryUrl, chainId, source, continuationHeight)
+		consensusEngine := engines.EngineSourceFactory(engine, registryUrl, source, continuationHeight)
 
 		if err := consensusEngine.OpenDBs(homePath); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))

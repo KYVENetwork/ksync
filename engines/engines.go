@@ -17,13 +17,13 @@ var (
 	logger = utils.KsyncLogger("engines")
 )
 
-func EngineSourceFactory(engine, registryUrl, chainId, source string, continuationHeight int64) types.Engine {
+func EngineSourceFactory(engine, registryUrl, source string, continuationHeight int64) types.Engine {
 	// if the engine was specified by the user or the source is empty we determine the engine by the engine input
 	if engine != "" || source == "" {
 		return EngineFactory(engine)
 	}
 
-	entry, err := helpers.GetSourceRegistryEntry(registryUrl, chainId, source)
+	entry, err := helpers.GetSourceRegistryEntry(registryUrl, source)
 	if err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to get source registry entry: %s", err))
 		os.Exit(1)
