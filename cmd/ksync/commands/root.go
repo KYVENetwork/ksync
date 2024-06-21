@@ -55,7 +55,8 @@ func Execute() {
 	heightSyncCmd.Flags().SortFlags = false
 	pruneCmd.Flags().SortFlags = false
 	resetCmd.Flags().SortFlags = false
-	serveCmd.Flags().SortFlags = false
+	servesnapshotsCmd.Flags().SortFlags = false
+	serveBlocksCmd.Flags().SortFlags = false
 	stateSyncCmd.Flags().SortFlags = false
 	versionCmd.Flags().SortFlags = false
 

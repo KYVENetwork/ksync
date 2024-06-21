@@ -31,6 +31,8 @@ func init() {
 		panic(fmt.Errorf("flag 'block-rpc' should be required: %w", err))
 	}
 
+	serveBlocksCmd.Flags().Int64VarP(&targetHeight, "target-height", "t", 0, "the height at which KSYNC will exit once reached")
+
 	serveBlocksCmd.Flags().Int64Var(&blockRpcReqTimeout, "block-rpc-req-timeout", utils.RequestBlocksTimeoutMS, "port where the block api server will be started")
 	serveBlocksCmd.Flags().Int64Var(&blocksServerPort, "block-api-port", utils.DefaultBlocksServerPort, "port where the block api server will be started")
 
