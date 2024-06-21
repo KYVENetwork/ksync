@@ -5,7 +5,6 @@ import (
 	"github.com/KYVENetwork/ksync/backup"
 	"github.com/KYVENetwork/ksync/blocksync"
 	"github.com/KYVENetwork/ksync/engines"
-	"github.com/KYVENetwork/ksync/server"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
@@ -99,7 +98,7 @@ var serveBlocksCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		go server.StartBlockApiServer(consensusEngine, blocksServerPort)
+		go consensusEngine.StartRPCServer()
 
 		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, &blockRpcConfig, nil, targetHeight, metrics, metricsPort, backupCfg, skipCrisisInvariants, optOut, debug)
 

@@ -526,6 +526,10 @@ func (engine *Engine) GetBlockResults(height int64) ([]byte, error) {
 	return json.Marshal(results)
 }
 
+func (engine *Engine) StartRPCServer() {
+
+}
+
 func (engine *Engine) GetState(height int64) ([]byte, error) {
 	initialHeight := height
 	if initialHeight == 0 {

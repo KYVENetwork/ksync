@@ -7,19 +7,27 @@ import (
 	abciClient "github.com/tendermint/tendermint/abci/client"
 	abciTypes "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
+	cs "github.com/tendermint/tendermint/consensus"
+	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/tendermint/tendermint/evidence"
 	"github.com/tendermint/tendermint/libs/json"
 	cmtos "github.com/tendermint/tendermint/libs/os"
+	"github.com/tendermint/tendermint/mempool"
 	nm "github.com/tendermint/tendermint/node"
 	tmP2P "github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
 	tmProtoState "github.com/tendermint/tendermint/proto/tendermint/state"
 	"github.com/tendermint/tendermint/proxy"
+	rpccore "github.com/tendermint/tendermint/rpc/core"
 	cTypes "github.com/tendermint/tendermint/rpc/core/types"
+	rpcserver "github.com/tendermint/tendermint/rpc/jsonrpc/server"
 	_ "github.com/tendermint/tendermint/rpc/jsonrpc/types"
 	tmState "github.com/tendermint/tendermint/state"
 	tmStore "github.com/tendermint/tendermint/store"
 	tmTypes "github.com/tendermint/tendermint/types"
+	"net/http"
+	"time"
 
 	db "github.com/tendermint/tm-db"
 	"net/url"
@@ -41,9 +49,15 @@ type Engine struct {
 	stateDB    db.DB
 	stateStore tmState.Store
 
+	genDoc           *GenesisDoc
+	privValidatorKey crypto.PubKey
+	nodeKey          tmP2P.NodeKey
+
 	state         tmState.State
 	prevBlock     *Block
 	proxyApp      proxy.AppConns
+	mempool       *mempool.CListMempool
+	evidencePool  *evidence.Pool
 	blockExecutor *tmState.BlockExecutor
 }
 
@@ -60,6 +74,26 @@ func (engine *Engine) OpenDBs(homePath string) error {
 	}
 
 	engine.config = config
+
+	genDoc, err := nm.DefaultGenesisDocProviderFunc(engine.config)()
+	if err != nil {
+		return fmt.Errorf("failed to load state and genDoc: %w", err)
+	}
+	engine.genDoc = genDoc
+
+	privValidatorKey, err := privval.LoadFilePVEmptyState(
+		config.PrivValidatorKeyFile(),
+		config.PrivValidatorStateFile(),
+	).GetPubKey()
+	if err != nil {
+		return fmt.Errorf("failed to load validator key file: %w", err)
+	}
+	engine.privValidatorKey = privValidatorKey
+
+	// generate new node key for this peer
+	engine.nodeKey = tmP2P.NodeKey{
+		PrivKey: ed25519.GenPrivKey(),
+	}
 
 	if err := utils.FormatGenesisFile(config.GenesisFile()); err != nil {
 		return fmt.Errorf("failed to format genesis file: %w", err)
@@ -132,13 +166,7 @@ func (engine *Engine) StopProxyApp() error {
 }
 
 func (engine *Engine) GetChainId() (string, error) {
-	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(engine.config)
-	_, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(engine.stateDB, defaultDocProvider)
-	if err != nil {
-		return "", fmt.Errorf("failed to load state and genDoc: %w", err)
-	}
-
-	return genDoc.ChainID, nil
+	return engine.genDoc.ChainID, nil
 }
 
 func (engine *Engine) GetMetrics() ([]byte, error) {
@@ -205,6 +233,8 @@ func (engine *Engine) DoHandshake() error {
 		return fmt.Errorf("failed to create evidence reactor: %w", err)
 	}
 
+	engine.mempool = mempool
+	engine.evidencePool = evidencePool
 	engine.blockExecutor = tmState.NewBlockExecutor(
 		engine.stateStore,
 		tmLogger.With("module", "state"),
@@ -307,11 +337,6 @@ func (engine *Engine) ApplyFirstBlockOverP2P(runtime string, value, nextValue []
 		return fmt.Errorf("runtime %s unknown", runtime)
 	}
 
-	genDoc, err := nm.DefaultGenesisDocProviderFunc(engine.config)()
-	if err != nil {
-		return fmt.Errorf("failed to load state and genDoc: %w", err)
-	}
-
 	peerAddress := engine.config.P2P.ListenAddress
 	peerHost, err := url.Parse(peerAddress)
 	if err != nil {
@@ -331,18 +356,13 @@ func (engine *Engine) ApplyFirstBlockOverP2P(runtime string, value, nextValue []
 		return fmt.Errorf("failed to load node key file: %w", err)
 	}
 
-	// generate new node key for this peer
-	ksyncNodeKey := &tmP2P.NodeKey{
-		PrivKey: ed25519.GenPrivKey(),
-	}
-
-	nodeInfo, err := MakeNodeInfo(engine.config, ksyncNodeKey, genDoc)
-	transport := tmP2P.NewMultiplexTransport(nodeInfo, *ksyncNodeKey, tmP2P.MConnConfig(engine.config.P2P))
+	nodeInfo, err := MakeNodeInfo(engine.config, &engine.nodeKey, engine.genDoc)
+	transport := tmP2P.NewMultiplexTransport(nodeInfo, engine.nodeKey, tmP2P.MConnConfig(engine.config.P2P))
 	bcR := NewBlockchainReactor(block, nextBlock)
-	sw := CreateSwitch(engine.config, transport, bcR, nodeInfo, ksyncNodeKey, tmLogger)
+	sw := CreateSwitch(engine.config, transport, bcR, nodeInfo, &engine.nodeKey, tmLogger)
 
 	// start the transport
-	addr, err := tmP2P.NewNetAddressString(tmP2P.IDAddressString(ksyncNodeKey.ID(), engine.config.P2P.ListenAddress))
+	addr, err := tmP2P.NewNetAddressString(tmP2P.IDAddressString(engine.nodeKey.ID(), engine.config.P2P.ListenAddress))
 	if err != nil {
 		return fmt.Errorf("failed to start transport: %w", err)
 	}
@@ -520,6 +540,71 @@ func (engine *Engine) GetBlockResults(height int64) ([]byte, error) {
 		ConsensusParamUpdates: responses.EndBlock.ConsensusParamUpdates,
 	}
 	return json.Marshal(results)
+}
+
+func (engine *Engine) StartRPCServer() {
+	rpcLogger := tmLogger.With("module", "rpc-server")
+
+	// wait until all reactors have been booted
+	for engine.blockExecutor == nil {
+		time.Sleep(1000)
+	}
+
+	consensusReactor := cs.NewReactor(cs.NewState(
+		engine.config.Consensus,
+		engine.state.Copy(),
+		engine.blockExecutor,
+		engine.blockStore,
+		engine.mempool,
+		engine.evidencePool,
+	), false, cs.ReactorMetrics(cs.NopMetrics()))
+
+	nodeInfo, err := MakeNodeInfo(engine.config, &engine.nodeKey, engine.genDoc)
+	if err != nil {
+		tmLogger.Error(fmt.Sprintf("failed to get nodeInfo: %s", err))
+		return
+	}
+
+	rpccore.SetEnvironment(&rpccore.Environment{
+		ProxyAppQuery:    nil,
+		ProxyAppMempool:  nil,
+		StateStore:       engine.stateStore,
+		BlockStore:       engine.blockStore,
+		EvidencePool:     nil,
+		ConsensusState:   nil,
+		P2PPeers:         nil,
+		P2PTransport:     &Transport{nodeInfo: nodeInfo},
+		PubKey:           engine.privValidatorKey,
+		GenDoc:           nil,
+		TxIndexer:        nil,
+		BlockIndexer:     nil,
+		ConsensusReactor: consensusReactor,
+		EventBus:         nil,
+		Mempool:          nil,
+		Logger:           rpcLogger,
+		Config:           *engine.config.RPC,
+	})
+
+	routes := map[string]*rpcserver.RPCFunc{
+		"status":        rpcserver.NewRPCFunc(rpccore.Status, ""),
+		"block":         rpcserver.NewRPCFunc(rpccore.Block, "height"),
+		"block_results": rpcserver.NewRPCFunc(rpccore.BlockResults, "height"),
+	}
+
+	mux := http.NewServeMux()
+	config := rpcserver.DefaultConfig()
+
+	rpcserver.RegisterRPCFuncs(mux, routes, rpcLogger)
+	listener, err := rpcserver.Listen("tcp://127.0.0.1:26657", config)
+	if err != nil {
+		tmLogger.Error(fmt.Sprintf("failed to get rpc listener: %s", err))
+		return
+	}
+
+	if err := rpcserver.Serve(listener, mux, rpcLogger, config); err != nil {
+		tmLogger.Error(fmt.Sprintf("failed to start rpc server: %s", err))
+		return
+	}
 }
 
 func (engine *Engine) GetState(height int64) ([]byte, error) {

@@ -82,6 +82,10 @@ type Engine interface {
 	// GetBlockResults loads the requested block results from the state.db
 	GetBlockResults(height int64) ([]byte, error)
 
+	// StartRPCServer spins up a basic rpc server of the engine which serves
+	// /status, /block and /block_results
+	StartRPCServer()
+
 	// GetState rebuilds the requested state from the blockstore and state.db
 	GetState(height int64) ([]byte, error)
 
