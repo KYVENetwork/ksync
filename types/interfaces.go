@@ -27,10 +27,6 @@ type Engine interface {
 	// GetChainId gets the chain id of the app
 	GetChainId() (string, error)
 
-	// GetMetrics gets already encoded metric information
-	// for the metrics server
-	GetMetrics() ([]byte, error)
-
 	// GetContinuationHeight gets the block height from the app at which
 	// KSYNC should proceed block-syncing
 	GetContinuationHeight() (int64, error)
@@ -75,12 +71,6 @@ type Engine interface {
 
 	// GetBlock loads the requested block from the blockstore.db
 	GetBlock(height int64) ([]byte, error)
-
-	// GetBlockWithMeta loads the requested block from the blockstore.db with meta data
-	GetBlockWithMeta(height int64) ([]byte, error)
-
-	// GetBlockResults loads the requested block results from the state.db
-	GetBlockResults(height int64) ([]byte, error)
 
 	// StartRPCServer spins up a basic rpc server of the engine which serves
 	// /status, /block and /block_results

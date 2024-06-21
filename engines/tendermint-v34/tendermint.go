@@ -2,7 +2,6 @@ package tendermint_v34
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	abciClient "github.com/tendermint/tendermint/abci/client"
 	abciTypes "github.com/tendermint/tendermint/abci/types"
@@ -20,7 +19,6 @@ import (
 	tmProtoState "github.com/tendermint/tendermint/proto/tendermint/state"
 	"github.com/tendermint/tendermint/proxy"
 	rpccore "github.com/tendermint/tendermint/rpc/core"
-	cTypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpcserver "github.com/tendermint/tendermint/rpc/jsonrpc/server"
 	tmState "github.com/tendermint/tendermint/state"
 	tmStore "github.com/tendermint/tendermint/store"
@@ -160,23 +158,6 @@ func (engine *Engine) StopProxyApp() error {
 
 func (engine *Engine) GetChainId() (string, error) {
 	return engine.genDoc.ChainID, nil
-}
-
-func (engine *Engine) GetMetrics() ([]byte, error) {
-	latest := engine.blockStore.LoadBlock(engine.blockStore.Height())
-	earliest := engine.blockStore.LoadBlock(engine.blockStore.Base())
-
-	return json.Marshal(types.Metrics{
-		LatestBlockHash:     latest.Header.Hash().String(),
-		LatestAppHash:       latest.AppHash.String(),
-		LatestBlockHeight:   latest.Height,
-		LatestBlockTime:     latest.Time,
-		EarliestBlockHash:   earliest.Hash().String(),
-		EarliestAppHash:     earliest.AppHash.String(),
-		EarliestBlockHeight: earliest.Height,
-		EarliestBlockTime:   earliest.Time,
-		CatchingUp:          true,
-	})
 }
 
 func (engine *Engine) GetContinuationHeight() (int64, error) {
@@ -509,35 +490,6 @@ func (engine *Engine) GetSnapshotChunk(height, format, chunk int64) ([]byte, err
 func (engine *Engine) GetBlock(height int64) ([]byte, error) {
 	block := engine.blockStore.LoadBlock(height)
 	return json.Marshal(block)
-}
-
-func (engine *Engine) GetBlockWithMeta(height int64) ([]byte, error) {
-	block := engine.blockStore.LoadBlock(height)
-	if block == nil {
-		return nil, fmt.Errorf("failed to load block at height %d", height)
-	}
-	blockMeta := engine.blockStore.LoadBlockMeta(height)
-	if blockMeta == nil {
-		return json.Marshal(cTypes.ResultBlock{BlockID: tmTypes.BlockID{}, Block: block})
-	}
-	return json.Marshal(cTypes.ResultBlock{BlockID: blockMeta.BlockID, Block: block})
-}
-
-func (engine *Engine) GetBlockResults(height int64) ([]byte, error) {
-	responses, err := engine.stateStore.LoadABCIResponses(height)
-	if err != nil {
-		return nil, err
-	}
-
-	results := &cTypes.ResultBlockResults{
-		Height:                height,
-		TxsResults:            responses.DeliverTxs,
-		BeginBlockEvents:      responses.BeginBlock.Events,
-		EndBlockEvents:        responses.EndBlock.Events,
-		ValidatorUpdates:      responses.EndBlock.ValidatorUpdates,
-		ConsensusParamUpdates: responses.EndBlock.ConsensusParamUpdates,
-	}
-	return json.Marshal(results)
 }
 
 func (engine *Engine) StartRPCServer(port int64) {
