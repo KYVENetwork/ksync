@@ -140,8 +140,8 @@ func startBlockCollectorFromRpc(itemCh chan<- types.DataItem, errorCh chan<- err
 	//	make a for loop starting with the continuation height
 	//		- get the block from the block rpc
 	//		- send the block to the item channel
-	//		- increment the continuation height
 	//		- if mustExit is true and target height is reached, break the loop
+	//		- increment the continuation height
 	for {
 		dataItem, err := retrieveBlockFromRpc(blockRpcConfig, continuationHeight)
 		if err != nil {
@@ -150,11 +150,12 @@ func startBlockCollectorFromRpc(itemCh chan<- types.DataItem, errorCh chan<- err
 		}
 
 		itemCh <- *dataItem
-		continuationHeight++
 
 		if mustExit && targetHeight > 0 && continuationHeight >= targetHeight+1 {
 			break
 		}
+
+		continuationHeight++
 
 		time.Sleep(blockRpcConfig.RequestTimeout)
 	}

@@ -10,7 +10,6 @@ import (
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -23,8 +22,6 @@ func init() {
 	}
 
 	serveBlocksCmd.Flags().StringVarP(&homePath, "home", "h", "", "home directory")
-
-	serveBlocksCmd.Flags().StringVar(&chainRest, "chain-rest", "", "rest endpoint for KYVE chain")
 
 	serveBlocksCmd.Flags().StringVar(&blockRpc, "block-rpc", "", "rpc endpoint of the source node to sync blocks from")
 	if err := serveBlocksCmd.MarkFlagRequired("block-rpc"); err != nil {
@@ -48,10 +45,10 @@ func init() {
 
 var serveBlocksCmd = &cobra.Command{
 	Use:   "serve-blocks",
-	Short: "Start fast syncing blocks with KSYNC - serve-blocks",
+	Short: "Start fast syncing blocks from RPC endpoints with KSYNC",
 	Run: func(cmd *cobra.Command, args []string) {
-		chainRest = utils.GetChainRest(chainId, chainRest)
-		storageRest = strings.TrimSuffix(storageRest, "/")
+		chainRest = ""
+		storageRest = ""
 
 		blockRpcConfig := types.BlockRpcConfig{
 			Endpoint:       blockRpc,
