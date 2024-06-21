@@ -18,10 +18,9 @@ var (
 	blockPoolId          string
 	startHeight          int64
 	targetHeight         int64
-	metrics              bool
-	metricsPort          int64
+	rpcServer            bool
+	rpcServerPort        int64
 	snapshotPort         int64
-	blocksServerPort     int64
 	blockRpcReqTimeout   int64
 	source               string
 	pruning              bool

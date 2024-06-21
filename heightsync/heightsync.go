@@ -139,7 +139,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 	// if we have not reached our target height yet we block-sync the remaining ones
 	if remaining := targetHeight - snapshotHeight; remaining > 0 {
 		logger.Info().Msg(fmt.Sprintf("block-syncing remaining %d blocks", remaining))
-		if err := blocksync.StartBlockSync(engine, chainRest, storageRest, nil, blockPoolId, targetHeight, false, 0, nil); err != nil {
+		if err := blocksync.StartBlockSync(engine, chainRest, storageRest, nil, blockPoolId, targetHeight, nil); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to apply block-sync: %s", err))
 
 			// stop binary process thread

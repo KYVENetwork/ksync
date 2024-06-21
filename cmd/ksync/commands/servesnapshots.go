@@ -36,8 +36,8 @@ func init() {
 
 	servesnapshotsCmd.Flags().Int64Var(&snapshotPort, "snapshot-port", utils.DefaultSnapshotServerPort, "port for snapshot server")
 
-	servesnapshotsCmd.Flags().BoolVar(&metrics, "metrics", false, "metrics server exposing sync status")
-	servesnapshotsCmd.Flags().Int64Var(&metricsPort, "metrics-port", utils.DefaultMetricsServerPort, "port for metrics server")
+	servesnapshotsCmd.Flags().BoolVar(&rpcServer, "rpc-server", false, "rpc server serving /status, /block and /block_results")
+	servesnapshotsCmd.Flags().Int64Var(&rpcServerPort, "rpc-server-port", utils.DefaultRpcServerPort, "port for rpc server")
 
 	servesnapshotsCmd.Flags().Int64Var(&startHeight, "start-height", 0, "start creating snapshots at this height. note that pruning should be false when using start height")
 	servesnapshotsCmd.Flags().Int64VarP(&targetHeight, "target-height", "t", 0, "the height at which KSYNC will exit once reached")
@@ -116,11 +116,15 @@ var servesnapshotsCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		utils.TrackServeSnapshotsEvent(consensusEngine, chainId, chainRest, storageRest, snapshotPort, metrics, metricsPort, startHeight, pruning, keepSnapshots, debug, optOut)
+		utils.TrackServeSnapshotsEvent(consensusEngine, chainId, chainRest, storageRest, snapshotPort, rpcServer, rpcServerPort, startHeight, pruning, keepSnapshots, debug, optOut)
+
+		if rpcServer {
+			go consensusEngine.StartRPCServer(rpcServerPort)
+		}
 
 		go server.StartSnapshotApiServer(consensusEngine, snapshotPort)
 
-		servesnapshots.StartServeSnapshotsWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, &bId, metrics, metricsPort, sId, snapshotPort, targetHeight, snapshotBundleId, snapshotHeight, skipCrisisInvariants, pruning, keepSnapshots, skipWaiting, debug)
+		servesnapshots.StartServeSnapshotsWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, &bId, sId, targetHeight, snapshotBundleId, snapshotHeight, skipCrisisInvariants, pruning, keepSnapshots, skipWaiting, debug)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))

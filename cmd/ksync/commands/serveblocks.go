@@ -30,7 +30,8 @@ func init() {
 	serveBlocksCmd.Flags().Int64VarP(&targetHeight, "target-height", "t", 0, "the height at which KSYNC will exit once reached")
 
 	serveBlocksCmd.Flags().Int64Var(&blockRpcReqTimeout, "block-rpc-req-timeout", utils.RequestBlocksTimeoutMS, "port where the block api server will be started")
-	serveBlocksCmd.Flags().Int64Var(&blocksServerPort, "block-api-port", utils.DefaultBlocksServerPort, "port where the block api server will be started")
+
+	serveBlocksCmd.Flags().Int64Var(&rpcServerPort, "rpc-server-port", utils.DefaultRpcServerPort, "port where the rpc server will be started")
 
 	serveBlocksCmd.Flags().StringVarP(&source, "source", "s", "", "chain-id of the source")
 	serveBlocksCmd.Flags().StringVar(&registryUrl, "registry-url", utils.DefaultRegistryURL, "URL to fetch latest KYVE Source-Registry")
@@ -98,9 +99,9 @@ var serveBlocksCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		go consensusEngine.StartRPCServer(blocksServerPort)
+		go consensusEngine.StartRPCServer(rpcServerPort)
 
-		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, &blockRpcConfig, nil, targetHeight, metrics, metricsPort, backupCfg, skipCrisisInvariants, optOut, debug)
+		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, &blockRpcConfig, nil, targetHeight, backupCfg, skipCrisisInvariants, optOut, debug)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))

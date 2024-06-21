@@ -42,9 +42,8 @@ const (
 	DefaultEngine             = EngineTendermintV34
 	DefaultChainId            = ChainIdMainnet
 	DefaultBackupPath         = "~/.ksync/backups"
-	DefaultMetricsServerPort  = 8080
+	DefaultRpcServerPort      = 7777
 	DefaultSnapshotServerPort = 7878
-	DefaultBlocksServerPort   = 7879
 )
 
 const (

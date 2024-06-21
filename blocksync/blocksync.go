@@ -16,8 +16,8 @@ var (
 	logger = utils.KsyncLogger("block-sync")
 )
 
-func StartBlockSync(engine types.Engine, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, poolId *int64, targetHeight int64, metrics bool, port int64, backupCfg *types.BackupConfig) error {
-	return StartDBExecutor(engine, chainRest, storageRest, blockRpcConfig, poolId, targetHeight, metrics, port, 0, 0, false, false, backupCfg)
+func StartBlockSync(engine types.Engine, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, poolId *int64, targetHeight int64, backupCfg *types.BackupConfig) error {
+	return StartDBExecutor(engine, chainRest, storageRest, blockRpcConfig, poolId, targetHeight, 0, 0, false, false, backupCfg)
 }
 
 func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, targetHeight int64, checkEndHeight, userInput bool) (continuationHeight int64, err error) {
@@ -77,7 +77,7 @@ func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blo
 	return
 }
 
-func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, targetHeight int64, metrics bool, port int64, backupCfg *types.BackupConfig, skipCrisisInvariants, optOut, debug bool) {
+func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, targetHeight int64, backupCfg *types.BackupConfig, skipCrisisInvariants, optOut, debug bool) {
 	logger.Info().Msg("starting block-sync")
 
 	utils.TrackSyncStartEvent(engine, utils.BLOCK_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
@@ -103,7 +103,7 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId
 	currentHeight := engine.GetHeight()
 
 	// db executes blocks against app until target height is reached
-	if err := StartBlockSync(engine, chainRest, storageRest, blockRpcConfig, blockPoolId, targetHeight, metrics, port, backupCfg); err != nil {
+	if err := StartBlockSync(engine, chainRest, storageRest, blockRpcConfig, blockPoolId, targetHeight, backupCfg); err != nil {
 		logger.Error().Msg(fmt.Sprintf("%s", err))
 
 		// stop binary process thread

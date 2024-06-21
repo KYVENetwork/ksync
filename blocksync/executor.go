@@ -5,7 +5,6 @@ import (
 	"github.com/KYVENetwork/ksync/backup"
 	"github.com/KYVENetwork/ksync/collectors/blocks"
 	"github.com/KYVENetwork/ksync/collectors/pool"
-	"github.com/KYVENetwork/ksync/server"
 	stateSyncHelpers "github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
@@ -17,7 +16,7 @@ var (
 	errorCh = make(chan error)
 )
 
-func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, targetHeight int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotInterval int64, pruning, skipWaiting bool, backupCfg *types.BackupConfig) error {
+func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, targetHeight int64, snapshotPoolId, snapshotInterval int64, pruning, skipWaiting bool, backupCfg *types.BackupConfig) error {
 	continuationHeight, err := engine.GetContinuationHeight()
 	if err != nil {
 		return fmt.Errorf("failed to get continuation height from engine: %w", err)
@@ -44,11 +43,6 @@ func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockRp
 			return fmt.Errorf("failed to get pool info: %w", err)
 		}
 		runtime = &poolResponse.Pool.Data.Runtime
-	}
-
-	// start metrics api server which serves an api endpoint sync metrics
-	if metricsServer {
-		go server.StartMetricsApiServer(engine, metricsPort)
 	}
 
 	// start block collector. we must exit if snapshot interval is zero
