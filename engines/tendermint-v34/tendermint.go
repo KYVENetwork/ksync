@@ -50,7 +50,6 @@ type Engine struct {
 
 	genDoc           *GenesisDoc
 	privValidatorKey crypto.PubKey
-	nodeKey          tmP2P.NodeKey
 
 	state         tmState.State
 	prevBlock     *Block
@@ -74,6 +73,10 @@ func (engine *Engine) OpenDBs(homePath string) error {
 
 	engine.config = config
 
+	if err := utils.FormatGenesisFile(config.GenesisFile()); err != nil {
+		return fmt.Errorf("failed to format genesis file: %w", err)
+	}
+
 	genDoc, err := nm.DefaultGenesisDocProviderFunc(engine.config)()
 	if err != nil {
 		return fmt.Errorf("failed to load state and genDoc: %w", err)
@@ -88,15 +91,6 @@ func (engine *Engine) OpenDBs(homePath string) error {
 		return fmt.Errorf("failed to load validator key file: %w", err)
 	}
 	engine.privValidatorKey = privValidatorKey
-
-	// generate new node key for this peer
-	engine.nodeKey = tmP2P.NodeKey{
-		PrivKey: ed25519.GenPrivKey(),
-	}
-
-	if err := utils.FormatGenesisFile(config.GenesisFile()); err != nil {
-		return fmt.Errorf("failed to format genesis file: %w", err)
-	}
 
 	blockDB, blockStore, err := GetBlockstoreDBs(config)
 	if err != nil {
@@ -355,13 +349,18 @@ func (engine *Engine) ApplyFirstBlockOverP2P(runtime string, value, nextValue []
 		return fmt.Errorf("failed to load node key file: %w", err)
 	}
 
-	nodeInfo, err := MakeNodeInfo(engine.config, &engine.nodeKey, engine.genDoc)
-	transport := tmP2P.NewMultiplexTransport(nodeInfo, engine.nodeKey, tmP2P.MConnConfig(engine.config.P2P))
+	// generate new node key for this peer
+	ksyncNodeKey := &tmP2P.NodeKey{
+		PrivKey: ed25519.GenPrivKey(),
+	}
+
+	nodeInfo, err := MakeNodeInfo(engine.config, ksyncNodeKey, engine.genDoc)
+	transport := tmP2P.NewMultiplexTransport(nodeInfo, *ksyncNodeKey, tmP2P.MConnConfig(engine.config.P2P))
 	bcR := NewBlockchainReactor(block, nextBlock)
-	sw := CreateSwitch(engine.config, transport, bcR, nodeInfo, &engine.nodeKey, tmLogger)
+	sw := CreateSwitch(engine.config, transport, bcR, nodeInfo, ksyncNodeKey, tmLogger)
 
 	// start the transport
-	addr, err := tmP2P.NewNetAddressString(tmP2P.IDAddressString(engine.nodeKey.ID(), engine.config.P2P.ListenAddress))
+	addr, err := tmP2P.NewNetAddressString(tmP2P.IDAddressString(nodeKey.ID(), engine.config.P2P.ListenAddress))
 	if err != nil {
 		return fmt.Errorf("failed to start transport: %w", err)
 	}
@@ -558,7 +557,12 @@ func (engine *Engine) StartRPCServer(port int64) {
 		engine.evidencePool,
 	), false, cs.ReactorMetrics(cs.NopMetrics()))
 
-	nodeInfo, err := MakeNodeInfo(engine.config, &engine.nodeKey, engine.genDoc)
+	nodeKey, err := tmP2P.LoadNodeKey(engine.config.NodeKeyFile())
+	if err != nil {
+		tmLogger.Error(fmt.Sprintf("failed to get nodeKey: %s", err))
+		return
+	}
+	nodeInfo, err := MakeNodeInfo(engine.config, nodeKey, engine.genDoc)
 	if err != nil {
 		tmLogger.Error(fmt.Sprintf("failed to get nodeInfo: %s", err))
 		return

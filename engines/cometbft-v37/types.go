@@ -3,6 +3,7 @@ package cometbft_v37
 import (
 	abciTypes "github.com/KYVENetwork/cometbft/v37/abci/types"
 	cometCfg "github.com/KYVENetwork/cometbft/v37/config"
+	tmP2P "github.com/KYVENetwork/cometbft/v37/p2p"
 	cometState "github.com/KYVENetwork/cometbft/v37/state"
 	cometTypes "github.com/KYVENetwork/cometbft/v37/types"
 )
@@ -51,4 +52,20 @@ type BlockResponse struct {
 	Result struct {
 		Block cometTypes.Block `json:"block"`
 	} `json:"result"`
+}
+
+type Transport struct {
+	nodeInfo tmP2P.NodeInfo
+}
+
+func (t *Transport) Listeners() []string {
+	return []string{}
+}
+
+func (t *Transport) IsListening() bool {
+	return false
+}
+
+func (t *Transport) NodeInfo() tmP2P.NodeInfo {
+	return t.nodeInfo
 }
