@@ -22,7 +22,6 @@ import (
 	rpccore "github.com/tendermint/tendermint/rpc/core"
 	cTypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpcserver "github.com/tendermint/tendermint/rpc/jsonrpc/server"
-	_ "github.com/tendermint/tendermint/rpc/jsonrpc/types"
 	tmState "github.com/tendermint/tendermint/state"
 	tmStore "github.com/tendermint/tendermint/store"
 	tmTypes "github.com/tendermint/tendermint/types"
@@ -542,13 +541,13 @@ func (engine *Engine) GetBlockResults(height int64) ([]byte, error) {
 	return json.Marshal(results)
 }
 
-func (engine *Engine) StartRPCServer() {
-	rpcLogger := tmLogger.With("module", "rpc-server")
-
+func (engine *Engine) StartRPCServer(port int64) {
 	// wait until all reactors have been booted
 	for engine.blockExecutor == nil {
 		time.Sleep(1000)
 	}
+
+	rpcLogger := tmLogger.With("module", "rpc-server")
 
 	consensusReactor := cs.NewReactor(cs.NewState(
 		engine.config.Consensus,
@@ -595,7 +594,7 @@ func (engine *Engine) StartRPCServer() {
 	config := rpcserver.DefaultConfig()
 
 	rpcserver.RegisterRPCFuncs(mux, routes, rpcLogger)
-	listener, err := rpcserver.Listen("tcp://127.0.0.1:26657", config)
+	listener, err := rpcserver.Listen(fmt.Sprintf("tcp://127.0.0.1:%d", port), config)
 	if err != nil {
 		tmLogger.Error(fmt.Sprintf("failed to get rpc listener: %s", err))
 		return

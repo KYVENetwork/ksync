@@ -98,7 +98,7 @@ var serveBlocksCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		go consensusEngine.StartRPCServer()
+		go consensusEngine.StartRPCServer(blocksServerPort)
 
 		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, &blockRpcConfig, nil, targetHeight, metrics, metricsPort, backupCfg, skipCrisisInvariants, optOut, debug)
 

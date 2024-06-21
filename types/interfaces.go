@@ -84,7 +84,7 @@ type Engine interface {
 
 	// StartRPCServer spins up a basic rpc server of the engine which serves
 	// /status, /block and /block_results
-	StartRPCServer()
+	StartRPCServer(port int64)
 
 	// GetState rebuilds the requested state from the blockstore and state.db
 	GetState(height int64) ([]byte, error)
