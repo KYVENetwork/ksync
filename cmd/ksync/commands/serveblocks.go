@@ -33,6 +33,7 @@ func init() {
 	serveBlocksCmd.Flags().Int64Var(&blockRpcReqTimeout, "block-rpc-req-timeout", utils.RequestBlocksTimeoutMS, "port where the block api server will be started")
 	serveBlocksCmd.Flags().Int64Var(&blocksServerPort, "block-api-port", utils.DefaultBlocksServerPort, "port where the block api server will be started")
 
+	serveBlocksCmd.Flags().StringVarP(&source, "source", "s", "", "chain-id of the source")
 	serveBlocksCmd.Flags().StringVar(&registryUrl, "registry-url", utils.DefaultRegistryURL, "URL to fetch latest KYVE Source-Registry")
 
 	serveBlocksCmd.Flags().BoolVarP(&reset, "reset-all", "r", false, "reset this node's validator to genesis state")
