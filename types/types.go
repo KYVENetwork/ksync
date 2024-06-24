@@ -13,6 +13,15 @@ type HeightResponse struct {
 	} `json:"result"`
 }
 
+type StatusResponse struct {
+	Result struct {
+		SyncInfo struct {
+			LatestBlockHeight   int64 `json:"latest_block_height"`
+			EarliestBlockHeight int64 `json:"earliest_block_height"`
+		} `json:"sync_info"`
+	} `json:"result"`
+}
+
 type PoolResponse = struct {
 	Pool struct {
 		Id   int64 `json:"id"`
@@ -83,18 +92,6 @@ type BackupConfig = struct {
 	Compression string
 }
 
-type Metrics struct {
-	LatestBlockHash     string    `json:"latest_block_hash"`
-	LatestAppHash       string    `json:"latest_app_hash"`
-	LatestBlockHeight   int64     `json:"latest_block_height"`
-	LatestBlockTime     time.Time `json:"latest_block_time"`
-	EarliestBlockHash   string    `json:"earliest_block_hash"`
-	EarliestAppHash     string    `json:"earliest_app_hash"`
-	EarliestBlockHeight int64     `json:"earliest_block_height"`
-	EarliestBlockTime   time.Time `json:"earliest_block_time"`
-	CatchingUp          bool      `json:"catching_up"`
-}
-
 type Networks struct {
 	Kaon *NetworkProperties `yaml:"kaon-1,omitempty"`
 	Kyve *NetworkProperties `yaml:"kyve-1,omitempty"`
@@ -153,4 +150,9 @@ type Entry struct {
 
 type SourceRegistry struct {
 	Entries map[string]Entry `yaml:",inline"`
+}
+
+type BlockRpcConfig struct {
+	Endpoint       string
+	RequestTimeout time.Duration
 }

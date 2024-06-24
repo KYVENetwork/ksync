@@ -201,7 +201,7 @@ func TrackPruningEvent(untilHeight int64, optOut bool) {
 	_ = err
 }
 
-func TrackServeSnapshotsEvent(engine types.Engine, chainId, chainRest, storageRest string, snapshotPort int64, metrics bool, metricsPort int64, startHeight int64, pruning, keepSnapshots, debug, optOut bool) {
+func TrackServeSnapshotsEvent(engine types.Engine, chainId, chainRest, storageRest string, snapshotPort int64, rpcServer bool, rpcServerPort int64, startHeight int64, pruning, keepSnapshots, debug, optOut bool) {
 	if optOut {
 		return
 	}
@@ -228,8 +228,8 @@ func TrackServeSnapshotsEvent(engine types.Engine, chainId, chainRest, storageRe
 			Set("project", project).
 			Set("current_height", currentHeight).
 			Set("snapshot_port", snapshotPort).
-			Set("metrics", metrics).
-			Set("metrics_port", metricsPort).
+			Set("rpc_server", rpcServer).
+			Set("rpc_server_port", rpcServerPort).
 			Set("start_height", startHeight).
 			Set("pruning", pruning).
 			Set("keep_snapshots", keepSnapshots).

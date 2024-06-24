@@ -59,30 +59,30 @@ func LoadLatestPoolData(sourceRegistry types.SourceRegistry) (*types.SourceRegis
 	return &sourceRegistry, nil
 }
 
-func GetSourceRegistryEntry(registryUrl, chainId, source string) (*types.Entry, error) {
+func GetSourceRegistryEntry(registryUrl, source string) (*types.Entry, error) {
 	registry, err := GetSourceRegistryWithoutPoolData(registryUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get source registry: %v", err)
 	}
 
 	for _, entry := range registry.Entries {
-		if chainId == utils.ChainIdMainnet {
-			if entry.Networks.Kyve != nil {
-				if strings.ToLower(entry.Networks.Kyve.SourceMetadata.Title) == strings.ToLower(source) ||
-					strings.ToLower(entry.SourceID) == strings.ToLower(source) {
-					return &entry, nil
-				}
+		if strings.ToLower(entry.SourceID) == strings.ToLower(source) {
+			return &entry, nil
+		}
+
+		if entry.Networks.Kyve != nil {
+			if strings.ToLower(entry.Networks.Kyve.SourceMetadata.Title) == strings.ToLower(source) {
+				return &entry, nil
 			}
-		} else if chainId == utils.ChainIdKaon {
-			if entry.Networks.Kaon != nil {
-				if strings.ToLower(entry.Networks.Kaon.SourceMetadata.Title) == strings.ToLower(source) ||
-					strings.ToLower(entry.SourceID) == strings.ToLower(source) {
-					return &entry, nil
-				}
+		}
+
+		if entry.Networks.Kaon != nil {
+			if strings.ToLower(entry.Networks.Kaon.SourceMetadata.Title) == strings.ToLower(source) {
+				return &entry, nil
 			}
 		}
 	}
-	return nil, fmt.Errorf("could not find source registry entry fpr %v", source)
+	return nil, fmt.Errorf("could not find source registry entry for %v", source)
 }
 
 func GetSourceRegistry(url string) (*types.SourceRegistry, error) {

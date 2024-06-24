@@ -5,24 +5,31 @@ import (
 	abciClient "github.com/KYVENetwork/celestia-core/abci/client"
 	abciTypes "github.com/KYVENetwork/celestia-core/abci/types"
 	cfg "github.com/KYVENetwork/celestia-core/config"
+	cs "github.com/KYVENetwork/celestia-core/consensus"
+	"github.com/KYVENetwork/celestia-core/crypto"
 	"github.com/KYVENetwork/celestia-core/crypto/ed25519"
+	"github.com/KYVENetwork/celestia-core/evidence"
 	"github.com/KYVENetwork/celestia-core/libs/json"
 	cmtos "github.com/KYVENetwork/celestia-core/libs/os"
+	"github.com/KYVENetwork/celestia-core/mempool"
 	nm "github.com/KYVENetwork/celestia-core/node"
 	tmP2P "github.com/KYVENetwork/celestia-core/p2p"
 	"github.com/KYVENetwork/celestia-core/pkg/trace"
 	"github.com/KYVENetwork/celestia-core/privval"
 	tmProtoState "github.com/KYVENetwork/celestia-core/proto/celestiacore/state"
 	"github.com/KYVENetwork/celestia-core/proxy"
+	rpccore "github.com/KYVENetwork/celestia-core/rpc/core"
+	rpcserver "github.com/KYVENetwork/celestia-core/rpc/jsonrpc/server"
 	tmState "github.com/KYVENetwork/celestia-core/state"
 	tmStore "github.com/KYVENetwork/celestia-core/store"
 	tmTypes "github.com/KYVENetwork/celestia-core/types"
-	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	db "github.com/cometbft/cometbft-db"
+	"net/http"
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 )
 
 var (
@@ -39,9 +46,14 @@ type Engine struct {
 	stateDB    db.DB
 	stateStore tmState.Store
 
+	genDoc           *GenesisDoc
+	privValidatorKey crypto.PubKey
+
 	state         tmState.State
 	prevBlock     *Block
 	proxyApp      proxy.AppConns
+	mempool       *mempool.Mempool
+	evidencePool  *evidence.Pool
 	blockExecutor *tmState.BlockExecutor
 }
 
@@ -62,6 +74,21 @@ func (engine *Engine) OpenDBs(homePath string) error {
 	if err := utils.FormatGenesisFile(config.GenesisFile()); err != nil {
 		return fmt.Errorf("failed to format genesis file: %w", err)
 	}
+
+	genDoc, err := nm.DefaultGenesisDocProviderFunc(engine.config)()
+	if err != nil {
+		return fmt.Errorf("failed to load state and genDoc: %w", err)
+	}
+	engine.genDoc = genDoc
+
+	privValidatorKey, err := privval.LoadFilePVEmptyState(
+		config.PrivValidatorKeyFile(),
+		config.PrivValidatorStateFile(),
+	).GetPubKey()
+	if err != nil {
+		return fmt.Errorf("failed to load validator key file: %w", err)
+	}
+	engine.privValidatorKey = privValidatorKey
 
 	blockDB, blockStore, err := GetBlockstoreDBs(config)
 	if err != nil {
@@ -139,23 +166,6 @@ func (engine *Engine) GetChainId() (string, error) {
 	return genDoc.ChainID, nil
 }
 
-func (engine *Engine) GetMetrics() ([]byte, error) {
-	latest := engine.blockStore.LoadBlock(engine.blockStore.Height())
-	earliest := engine.blockStore.LoadBlock(engine.blockStore.Base())
-
-	return json.Marshal(types.Metrics{
-		LatestBlockHash:     latest.Header.Hash().String(),
-		LatestAppHash:       latest.AppHash.String(),
-		LatestBlockHeight:   latest.Height,
-		LatestBlockTime:     latest.Time,
-		EarliestBlockHash:   earliest.Hash().String(),
-		EarliestAppHash:     earliest.AppHash.String(),
-		EarliestBlockHeight: earliest.Height,
-		EarliestBlockTime:   earliest.Time,
-		CatchingUp:          true,
-	})
-}
-
 func (engine *Engine) GetContinuationHeight() (int64, error) {
 	height := engine.blockStore.Height()
 
@@ -203,6 +213,8 @@ func (engine *Engine) DoHandshake() error {
 		return fmt.Errorf("failed to create evidence reactor: %w", err)
 	}
 
+	engine.mempool = &mempool
+	engine.evidencePool = evidencePool
 	engine.blockExecutor = tmState.NewBlockExecutor(
 		engine.stateStore,
 		tmLogger.With("module", "state"),
@@ -214,10 +226,18 @@ func (engine *Engine) DoHandshake() error {
 	return nil
 }
 
-func (engine *Engine) ApplyBlock(runtime string, value []byte) error {
+func (engine *Engine) ApplyBlock(runtime *string, value []byte) error {
 	var block *Block
 
-	if runtime == utils.KSyncRuntimeTendermint {
+	if runtime == nil {
+		// if runtime is nil we sync from another celestia-core node
+		var blockResponse BlockResponse
+		err := json.Unmarshal(value, &blockResponse)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal block response: %w", err)
+		}
+		block = &blockResponse.Result.Block
+	} else if *runtime == utils.KSyncRuntimeTendermint {
 		var parsed TendermintValue
 
 		if err := json.Unmarshal(value, &parsed); err != nil {
@@ -225,7 +245,7 @@ func (engine *Engine) ApplyBlock(runtime string, value []byte) error {
 		}
 
 		block = parsed.Block.Block
-	} else if runtime == utils.KSyncRuntimeTendermintBsync {
+	} else if *runtime == utils.KSyncRuntimeTendermintBsync {
 		if err := json.Unmarshal(value, &block); err != nil {
 			return fmt.Errorf("failed to unmarshal value: %w", err)
 		}
@@ -485,6 +505,76 @@ func (engine *Engine) GetSnapshotChunk(height, format, chunk int64) ([]byte, err
 func (engine *Engine) GetBlock(height int64) ([]byte, error) {
 	block := engine.blockStore.LoadBlock(height)
 	return json.Marshal(block)
+}
+
+func (engine *Engine) StartRPCServer(port int64) {
+	// wait until all reactors have been booted
+	for engine.blockExecutor == nil {
+		time.Sleep(1000)
+	}
+
+	rpcLogger := tmLogger.With("module", "rpc-server")
+
+	consensusReactor := cs.NewReactor(cs.NewState(
+		engine.config.Consensus,
+		engine.state.Copy(),
+		engine.blockExecutor,
+		engine.blockStore,
+		*engine.mempool,
+		engine.evidencePool,
+	), false, cs.ReactorMetrics(cs.NopMetrics()))
+
+	nodeKey, err := tmP2P.LoadNodeKey(engine.config.NodeKeyFile())
+	if err != nil {
+		tmLogger.Error(fmt.Sprintf("failed to get nodeKey: %s", err))
+		return
+	}
+	nodeInfo, err := MakeNodeInfo(engine.config, nodeKey, engine.genDoc)
+	if err != nil {
+		tmLogger.Error(fmt.Sprintf("failed to get nodeInfo: %s", err))
+		return
+	}
+
+	rpccore.SetEnvironment(&rpccore.Environment{
+		ProxyAppQuery:    nil,
+		ProxyAppMempool:  nil,
+		StateStore:       engine.stateStore,
+		BlockStore:       engine.blockStore,
+		EvidencePool:     nil,
+		ConsensusState:   nil,
+		P2PPeers:         nil,
+		P2PTransport:     &Transport{nodeInfo: nodeInfo},
+		PubKey:           engine.privValidatorKey,
+		GenDoc:           nil,
+		TxIndexer:        nil,
+		BlockIndexer:     nil,
+		ConsensusReactor: consensusReactor,
+		EventBus:         nil,
+		Mempool:          nil,
+		Logger:           rpcLogger,
+		Config:           *engine.config.RPC,
+	})
+
+	routes := map[string]*rpcserver.RPCFunc{
+		"status":        rpcserver.NewRPCFunc(rpccore.Status, ""),
+		"block":         rpcserver.NewRPCFunc(rpccore.Block, "height"),
+		"block_results": rpcserver.NewRPCFunc(rpccore.BlockResults, "height"),
+	}
+
+	mux := http.NewServeMux()
+	config := rpcserver.DefaultConfig()
+
+	rpcserver.RegisterRPCFuncs(mux, routes, rpcLogger)
+	listener, err := rpcserver.Listen(fmt.Sprintf("tcp://127.0.0.1:%d", port), config)
+	if err != nil {
+		tmLogger.Error(fmt.Sprintf("failed to get rpc listener: %s", err))
+		return
+	}
+
+	if err := rpcserver.Serve(listener, mux, rpcLogger, config); err != nil {
+		tmLogger.Error(fmt.Sprintf("failed to start rpc server: %s", err))
+		return
+	}
 }
 
 func (engine *Engine) GetState(height int64) ([]byte, error) {

@@ -27,10 +27,6 @@ type Engine interface {
 	// GetChainId gets the chain id of the app
 	GetChainId() (string, error)
 
-	// GetMetrics gets already encoded metric information
-	// for the metrics server
-	GetMetrics() ([]byte, error)
-
 	// GetContinuationHeight gets the block height from the app at which
 	// KSYNC should proceed block-syncing
 	GetContinuationHeight() (int64, error)
@@ -41,7 +37,7 @@ type Engine interface {
 
 	// ApplyBlock takes the block in the raw format and applies it against
 	// the app
-	ApplyBlock(runtime string, value []byte) error
+	ApplyBlock(runtime *string, value []byte) error
 
 	// ApplyFirstBlockOverP2P applies the first block over the P2P reactor
 	// which is necessary, if the genesis file is bigger than 100MB
@@ -75,6 +71,10 @@ type Engine interface {
 
 	// GetBlock loads the requested block from the blockstore.db
 	GetBlock(height int64) ([]byte, error)
+
+	// StartRPCServer spins up a basic rpc server of the engine which serves
+	// /status, /block and /block_results
+	StartRPCServer(port int64)
 
 	// GetState rebuilds the requested state from the blockstore and state.db
 	GetState(height int64) ([]byte, error)

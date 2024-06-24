@@ -6,24 +6,31 @@ import (
 	abciClient "github.com/KYVENetwork/cometbft/v38/abci/client"
 	abciTypes "github.com/KYVENetwork/cometbft/v38/abci/types"
 	cfg "github.com/KYVENetwork/cometbft/v38/config"
+	cs "github.com/KYVENetwork/cometbft/v38/consensus"
+	"github.com/KYVENetwork/cometbft/v38/crypto"
 	"github.com/KYVENetwork/cometbft/v38/crypto/ed25519"
+	"github.com/KYVENetwork/cometbft/v38/evidence"
 	"github.com/KYVENetwork/cometbft/v38/libs/json"
 	cmtos "github.com/KYVENetwork/cometbft/v38/libs/os"
+	"github.com/KYVENetwork/cometbft/v38/mempool"
 	nm "github.com/KYVENetwork/cometbft/v38/node"
 	"github.com/KYVENetwork/cometbft/v38/p2p"
 	cometP2P "github.com/KYVENetwork/cometbft/v38/p2p"
 	"github.com/KYVENetwork/cometbft/v38/privval"
 	tmProtoState "github.com/KYVENetwork/cometbft/v38/proto/cometbft/v38/state"
 	"github.com/KYVENetwork/cometbft/v38/proxy"
+	rpccore "github.com/KYVENetwork/cometbft/v38/rpc/core"
+	rpcserver "github.com/KYVENetwork/cometbft/v38/rpc/jsonrpc/server"
 	tmState "github.com/KYVENetwork/cometbft/v38/state"
 	tmStore "github.com/KYVENetwork/cometbft/v38/store"
 	tmTypes "github.com/KYVENetwork/cometbft/v38/types"
-	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	db "github.com/cometbft/cometbft-db"
+	"net/http"
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 )
 
 var (
@@ -40,9 +47,14 @@ type Engine struct {
 	stateDB    db.DB
 	stateStore tmState.Store
 
+	genDoc           *GenesisDoc
+	privValidatorKey crypto.PubKey
+
 	state         tmState.State
 	prevBlock     *Block
 	proxyApp      proxy.AppConns
+	mempool       *mempool.Mempool
+	evidencePool  *evidence.Pool
 	blockExecutor *tmState.BlockExecutor
 }
 
@@ -63,6 +75,21 @@ func (engine *Engine) OpenDBs(homePath string) error {
 	if err := utils.FormatGenesisFile(config.GenesisFile()); err != nil {
 		return fmt.Errorf("failed to format genesis file: %w", err)
 	}
+
+	genDoc, err := nm.DefaultGenesisDocProviderFunc(engine.config)()
+	if err != nil {
+		return fmt.Errorf("failed to load state and genDoc: %w", err)
+	}
+	engine.genDoc = genDoc
+
+	privValidatorKey, err := privval.LoadFilePVEmptyState(
+		config.PrivValidatorKeyFile(),
+		config.PrivValidatorStateFile(),
+	).GetPubKey()
+	if err != nil {
+		return fmt.Errorf("failed to load validator key file: %w", err)
+	}
+	engine.privValidatorKey = privValidatorKey
 
 	blockDB, blockStore, err := GetBlockstoreDBs(config)
 	if err != nil {
@@ -140,23 +167,6 @@ func (engine *Engine) GetChainId() (string, error) {
 	return genDoc.ChainID, nil
 }
 
-func (engine *Engine) GetMetrics() ([]byte, error) {
-	latest := engine.blockStore.LoadBlock(engine.blockStore.Height())
-	earliest := engine.blockStore.LoadBlock(engine.blockStore.Base())
-
-	return json.Marshal(types.Metrics{
-		LatestBlockHash:     latest.Header.Hash().String(),
-		LatestAppHash:       latest.AppHash.String(),
-		LatestBlockHeight:   latest.Height,
-		LatestBlockTime:     latest.Time,
-		EarliestBlockHash:   earliest.Hash().String(),
-		EarliestAppHash:     earliest.AppHash.String(),
-		EarliestBlockHeight: earliest.Height,
-		EarliestBlockTime:   earliest.Time,
-		CatchingUp:          true,
-	})
-}
-
 func (engine *Engine) GetContinuationHeight() (int64, error) {
 	height := engine.blockStore.Height()
 
@@ -204,6 +214,8 @@ func (engine *Engine) DoHandshake() error {
 		return fmt.Errorf("failed to create evidence reactor: %w", err)
 	}
 
+	engine.mempool = &mempool
+	engine.evidencePool = evidencePool
 	engine.blockExecutor = tmState.NewBlockExecutor(
 		engine.stateStore,
 		cometLogger.With("module", "state"),
@@ -216,10 +228,18 @@ func (engine *Engine) DoHandshake() error {
 	return nil
 }
 
-func (engine *Engine) ApplyBlock(runtime string, value []byte) error {
+func (engine *Engine) ApplyBlock(runtime *string, value []byte) error {
 	var block *Block
 
-	if runtime == utils.KSyncRuntimeTendermint {
+	if runtime == nil {
+		// if runtime is nil we sync from another cometbft node
+		var blockResponse BlockResponse
+		err := json.Unmarshal(value, &blockResponse)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal block response: %w", err)
+		}
+		block = &blockResponse.Result.Block
+	} else if *runtime == utils.KSyncRuntimeTendermint {
 		var parsed TendermintValue
 
 		if err := json.Unmarshal(value, &parsed); err != nil {
@@ -227,7 +247,7 @@ func (engine *Engine) ApplyBlock(runtime string, value []byte) error {
 		}
 
 		block = parsed.Block.Block
-	} else if runtime == utils.KSyncRuntimeTendermintBsync {
+	} else if *runtime == utils.KSyncRuntimeTendermintBsync {
 		if err := json.Unmarshal(value, &block); err != nil {
 			return fmt.Errorf("failed to unmarshal value: %w", err)
 		}
@@ -487,6 +507,76 @@ func (engine *Engine) GetSnapshotChunk(height, format, chunk int64) ([]byte, err
 func (engine *Engine) GetBlock(height int64) ([]byte, error) {
 	block := engine.blockStore.LoadBlock(height)
 	return json.Marshal(block)
+}
+
+func (engine *Engine) StartRPCServer(port int64) {
+	// wait until all reactors have been booted
+	for engine.blockExecutor == nil {
+		time.Sleep(1000)
+	}
+
+	rpcLogger := cometLogger.With("module", "rpc-server")
+
+	consensusReactor := cs.NewReactor(cs.NewState(
+		engine.config.Consensus,
+		engine.state.Copy(),
+		engine.blockExecutor,
+		engine.blockStore,
+		*engine.mempool,
+		engine.evidencePool,
+	), false, cs.ReactorMetrics(cs.NopMetrics()))
+
+	nodeKey, err := cometP2P.LoadNodeKey(engine.config.NodeKeyFile())
+	if err != nil {
+		cometLogger.Error(fmt.Sprintf("failed to get nodeKey: %s", err))
+		return
+	}
+	nodeInfo, err := MakeNodeInfo(engine.config, nodeKey, engine.genDoc)
+	if err != nil {
+		cometLogger.Error(fmt.Sprintf("failed to get nodeInfo: %s", err))
+		return
+	}
+
+	rpcCoreEnv := rpccore.Environment{
+		ProxyAppQuery:    nil,
+		ProxyAppMempool:  nil,
+		StateStore:       engine.stateStore,
+		BlockStore:       engine.blockStore,
+		EvidencePool:     nil,
+		ConsensusState:   nil,
+		P2PPeers:         nil,
+		P2PTransport:     &Transport{nodeInfo: nodeInfo},
+		PubKey:           engine.privValidatorKey,
+		GenDoc:           nil,
+		TxIndexer:        nil,
+		BlockIndexer:     nil,
+		ConsensusReactor: consensusReactor,
+		EventBus:         nil,
+		Mempool:          nil,
+		Logger:           rpcLogger,
+		Config:           *engine.config.RPC,
+	}
+
+	routes := map[string]*rpcserver.RPCFunc{
+		"status":        rpcserver.NewRPCFunc(rpcCoreEnv.Status, ""),
+		"block":         rpcserver.NewRPCFunc(rpcCoreEnv.Block, "height"),
+		"block_results": rpcserver.NewRPCFunc(rpcCoreEnv.BlockResults, "height"),
+	}
+
+	mux := http.NewServeMux()
+	config := rpcserver.DefaultConfig()
+
+	rpcserver.RegisterRPCFuncs(mux, routes, rpcLogger)
+	listener, err := rpcserver.Listen(fmt.Sprintf("tcp://127.0.0.1:%d", port), 10)
+	if err != nil {
+		cometLogger.Error(fmt.Sprintf("failed to get rpc listener: %s", err))
+		return
+	}
+
+	if err := rpcserver.Serve(listener, mux, rpcLogger, config); err != nil {
+		cometLogger.Error(fmt.Sprintf("failed to start rpc server: %s", err))
+		return
+	}
 }
 
 func (engine *Engine) GetState(height int64) ([]byte, error) {

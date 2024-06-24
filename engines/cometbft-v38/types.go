@@ -3,6 +3,7 @@ package cometbft_v38
 import (
 	abciTypes "github.com/KYVENetwork/cometbft/v38/abci/types"
 	cometCfg "github.com/KYVENetwork/cometbft/v38/config"
+	cometP2P "github.com/KYVENetwork/cometbft/v38/p2p"
 	cometState "github.com/KYVENetwork/cometbft/v38/state"
 	cometTypes "github.com/KYVENetwork/cometbft/v38/types"
 )
@@ -45,4 +46,26 @@ type TendermintSsyncDataItem struct {
 		ChunkIndex uint32              `json:"chunkIndex"`
 		Chunk      []byte              `json:"chunk"`
 	} `json:"value"`
+}
+
+type BlockResponse struct {
+	Result struct {
+		Block cometTypes.Block `json:"block"`
+	} `json:"result"`
+}
+
+type Transport struct {
+	nodeInfo cometP2P.NodeInfo
+}
+
+func (t *Transport) Listeners() []string {
+	return []string{}
+}
+
+func (t *Transport) IsListening() bool {
+	return false
+}
+
+func (t *Transport) NodeInfo() cometP2P.NodeInfo {
+	return t.nodeInfo
 }

@@ -5,7 +5,6 @@ import (
 	"github.com/KYVENetwork/ksync/backup"
 	"github.com/KYVENetwork/ksync/collectors/blocks"
 	"github.com/KYVENetwork/ksync/collectors/pool"
-	"github.com/KYVENetwork/ksync/server"
 	stateSyncHelpers "github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
@@ -17,7 +16,7 @@ var (
 	errorCh = make(chan error)
 )
 
-func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPoolId, targetHeight int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotInterval, snapshotPort int64, pruning, skipWaiting bool, backupCfg *types.BackupConfig) error {
+func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, targetHeight int64, snapshotPoolId, snapshotInterval int64, pruning, skipWaiting bool, backupCfg *types.BackupConfig) error {
 	continuationHeight, err := engine.GetContinuationHeight()
 	if err != nil {
 		return fmt.Errorf("failed to get continuation height from engine: %w", err)
@@ -36,23 +35,18 @@ func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPo
 		return fmt.Errorf("failed to do handshake: %w", err)
 	}
 
-	poolResponse, err := pool.GetPoolInfo(chainRest, blockPoolId)
-	if err != nil {
-		return fmt.Errorf("failed to get pool info: %w", err)
-	}
-
-	// start metrics api server which serves an api endpoint sync metrics
-	if metricsServer {
-		go server.StartMetricsApiServer(engine, metricsPort)
-	}
-
-	// start api server which serves an api endpoint for querying snapshots
-	if snapshotInterval > 0 {
-		go server.StartSnapshotApiServer(engine, snapshotPort)
+	var poolResponse *types.PoolResponse
+	var runtime *string
+	if blockPoolId != nil {
+		poolResponse, err = pool.GetPoolInfo(chainRest, *blockPoolId)
+		if err != nil {
+			return fmt.Errorf("failed to get pool info: %w", err)
+		}
+		runtime = &poolResponse.Pool.Data.Runtime
 	}
 
 	// start block collector. we must exit if snapshot interval is zero
-	go blocks.StartBlockCollector(itemCh, errorCh, chainRest, storageRest, *poolResponse, continuationHeight, targetHeight, snapshotInterval == 0)
+	go blocks.StartBlockCollector(itemCh, errorCh, chainRest, storageRest, blockRpcConfig, poolResponse, continuationHeight, targetHeight, snapshotInterval == 0)
 
 	snapshotPoolHeight := int64(0)
 
@@ -92,7 +86,7 @@ func StartDBExecutor(engine types.Engine, chainRest, storageRest string, blockPo
 
 			prevHeight := height - 1
 
-			if err := engine.ApplyBlock(poolResponse.Pool.Data.Runtime, item.Value); err != nil {
+			if err := engine.ApplyBlock(runtime, item.Value); err != nil {
 				return fmt.Errorf("failed to apply block in engine: %w", err)
 			}
 

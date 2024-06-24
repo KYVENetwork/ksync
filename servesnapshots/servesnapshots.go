@@ -28,7 +28,7 @@ func PerformServeSnapshotsValidationChecks(engine types.Engine, chainRest string
 		snapshotBundleId, snapshotHeight, _ = statesync.PerformStateSyncValidationChecks(chainRest, snapshotPoolId, startHeight, false)
 	}
 
-	if _, err = blocksync.PerformBlockSyncValidationChecks(engine, chainRest, blockPoolId, targetHeight, false, false); err != nil {
+	if _, err = blocksync.PerformBlockSyncValidationChecks(engine, chainRest, nil, &blockPoolId, targetHeight, false, false); err != nil {
 		logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
 		os.Exit(1)
 	}
@@ -36,7 +36,7 @@ func PerformServeSnapshotsValidationChecks(engine types.Engine, chainRest string
 	return
 }
 
-func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort, targetHeight, snapshotBundleId, snapshotHeight int64, skipCrisisInvariants, pruning, keepSnapshots, skipWaiting, debug bool) {
+func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId *int64, snapshotPoolId, targetHeight, snapshotBundleId, snapshotHeight int64, skipCrisisInvariants, pruning, keepSnapshots, skipWaiting, debug bool) {
 	logger.Info().Msg("starting serve-snapshots")
 
 	if pruning && skipWaiting {
@@ -148,7 +148,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		}
 	} else {
 		// if we have to sync from genesis we first bootstrap the node
-		if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, blockPoolId, skipCrisisInvariants, debug); err != nil {
+		if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, nil, blockPoolId, skipCrisisInvariants, debug); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
 			os.Exit(1)
 		}
@@ -161,7 +161,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 	}
 
 	// db executes blocks against app until target height
-	if err := blocksync.StartDBExecutor(engine, chainRest, storageRest, blockPoolId, targetHeight, metricsServer, metricsPort, snapshotPoolId, config.Interval, snapshotPort, pruning, skipWaiting, nil); err != nil {
+	if err := blocksync.StartDBExecutor(engine, chainRest, storageRest, nil, blockPoolId, targetHeight, snapshotPoolId, config.Interval, pruning, skipWaiting, nil); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to start db executor: %s", err))
 
 		// stop binary process thread
