@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	heightSyncCmd.Flags().StringVarP(&engine, "engine", "e", "", fmt.Sprintf("consensus engine of the binary by default %s is used, list all engines with \"ksync engines\"", utils.DefaultEngine))
+	heightSyncCmd.Flags().StringVarP(&engine, "engine", "e", utils.DefaultEngine, fmt.Sprintf("consensus engine of the binary by default %s is used, list all engines with \"ksync engines\"", utils.DefaultEngine))
 
 	heightSyncCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced")
 	if err := heightSyncCmd.MarkFlagRequired("binary"); err != nil {
@@ -61,7 +61,7 @@ var heightSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		defaultEngine := engines.EngineFactory(utils.DefaultEngine)
+		defaultEngine := engines.EngineFactory(engine)
 		if reset {
 			if err := defaultEngine.ResetAll(homePath, true); err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
