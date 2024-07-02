@@ -26,11 +26,12 @@ type PoolResponse = struct {
 	Pool struct {
 		Id   int64 `json:"id"`
 		Data struct {
-			Runtime      string `json:"runtime"`
-			StartKey     string `json:"start_key"`
-			CurrentKey   string `json:"current_key"`
-			TotalBundles int64  `json:"total_bundles"`
-			Config       string `json:"config"`
+			Runtime        string `json:"runtime"`
+			StartKey       string `json:"start_key"`
+			CurrentKey     string `json:"current_key"`
+			CurrentSummary string `json:"current_summary"`
+			TotalBundles   int64  `json:"total_bundles"`
+			Config         string `json:"config"`
 		} `json:"data"`
 	} `json:"pool"`
 }
