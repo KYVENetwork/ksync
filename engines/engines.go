@@ -50,7 +50,7 @@ func EngineSourceFactory(engine, registryUrl, source string, continuationHeight 
 func EngineFactory(engine string) types.Engine {
 	switch engine {
 	case "":
-		return &tendermint_v34.Engine{}
+		return &cometbft_v38.Engine{}
 	case utils.EngineTendermintV34:
 		return &tendermint_v34.Engine{}
 	case utils.EngineCometBFTV37:
