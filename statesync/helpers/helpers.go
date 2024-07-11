@@ -5,6 +5,8 @@ import (
 	"github.com/KYVENetwork/ksync/collectors/bundles"
 	"github.com/KYVENetwork/ksync/collectors/pool"
 	"github.com/KYVENetwork/ksync/utils"
+	"strconv"
+	"strings"
 )
 
 // GetSnapshotPoolHeight returns the height of the snapshot the pool is currently archiving.
@@ -76,6 +78,18 @@ func GetSnapshotBoundaries(restEndpoint string, poolId int64) (startHeight int64
 	// (poolResponse.Pool.Data.TotalBundles - 1) and go back to the snapshot before that since we know
 	// that the snapshot before the current one has to be completed (- (chunkIndex +1))
 	highestUsableSnapshotBundleId := poolResponse.Pool.Data.TotalBundles - 1 - (chunkIndex + 1)
+
+	// check if the current chunk is the last chunk of the snapshot, if yes we highestUsableSnapshotBundleId
+	// is the current one. we check this by comparing the number of chunks from the bundle summary with the
+	// current chunk index from the current key.
+	summary := strings.Split(poolResponse.Pool.Data.CurrentSummary, "/")
+	// bundle summary format is "height/format/chunkIndex/chunks"
+	// if the summary does not have the right format we skip because this is probably a legacy bundle summary.
+	if len(summary) == 4 {
+		if chunks, _ := strconv.ParseInt(summary[3], 10, 64); chunks == chunkIndex+1 {
+			highestUsableSnapshotBundleId = poolResponse.Pool.Data.TotalBundles - 1
+		}
+	}
 
 	bundle, err := bundles.GetFinalizedBundleById(restEndpoint, poolId, highestUsableSnapshotBundleId)
 	if err != nil {

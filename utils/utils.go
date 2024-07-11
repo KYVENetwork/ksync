@@ -123,7 +123,7 @@ func GetFromUrlWithOptions(url string, options GetFromUrlOptions) ([]byte, error
 
 // GetFromUrlWithBackoff tries to fetch data from url with exponential backoff
 func GetFromUrlWithBackoff(url string) (data []byte, err error) {
-	return GetFromUrlWithOptions(url, GetFromUrlOptions{SkipTLSVerification: true})
+	return GetFromUrlWithOptions(url, GetFromUrlOptions{SkipTLSVerification: true, WithBackoff: true})
 }
 
 func CreateSha256Checksum(input []byte) (hash string) {
