@@ -3,7 +3,6 @@ package heightsync
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/blocksync"
-	blocksyncHelpers "github.com/KYVENetwork/ksync/blocksync/helpers"
 	"github.com/KYVENetwork/ksync/bootstrap"
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/types"
@@ -20,18 +19,6 @@ var (
 // PerformHeightSyncValidationChecks checks if the targetHeight lies in the range of available blocks and checks
 // if a state-sync snapshot is available right before the targetHeight
 func PerformHeightSyncValidationChecks(engine types.Engine, chainRest string, snapshotPoolId int64, blockPoolId *int64, targetHeight int64, userInput bool) (snapshotBundleId, snapshotHeight int64, err error) {
-	_, _, blockEndHeight, err := blocksyncHelpers.GetBlockBoundaries(chainRest, nil, blockPoolId)
-	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("failed to get block boundaries: %s", err))
-		os.Exit(1)
-	}
-
-	// if target height was not specified we sync to the latest available height
-	if targetHeight == 0 {
-		targetHeight = blockEndHeight
-		logger.Info().Msg(fmt.Sprintf("target height not specified, searching for latest available block height"))
-	}
-
 	if _, err := blocksync.PerformBlockSyncValidationChecks(engine, chainRest, nil, blockPoolId, targetHeight, true, false); err != nil {
 		logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
 		os.Exit(1)
