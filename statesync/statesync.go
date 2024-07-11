@@ -41,7 +41,13 @@ func PerformStateSyncValidationChecks(chainRest string, snapshotPoolId, targetHe
 		return snapshotBundleId, snapshotHeight, fmt.Errorf("requested snapshot height %d but first available snapshot on pool is %d", targetHeight, startHeight)
 	}
 
-	snapshotBundleId, snapshotHeight, err = snapshots.FindNearestSnapshotBundleIdByHeight(chainRest, snapshotPoolId, targetHeight)
+	// limit snapshot search height by latest available snapshot height
+	snapshotSearchHeight := targetHeight
+	if targetHeight > endHeight {
+		snapshotSearchHeight = endHeight
+	}
+
+	snapshotBundleId, snapshotHeight, err = snapshots.FindNearestSnapshotBundleIdByHeight(chainRest, snapshotPoolId, snapshotSearchHeight)
 	if err != nil {
 		return
 	}
