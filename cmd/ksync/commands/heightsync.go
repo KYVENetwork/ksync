@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/blocksync"
+	blocksyncHelpers "github.com/KYVENetwork/ksync/blocksync/helpers"
 	"github.com/KYVENetwork/ksync/engines"
 	"github.com/KYVENetwork/ksync/heightsync"
 	"github.com/KYVENetwork/ksync/sources"
@@ -13,7 +14,7 @@ import (
 )
 
 func init() {
-	heightSyncCmd.Flags().StringVarP(&engine, "engine", "e", utils.DefaultEngine, fmt.Sprintf("consensus engine of the binary by default %s is used, list all engines with \"ksync engines\"", utils.DefaultEngine))
+	heightSyncCmd.Flags().StringVarP(&engine, "engine", "e", "", fmt.Sprintf("consensus engine of the binary by default %s is used, list all engines with \"ksync engines\"", utils.DefaultEngine))
 
 	heightSyncCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced")
 	if err := heightSyncCmd.MarkFlagRequired("binary"); err != nil {
@@ -72,6 +73,18 @@ var heightSyncCmd = &cobra.Command{
 		if err := defaultEngine.OpenDBs(homePath); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 			os.Exit(1)
+		}
+
+		_, _, blockEndHeight, err := blocksyncHelpers.GetBlockBoundaries(chainRest, nil, &bId)
+		if err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to get block boundaries: %s", err))
+			os.Exit(1)
+		}
+
+		// if target height was not specified we sync to the latest available height
+		if targetHeight == 0 {
+			targetHeight = blockEndHeight
+			logger.Info().Msg(fmt.Sprintf("target height not specified, searching for latest available block height"))
 		}
 
 		// perform validation checks before booting state-sync process
