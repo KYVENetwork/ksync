@@ -16,10 +16,7 @@ import (
 func init() {
 	heightSyncCmd.Flags().StringVarP(&engine, "engine", "e", "", fmt.Sprintf("consensus engine of the binary by default %s is used, list all engines with \"ksync engines\"", utils.DefaultEngine))
 
-	heightSyncCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced")
-	if err := heightSyncCmd.MarkFlagRequired("binary"); err != nil {
-		panic(fmt.Errorf("flag 'binary' should be required: %w", err))
-	}
+	heightSyncCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced, if not provided the binary has to be started externally with --with-tendermint=false")
 
 	heightSyncCmd.Flags().StringVarP(&homePath, "home", "h", "", "home directory")
 
@@ -50,6 +47,12 @@ var heightSyncCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
+
+		// if no binary was provided at least the home path needs to be defined
+		if binaryPath == "" && homePath == "" {
+			logger.Error().Msg(fmt.Sprintf("flag 'home' is required"))
+			os.Exit(1)
+		}
 
 		// if no home path was given get the default one
 		if homePath == "" {
