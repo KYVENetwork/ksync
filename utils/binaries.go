@@ -49,6 +49,10 @@ func GetHomePathFromBinary(binaryPath string) string {
 }
 
 func StartBinaryProcessForDB(engine types.Engine, binaryPath string, debug bool, args []string) (processId int, err error) {
+	if binaryPath == "" {
+		return
+	}
+
 	cmdPath, err := exec.LookPath(binaryPath)
 	if err != nil {
 		return processId, fmt.Errorf("failed to lookup binary path: %w", err)
@@ -86,6 +90,10 @@ func StartBinaryProcessForDB(engine types.Engine, binaryPath string, debug bool,
 }
 
 func StartBinaryProcessForP2P(engine types.Engine, binaryPath string, debug bool, args []string) (processId int, err error) {
+	if binaryPath == "" {
+		return
+	}
+
 	cmdPath, err := exec.LookPath(binaryPath)
 	if err != nil {
 		return processId, fmt.Errorf("failed to lookup binary path: %w", err)
@@ -127,6 +135,10 @@ func StartBinaryProcessForP2P(engine types.Engine, binaryPath string, debug bool
 }
 
 func StopProcessByProcessId(processId int) error {
+	if processId == 0 {
+		return nil
+	}
+
 	process, err := os.FindProcess(processId)
 	if err != nil {
 		return fmt.Errorf("failed to find binary process: %w", err)

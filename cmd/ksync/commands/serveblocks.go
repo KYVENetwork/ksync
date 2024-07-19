@@ -15,10 +15,7 @@ import (
 func init() {
 	serveBlocksCmd.Flags().StringVarP(&engine, "engine", "e", "", fmt.Sprintf("consensus engine of the binary by default %s is used, list all engines with \"ksync engines\"", utils.DefaultEngine))
 
-	serveBlocksCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced")
-	if err := serveBlocksCmd.MarkFlagRequired("binary"); err != nil {
-		panic(fmt.Errorf("flag 'binary' should be required: %w", err))
-	}
+	serveBlocksCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced, if not provided the binary has to be started externally with --with-tendermint=false")
 
 	serveBlocksCmd.Flags().StringVarP(&homePath, "home", "h", "", "home directory")
 
@@ -54,6 +51,12 @@ var serveBlocksCmd = &cobra.Command{
 		blockRpcConfig := types.BlockRpcConfig{
 			Endpoint:       blockRpc,
 			RequestTimeout: time.Duration(blockRpcReqTimeout * int64(time.Millisecond)),
+		}
+
+		// if no binary was provided at least the home path needs to be defined
+		if binaryPath == "" && homePath == "" {
+			logger.Error().Msg(fmt.Sprintf("flag 'home' is required"))
+			os.Exit(1)
 		}
 
 		// if no home path was given get the default one
