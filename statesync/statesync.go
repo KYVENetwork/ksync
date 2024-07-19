@@ -78,13 +78,21 @@ func PerformStateSyncValidationChecks(chainRest string, snapshotPoolId, targetHe
 func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainId, chainRest, storageRest string, snapshotPoolId, targetHeight, snapshotBundleId, snapshotHeight int64, optOut, debug bool) {
 	logger.Info().Msg("starting state-sync")
 
-	utils.TrackSyncStartEvent(engine, utils.STATE_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
-
 	// start binary process thread
 	processId, err := utils.StartBinaryProcessForDB(engine, binaryPath, debug, []string{})
 	if err != nil {
 		panic(err)
 	}
+
+	if err := engine.OpenDBs(); err != nil {
+		logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
+		if err := utils.StopProcessByProcessId(processId); err != nil {
+			panic(err)
+		}
+		os.Exit(1)
+	}
+
+	utils.TrackSyncStartEvent(engine, utils.STATE_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
 
 	start := time.Now()
 

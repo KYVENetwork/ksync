@@ -36,7 +36,7 @@ var (
 )
 
 type Engine struct {
-	homePath string
+	HomePath string
 	config   *cfg.Config
 
 	blockDB    db.DB
@@ -60,17 +60,18 @@ func (engine *Engine) GetName() string {
 	return utils.EngineCometBFTV37
 }
 
-func (engine *Engine) OpenDBs(homePath string) error {
-	engine.homePath = homePath
-
-	config, err := LoadConfig(engine.homePath)
+func (engine *Engine) LoadConfig() error {
+	config, err := LoadConfig(engine.HomePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
 	}
 
 	engine.config = config
+	return nil
+}
 
-	if err := utils.FormatGenesisFile(config.GenesisFile()); err != nil {
+func (engine *Engine) OpenDBs() error {
+	if err := utils.FormatGenesisFile(engine.config.GenesisFile()); err != nil {
 		return fmt.Errorf("failed to format genesis file: %w", err)
 	}
 
@@ -81,15 +82,15 @@ func (engine *Engine) OpenDBs(homePath string) error {
 	engine.genDoc = genDoc
 
 	privValidatorKey, err := privval.LoadFilePVEmptyState(
-		config.PrivValidatorKeyFile(),
-		config.PrivValidatorStateFile(),
+		engine.config.PrivValidatorKeyFile(),
+		engine.config.PrivValidatorStateFile(),
 	).GetPubKey()
 	if err != nil {
 		return fmt.Errorf("failed to load validator key file: %w", err)
 	}
 	engine.privValidatorKey = privValidatorKey
 
-	blockDB, blockStore, err := GetBlockstoreDBs(config)
+	blockDB, blockStore, err := GetBlockstoreDBs(engine.config)
 	if err != nil {
 		return fmt.Errorf("failed to open blockDB: %w", err)
 	}
@@ -97,7 +98,7 @@ func (engine *Engine) OpenDBs(homePath string) error {
 	engine.blockDB = blockDB
 	engine.blockStore = blockStore
 
-	stateDB, stateStore, err := GetStateDBs(config)
+	stateDB, stateStore, err := GetStateDBs(engine.config)
 	if err != nil {
 		return fmt.Errorf("failed to open stateDB: %w", err)
 	}
@@ -121,7 +122,7 @@ func (engine *Engine) CloseDBs() error {
 }
 
 func (engine *Engine) GetHomePath() string {
-	return engine.homePath
+	return engine.HomePath
 }
 
 func (engine *Engine) GetProxyAppAddress() string {

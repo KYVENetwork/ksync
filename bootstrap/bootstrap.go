@@ -128,7 +128,7 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 	// wait until process has properly shut down
 	time.Sleep(10 * time.Second)
 
-	if err := engine.OpenDBs(homePath); err != nil {
+	if err := engine.OpenDBs(); err != nil {
 		return fmt.Errorf("failed to open dbs in engine: %w", err)
 	}
 

@@ -76,7 +76,7 @@ var blockSyncCmd = &cobra.Command{
 			return
 		}
 
-		defaultEngine := engines.EngineFactory(engine)
+		defaultEngine := engines.EngineFactory(engine, homePath)
 		if reset {
 			if err := defaultEngine.ResetAll(homePath, true); err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
@@ -84,7 +84,7 @@ var blockSyncCmd = &cobra.Command{
 			}
 		}
 
-		if err := defaultEngine.OpenDBs(homePath); err != nil {
+		if err := defaultEngine.OpenDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 			os.Exit(1)
 		}
@@ -101,9 +101,9 @@ var blockSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		consensusEngine := engines.EngineSourceFactory(engine, registryUrl, source, continuationHeight)
+		consensusEngine := engines.EngineSourceFactory(engine, homePath, registryUrl, source, continuationHeight)
 
-		if err := consensusEngine.OpenDBs(homePath); err != nil {
+		if err := consensusEngine.OpenDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 			os.Exit(1)
 		}

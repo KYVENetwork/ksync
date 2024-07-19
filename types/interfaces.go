@@ -6,8 +6,11 @@ type Engine interface {
 	// GetName gets the engine name
 	GetName() string
 
+	// LoadConfig loads the config.toml
+	LoadConfig() error
+
 	// OpenDBs opens the relevant blockstore and state DBs
-	OpenDBs(homePath string) error
+	OpenDBs() error
 
 	// CloseDBs closes the relevant blockstore and state DBs
 	CloseDBs() error

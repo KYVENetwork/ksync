@@ -136,7 +136,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 			// wait until process has properly started
 			time.Sleep(10 * time.Second)
 
-			if err := engine.OpenDBs(homePath); err != nil {
+			if err := engine.OpenDBs(); err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 
 				// stop binary process thread
