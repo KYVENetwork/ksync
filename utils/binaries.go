@@ -62,12 +62,9 @@ func StartBinaryProcessForDB(engine types.Engine, binaryPath string, debug bool,
 	}
 
 	baseArgs := append([]string{
-		"start",
+		"run",
 		"--home",
 		engine.GetHomePath(),
-		"--with-tendermint=false",
-		"--address",
-		engine.GetProxyAppAddress(),
 	}, args...)
 
 	cmd := exec.Command(cmdPath, append(startArgs, baseArgs...)...)
