@@ -11,6 +11,7 @@ import (
 	"github.com/KYVENetwork/ksync/utils"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -36,7 +37,7 @@ func PerformServeSnapshotsValidationChecks(engine types.Engine, chainRest string
 	return
 }
 
-func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId *int64, snapshotPoolId, targetHeight, snapshotBundleId, snapshotHeight int64, skipCrisisInvariants, pruning, keepSnapshots, skipWaiting, debug bool) {
+func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId *int64, snapshotPoolId, targetHeight, snapshotBundleId, snapshotHeight int64, appFlags string, pruning, keepSnapshots, skipWaiting, debug bool) {
 	logger.Info().Msg("starting serve-snapshots")
 
 	if pruning && skipWaiting {
@@ -55,10 +56,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 
 	logger.Info().Msg(fmt.Sprintf("found snapshot interval of %d on snapshot pool", config.Interval))
 
-	snapshotArgs := []string{
-		"--state-sync.snapshot-interval",
-		strconv.FormatInt(config.Interval, 10),
-	}
+	snapshotArgs := append(strings.Split(appFlags, ","), "--state-sync.snapshot-interval", strconv.FormatInt(config.Interval, 10))
 
 	if pruning {
 		snapshotArgs = append(
@@ -148,7 +146,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		}
 	} else {
 		// if we have to sync from genesis we first bootstrap the node
-		if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, nil, blockPoolId, skipCrisisInvariants, debug); err != nil {
+		if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, nil, blockPoolId, appFlags, debug); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
 			os.Exit(1)
 		}

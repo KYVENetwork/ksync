@@ -46,7 +46,7 @@ func init() {
 	servesnapshotsCmd.Flags().BoolVar(&keepSnapshots, "keep-snapshots", false, "keep snapshots, although pruning might be enabled")
 	servesnapshotsCmd.Flags().BoolVar(&skipWaiting, "skip-waiting", false, "do not wait if synced to far ahead of pool, pruning has to be disabled for this option")
 
-	servesnapshotsCmd.Flags().BoolVar(&skipCrisisInvariants, "x-crisis-skip-assert-invariants", false, "skip x/crisis invariants check on startup")
+	servesnapshotsCmd.Flags().StringVarP(&appFlags, "app-flags", "f", "", "custom flags which are applied to the app binary start command. Example: --app-flags=\"--x-crisis-skip-assert-invariants,--iavl-disable-fastnode\"")
 
 	servesnapshotsCmd.Flags().BoolVarP(&reset, "reset-all", "r", false, "reset this node's validator to genesis state")
 	servesnapshotsCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
@@ -123,7 +123,7 @@ var servesnapshotsCmd = &cobra.Command{
 
 		go server.StartSnapshotApiServer(consensusEngine, snapshotPort)
 
-		servesnapshots.StartServeSnapshotsWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, &bId, sId, targetHeight, snapshotBundleId, snapshotHeight, skipCrisisInvariants, pruning, keepSnapshots, skipWaiting, debug)
+		servesnapshots.StartServeSnapshotsWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, &bId, sId, targetHeight, snapshotBundleId, snapshotHeight, appFlags, pruning, keepSnapshots, skipWaiting, debug)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))

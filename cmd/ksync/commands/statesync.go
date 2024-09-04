@@ -31,6 +31,8 @@ func init() {
 
 	stateSyncCmd.Flags().StringVar(&snapshotPoolId, "snapshot-pool-id", "", "pool-id of the state-sync pool")
 
+	stateSyncCmd.Flags().StringVarP(&appFlags, "app-flags", "f", "", "custom flags which are applied to the app binary start command. Example: --app-flags=\"--x-crisis-skip-assert-invariants,--iavl-disable-fastnode\"")
+
 	stateSyncCmd.Flags().Int64VarP(&targetHeight, "target-height", "t", 0, "snapshot height, if not specified it will use the latest available snapshot height")
 
 	stateSyncCmd.Flags().BoolVarP(&reset, "reset-all", "r", false, "reset this node's validator to genesis state")
@@ -81,7 +83,7 @@ var stateSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		statesync.StartStateSyncWithBinary(consensusEngine, binaryPath, chainId, chainRest, storageRest, sId, targetHeight, snapshotBundleId, snapshotHeight, optOut, debug)
+		statesync.StartStateSyncWithBinary(consensusEngine, binaryPath, chainId, chainRest, storageRest, sId, targetHeight, snapshotBundleId, snapshotHeight, appFlags, optOut, debug)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
