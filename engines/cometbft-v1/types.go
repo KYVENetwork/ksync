@@ -1,4 +1,4 @@
-package cometbft_v100
+package cometbft_v1
 
 import (
 	abciTypes "github.com/KYVENetwork/cometbft/v100/abci/types"

@@ -3,7 +3,7 @@ package engines
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/engines/celestia-core-v34"
-	cometbft_v100 "github.com/KYVENetwork/ksync/engines/cometbft-v100"
+	"github.com/KYVENetwork/ksync/engines/cometbft-v1"
 	"github.com/KYVENetwork/ksync/engines/cometbft-v37"
 	"github.com/KYVENetwork/ksync/engines/cometbft-v38"
 	"github.com/KYVENetwork/ksync/engines/tendermint-v34"
@@ -59,7 +59,7 @@ func EngineFactory(engine string) types.Engine {
 	case utils.EngineCometBFTV38:
 		return &cometbft_v38.Engine{}
 	case utils.EngineCometBFTV1:
-		return &cometbft_v100.Engine{}
+		return &cometbft_v1.Engine{}
 	case utils.EngineCelestiaCoreV34:
 		return &celestia_core_v34.Engine{}
 

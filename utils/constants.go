@@ -26,7 +26,7 @@ const (
 	EngineTendermintV34   = "tendermint-v0.34"
 	EngineCometBFTV37     = "cometbft-v0.37"
 	EngineCometBFTV38     = "cometbft-v0.38"
-	EngineCometBFTV1      = "cometbft-v100"
+	EngineCometBFTV1      = "cometbft-v1"
 	EngineCelestiaCoreV34 = "celestia-core-v0.34"
 
 	EngineTendermintV34Legacy   = "tendermint-v34"
