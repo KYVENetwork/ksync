@@ -51,6 +51,10 @@ var stateSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		if binaryPath == "" {
+			logger.Info().Msg("To start the syncing process, start your chain binary with --with-tendermint=false")
+		}
+
 		// if no home path was given get the default one
 		if homePath == "" {
 			homePath = utils.GetHomePathFromBinary(binaryPath)
