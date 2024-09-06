@@ -83,6 +83,8 @@ var stateSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, snapshotHeight, !y)
+
 		consensusEngine := engines.EngineSourceFactory(engine, registryUrl, source, snapshotHeight)
 
 		if err := consensusEngine.OpenDBs(homePath); err != nil {
