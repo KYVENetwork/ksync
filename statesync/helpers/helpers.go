@@ -60,15 +60,9 @@ func GetSnapshotBoundaries(restEndpoint string, poolId int64) (startHeight int64
 		return startHeight, endHeight, fmt.Errorf("failed to parse snapshot start key %s: %w", poolResponse.Pool.Data.StartKey, err)
 	}
 
-	currentHeight, chunkIndex, err := utils.ParseSnapshotFromKey(poolResponse.Pool.Data.CurrentKey)
+	_, chunkIndex, err := utils.ParseSnapshotFromKey(poolResponse.Pool.Data.CurrentKey)
 	if err != nil {
 		return startHeight, endHeight, fmt.Errorf("failed to parse snapshot current key %s: %w", poolResponse.Pool.Data.CurrentKey, err)
-	}
-
-	// if the current height is equal to the start height the pool is still archiving the very first snapshot,
-	// therefore the pool has no complete snapshot
-	if startHeight == currentHeight {
-		return startHeight, endHeight, fmt.Errorf("pool is still archiving the first snapshot and therefore has no complete snapshots available")
 	}
 
 	// to get the current bundle id we subtract 1 from the total bundles and

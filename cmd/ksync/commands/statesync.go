@@ -14,10 +14,7 @@ import (
 func init() {
 	stateSyncCmd.Flags().StringVarP(&engine, "engine", "e", "", fmt.Sprintf("consensus engine of the binary by default %s is used, list all engines with \"ksync engines\"", utils.DefaultEngine))
 
-	stateSyncCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced")
-	if err := stateSyncCmd.MarkFlagRequired("binary"); err != nil {
-		panic(fmt.Errorf("flag 'binary' should be required: %w", err))
-	}
+	stateSyncCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced, if not provided the binary has to be started externally with --with-tendermint=false")
 
 	stateSyncCmd.Flags().StringVarP(&homePath, "home", "h", "", "home directory")
 
@@ -49,6 +46,16 @@ var stateSyncCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
+
+		// if no binary was provided at least the home path needs to be defined
+		if binaryPath == "" && homePath == "" {
+			logger.Error().Msg(fmt.Sprintf("flag 'home' is required"))
+			os.Exit(1)
+		}
+
+		if binaryPath == "" {
+			logger.Info().Msg("To start the syncing process, start your chain binary with --with-tendermint=false")
+		}
 
 		// if no home path was given get the default one
 		if homePath == "" {
