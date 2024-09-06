@@ -25,8 +25,8 @@ github.com/KYVENetwork/celestia-core v1.44.0-tm-v0.34.29 h1:Y3MfR91mx7C7Xipyp4tO
 github.com/KYVENetwork/celestia-core v1.44.0-tm-v0.34.29/go.mod h1:F24hB7hFzH/7oXDPwC0csYnzoyprrGiHkMh/PHtIRY4=
 github.com/KYVENetwork/cometbft/v37 v37.0.2 h1:nVRHfZYmeO8MLHazNbVdNtH72OrjrOwffvlYEIfVraQ=
 github.com/KYVENetwork/cometbft/v37 v37.0.2/go.mod h1:eAUIGNAQfYvLNuTZS48MsjqFtIYA8mU9ZcJmGbVMk90=
-github.com/KYVENetwork/cometbft/v38 v38.0.2 h1:g0zUII5TYRmttwFP2PbykVFncl1IkxpXICSrPbn8GVU=
-github.com/KYVENetwork/cometbft/v38 v38.0.2/go.mod h1:8g8iw3Pp/ZkXPBgmPon9K/kHcj53vE86l5228rhmcuk=
+github.com/KYVENetwork/cometbft/v38 v38.0.3 h1:BJc+CmZwweQsu0BcHi4Bo/KpMjSOUAVydr0i28SjECI=
+github.com/KYVENetwork/cometbft/v38 v38.0.3/go.mod h1:8g8iw3Pp/ZkXPBgmPon9K/kHcj53vE86l5228rhmcuk=
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/Microsoft/go-winio v0.4.14/go.mod h1:qXqCSQ3Xa7+6tgxaGTIe4Kpcdsi+P8jBhyzoq1bpyYA=
 github.com/Microsoft/go-winio v0.5.0/go.mod h1:JPGBdM1cNvN/6ISo+n8V5iA4v8pBzdOpzfwIujj1a84=
