@@ -52,7 +52,7 @@ type Engine struct {
 	state         tmState.State
 	prevBlock     *Block
 	proxyApp      proxy.AppConns
-	mempool       *mempool.CListMempool
+	mempool       mempool.Mempool
 	evidencePool  *evidence.Pool
 	blockExecutor *tmState.BlockExecutor
 }
@@ -200,20 +200,19 @@ func (engine *Engine) DoHandshake() error {
 
 	engine.state = state
 
-	_, mempool := CreateMempoolAndMempoolReactor(engine.config, engine.proxyApp, state)
+	engine.mempool = CreateMempoolAndMempoolReactor(engine.config, engine.proxyApp, state)
 
 	_, evidencePool, err := CreateEvidenceReactor(engine.config, engine.stateStore, engine.blockStore)
 	if err != nil {
 		return fmt.Errorf("failed to create evidence reactor: %w", err)
 	}
 
-	engine.mempool = mempool
 	engine.evidencePool = evidencePool
 	engine.blockExecutor = tmState.NewBlockExecutor(
 		engine.stateStore,
 		tmLogger.With("module", "state"),
 		engine.proxyApp.Consensus(),
-		mempool,
+		engine.mempool,
 		evidencePool,
 	)
 
