@@ -21,6 +21,7 @@ var (
 	metricsPort          int64
 	snapshotPort         int64
 	source               string
+	flags                string
 	pruning              bool
 	keepSnapshots        bool
 	skipWaiting          bool

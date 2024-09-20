@@ -36,7 +36,7 @@ func PerformServeSnapshotsValidationChecks(engine types.Engine, chainRest string
 	return
 }
 
-func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort, targetHeight, snapshotBundleId, snapshotHeight int64, skipCrisisInvariants, pruning, keepSnapshots, skipWaiting, debug bool) {
+func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId int64, metricsServer bool, metricsPort, snapshotPoolId, snapshotPort, targetHeight, snapshotBundleId, snapshotHeight int64, skipCrisisInvariants, pruning, keepSnapshots, skipWaiting, debug bool, flags string) {
 	logger.Info().Msg("starting serve-snapshots")
 
 	if pruning && skipWaiting {
@@ -56,6 +56,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 	logger.Info().Msg(fmt.Sprintf("found snapshot interval of %d on snapshot pool", config.Interval))
 
 	snapshotArgs := []string{
+		flags,
 		"--state-sync.snapshot-interval",
 		strconv.FormatInt(config.Interval, 10),
 	}
