@@ -118,6 +118,8 @@ var heightSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, continuationHeight, !y)
+
 		consensusEngine := engines.EngineSourceFactory(engine, registryUrl, source, continuationHeight)
 
 		if err := consensusEngine.OpenDBs(homePath); err != nil {
