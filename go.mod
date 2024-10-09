@@ -3,7 +3,7 @@ module github.com/KYVENetwork/ksync
 go 1.22.4
 
 require (
-	github.com/KYVENetwork/celestia-core v1.44.0-tm-v0.34.29
+	github.com/KYVENetwork/celestia-core v1.46.0-tm-v0.34.29
 	github.com/KYVENetwork/cometbft/v37 v37.0.2
 	github.com/KYVENetwork/cometbft/v38 v38.0.3
 	github.com/cometbft/cometbft-db v0.9.1
