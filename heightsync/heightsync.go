@@ -50,19 +50,20 @@ func PerformHeightSyncValidationChecks(engine types.Engine, chainRest string, sn
 	return
 }
 
-func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId, chainRest, storageRest string, snapshotPoolId int64, blockPoolId *int64, targetHeight, snapshotBundleId, snapshotHeight int64, optOut, debug bool) {
+func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId, chainRest, storageRest string, snapshotPoolId int64, blockPoolId *int64, targetHeight, snapshotBundleId, snapshotHeight int64, appFlags string, optOut, debug bool) {
 	logger.Info().Msg("starting height-sync")
 
 	utils.TrackSyncStartEvent(engine, utils.HEIGHT_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
 
 	start := time.Now()
 	processId := 0
+	args := strings.Split(appFlags, ",")
 	var err error
 
 	// if there are snapshots available before the requested height we apply the nearest
 	if snapshotHeight > 0 {
 		// start binary process thread
-		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, []string{})
+		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, args)
 		if err != nil {
 			panic(err)
 		}
@@ -79,13 +80,13 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 		}
 	} else {
 		// if we have to sync from genesis we first bootstrap the node
-		if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, nil, blockPoolId, false, debug); err != nil {
+		if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, nil, blockPoolId, appFlags, debug); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
 			os.Exit(1)
 		}
 
 		// after the node is bootstrapped we start the binary process thread
-		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, []string{})
+		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, args)
 		if err != nil {
 			panic(err)
 		}
@@ -104,7 +105,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 		// wait until process has properly shut down
 		time.Sleep(10 * time.Second)
 
-		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, []string{})
+		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, args)
 		if err != nil {
 			panic(err)
 		}

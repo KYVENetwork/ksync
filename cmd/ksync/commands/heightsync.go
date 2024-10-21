@@ -16,10 +16,7 @@ import (
 func init() {
 	heightSyncCmd.Flags().StringVarP(&engine, "engine", "e", "", fmt.Sprintf("consensus engine of the binary by default %s is used, list all engines with \"ksync engines\"", utils.DefaultEngine))
 
-	heightSyncCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced")
-	if err := heightSyncCmd.MarkFlagRequired("binary"); err != nil {
-		panic(fmt.Errorf("flag 'binary' should be required: %w", err))
-	}
+	heightSyncCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced, if not provided the binary has to be started externally with --with-tendermint=false")
 
 	heightSyncCmd.Flags().StringVarP(&homePath, "home", "h", "", "home directory")
 
@@ -33,6 +30,8 @@ func init() {
 
 	heightSyncCmd.Flags().StringVar(&snapshotPoolId, "snapshot-pool-id", "", "pool-id of the state-sync pool")
 	heightSyncCmd.Flags().StringVar(&blockPoolId, "block-pool-id", "", "pool-id of the block-sync pool")
+
+	heightSyncCmd.Flags().StringVarP(&appFlags, "app-flags", "f", "", "custom flags which are applied to the app binary start command. Example: --app-flags=\"--x-crisis-skip-assert-invariants,--iavl-disable-fastnode\"")
 
 	heightSyncCmd.Flags().Int64VarP(&targetHeight, "target-height", "t", 0, "target height (including), if not specified it will sync to the latest available block height")
 
@@ -50,6 +49,16 @@ var heightSyncCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
+
+		// if no binary was provided at least the home path needs to be defined
+		if binaryPath == "" && homePath == "" {
+			logger.Error().Msg(fmt.Sprintf("flag 'home' is required"))
+			os.Exit(1)
+		}
+
+		if binaryPath == "" {
+			logger.Info().Msg("To start the syncing process, start your chain binary with --with-tendermint=false")
+		}
 
 		// if no home path was given get the default one
 		if homePath == "" {
@@ -109,6 +118,8 @@ var heightSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, continuationHeight, !y)
+
 		consensusEngine := engines.EngineSourceFactory(engine, homePath, registryUrl, source, continuationHeight)
 
 		if err := consensusEngine.OpenDBs(); err != nil {
@@ -116,7 +127,7 @@ var heightSyncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		heightsync.StartHeightSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, sId, &bId, targetHeight, snapshotBundleId, snapshotHeight, optOut, debug)
+		heightsync.StartHeightSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, sId, &bId, targetHeight, snapshotBundleId, snapshotHeight, appFlags, optOut, debug)
 
 		if err := consensusEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))

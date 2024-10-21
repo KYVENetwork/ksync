@@ -33,7 +33,11 @@ func GetVersion() string {
 // getFromUrl tries to fetch data from url with a custom User-Agent header
 func getFromUrl(url string, transport *http.Transport) ([]byte, error) {
 	// Create a custom http.Client with the desired User-Agent header
-	client := &http.Client{Transport: transport}
+	client := &http.Client{Transport: http.DefaultTransport}
+
+	if transport != nil {
+		client = &http.Client{Transport: transport}
+	}
 
 	// Create a new GET request
 	request, err := http.NewRequest("GET", url, nil)
