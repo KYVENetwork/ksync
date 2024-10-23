@@ -37,8 +37,9 @@ var (
 )
 
 type Engine struct {
-	homePath string
-	config   *cfg.Config
+	homePath   string
+	areDBsOpen bool
+	config     *cfg.Config
 
 	blockDB    db.DB
 	blockStore *tmStore.BlockStore
@@ -63,6 +64,10 @@ func (engine *Engine) GetName() string {
 
 func (engine *Engine) OpenDBs(homePath string) error {
 	engine.homePath = homePath
+
+	if engine.areDBsOpen {
+		return nil
+	}
 
 	config, err := LoadConfig(engine.homePath)
 	if err != nil {
@@ -106,10 +111,15 @@ func (engine *Engine) OpenDBs(homePath string) error {
 	engine.stateDB = stateDB
 	engine.stateStore = stateStore
 
+	engine.areDBsOpen = true
 	return nil
 }
 
 func (engine *Engine) CloseDBs() error {
+	if !engine.areDBsOpen {
+		return nil
+	}
+
 	if err := engine.blockDB.Close(); err != nil {
 		return fmt.Errorf("failed to close blockDB: %w", err)
 	}
@@ -118,6 +128,7 @@ func (engine *Engine) CloseDBs() error {
 		return fmt.Errorf("failed to close stateDB: %w", err)
 	}
 
+	engine.areDBsOpen = false
 	return nil
 }
 

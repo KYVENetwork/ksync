@@ -18,6 +18,13 @@ var (
 func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, poolId *int64, appFlags string, debug bool) error {
 	logger.Info().Msg("starting bootstrap")
 
+	if err := engine.OpenDBs(homePath); err != nil {
+		return fmt.Errorf("failed to open dbs in engine: %w", err)
+	}
+
+	// TODO: handle error
+	defer engine.CloseDBs()
+
 	gt100, err := utils.IsFileGreaterThanOrEqualTo100MB(engine.GetGenesisPath())
 	if err != nil {
 		return err
@@ -123,10 +130,6 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 
 	// wait until process has properly shut down
 	time.Sleep(10 * time.Second)
-
-	if err := engine.OpenDBs(homePath); err != nil {
-		return fmt.Errorf("failed to open dbs in engine: %w", err)
-	}
 
 	logger.Info().Msg("successfully bootstrapped node. Continuing with syncing blocks over DB")
 	return nil

@@ -112,20 +112,11 @@ var blockSyncCmd = &cobra.Command{
 
 		consensusEngine := engines.EngineSourceFactory(engine, registryUrl, source, continuationHeight)
 
-		if err := consensusEngine.OpenDBs(homePath); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
-			os.Exit(1)
-		}
-
-		if rpcServer {
-			go consensusEngine.StartRPCServer(rpcServerPort)
-		}
+		// TODO: move to blocksync
+		//if rpcServer {
+		//	go consensusEngine.StartRPCServer(rpcServerPort)
+		//}
 
 		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, nil, &bId, targetHeight, backupCfg, appFlags, optOut, debug)
-
-		if err := consensusEngine.CloseDBs(); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
-			os.Exit(1)
-		}
 	},
 }
