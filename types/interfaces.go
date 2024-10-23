@@ -6,6 +6,9 @@ type Engine interface {
 	// GetName gets the engine name
 	GetName() string
 
+	// LoadConfig loads and sets the config
+	LoadConfig() error
+
 	// OpenDBs opens the relevant blockstore and state DBs
 	OpenDBs() error
 

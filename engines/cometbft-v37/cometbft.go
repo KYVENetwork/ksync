@@ -62,8 +62,8 @@ func (engine *Engine) GetName() string {
 	return utils.EngineCometBFTV37
 }
 
-func (engine *Engine) OpenDBs() error {
-	if engine.areDBsOpen {
+func (engine *Engine) LoadConfig() error {
+	if engine.config != nil {
 		return nil
 	}
 
@@ -73,8 +73,19 @@ func (engine *Engine) OpenDBs() error {
 	}
 
 	engine.config = config
+	return nil
+}
 
-	if err := utils.FormatGenesisFile(config.GenesisFile()); err != nil {
+func (engine *Engine) OpenDBs() error {
+	if engine.areDBsOpen {
+		return nil
+	}
+
+	if err := engine.LoadConfig(); err != nil {
+		return err
+	}
+
+	if err := utils.FormatGenesisFile(engine.config.GenesisFile()); err != nil {
 		return fmt.Errorf("failed to format genesis file: %w", err)
 	}
 
@@ -85,15 +96,15 @@ func (engine *Engine) OpenDBs() error {
 	engine.genDoc = genDoc
 
 	privValidatorKey, err := privval.LoadFilePVEmptyState(
-		config.PrivValidatorKeyFile(),
-		config.PrivValidatorStateFile(),
+		engine.config.PrivValidatorKeyFile(),
+		engine.config.PrivValidatorStateFile(),
 	).GetPubKey()
 	if err != nil {
 		return fmt.Errorf("failed to load validator key file: %w", err)
 	}
 	engine.privValidatorKey = privValidatorKey
 
-	blockDB, blockStore, err := GetBlockstoreDBs(config)
+	blockDB, blockStore, err := GetBlockstoreDBs(engine.config)
 	if err != nil {
 		return fmt.Errorf("failed to open blockDB: %w", err)
 	}
@@ -101,7 +112,7 @@ func (engine *Engine) OpenDBs() error {
 	engine.blockDB = blockDB
 	engine.blockStore = blockStore
 
-	stateDB, stateStore, err := GetStateDBs(config)
+	stateDB, stateStore, err := GetStateDBs(engine.config)
 	if err != nil {
 		return fmt.Errorf("failed to open stateDB: %w", err)
 	}
