@@ -77,7 +77,7 @@ func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blo
 	return
 }
 
-func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, targetHeight int64, backupCfg *types.BackupConfig, appFlags string, optOut, debug bool) {
+func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, targetHeight int64, backupCfg *types.BackupConfig, appFlags string, rpcServer, optOut, debug bool) {
 	logger.Info().Msg("starting block-sync")
 
 	if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, blockRpcConfig, blockPoolId, appFlags, debug); err != nil {
@@ -91,9 +91,13 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId
 		panic(err)
 	}
 
-	if err := engine.OpenDBs(homePath); err != nil {
+	if err := engine.OpenDBs(); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 		os.Exit(1)
+	}
+
+	if rpcServer {
+		go engine.StartRPCServer()
 	}
 
 	utils.TrackSyncStartEvent(engine, utils.BLOCK_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)

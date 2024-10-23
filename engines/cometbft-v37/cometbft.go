@@ -36,9 +36,10 @@ var (
 )
 
 type Engine struct {
-	homePath   string
-	areDBsOpen bool
-	config     *cfg.Config
+	HomePath      string
+	RpcServerPort int64
+	areDBsOpen    bool
+	config        *cfg.Config
 
 	blockDB    db.DB
 	blockStore *tmStore.BlockStore
@@ -61,14 +62,12 @@ func (engine *Engine) GetName() string {
 	return utils.EngineCometBFTV37
 }
 
-func (engine *Engine) OpenDBs(homePath string) error {
-	engine.homePath = homePath
-
+func (engine *Engine) OpenDBs() error {
 	if engine.areDBsOpen {
 		return nil
 	}
 
-	config, err := LoadConfig(engine.homePath)
+	config, err := LoadConfig(engine.HomePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
 	}
@@ -132,7 +131,7 @@ func (engine *Engine) CloseDBs() error {
 }
 
 func (engine *Engine) GetHomePath() string {
-	return engine.homePath
+	return engine.HomePath
 }
 
 func (engine *Engine) GetProxyAppAddress() string {
@@ -512,7 +511,7 @@ func (engine *Engine) GetBlock(height int64) ([]byte, error) {
 	return json.Marshal(block)
 }
 
-func (engine *Engine) StartRPCServer(port int64) {
+func (engine *Engine) StartRPCServer() {
 	// wait until all reactors have been booted
 	for engine.blockExecutor == nil {
 		time.Sleep(1000)
@@ -570,7 +569,7 @@ func (engine *Engine) StartRPCServer(port int64) {
 	config := rpcserver.DefaultConfig()
 
 	rpcserver.RegisterRPCFuncs(mux, routes, rpcLogger)
-	listener, err := rpcserver.Listen(fmt.Sprintf("tcp://127.0.0.1:%d", port), config)
+	listener, err := rpcserver.Listen(fmt.Sprintf("tcp://127.0.0.1:%d", engine.RpcServerPort), config)
 	if err != nil {
 		cometLogger.Error(fmt.Sprintf("failed to get rpc listener: %s", err))
 		return
@@ -747,8 +746,8 @@ func (engine *Engine) PruneBlocks(toHeight int64) error {
 	return nil
 }
 
-func (engine *Engine) ResetAll(homePath string, keepAddrBook bool) error {
-	config, err := LoadConfig(homePath)
+func (engine *Engine) ResetAll(keepAddrBook bool) error {
+	config, err := LoadConfig(engine.HomePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
 	}

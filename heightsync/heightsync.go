@@ -53,8 +53,6 @@ func PerformHeightSyncValidationChecks(engine types.Engine, chainRest string, sn
 func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId, chainRest, storageRest string, snapshotPoolId int64, blockPoolId *int64, targetHeight, snapshotBundleId, snapshotHeight int64, appFlags string, optOut, debug bool) {
 	logger.Info().Msg("starting height-sync")
 
-	utils.TrackSyncStartEvent(engine, utils.HEIGHT_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
-
 	start := time.Now()
 	processId := 0
 	args := strings.Split(appFlags, ",")
@@ -67,6 +65,13 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 		if err != nil {
 			panic(err)
 		}
+
+		if err := engine.OpenDBs(); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
+			os.Exit(1)
+		}
+
+		utils.TrackSyncStartEvent(engine, utils.HEIGHT_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
 
 		// apply state sync snapshot
 		if err := statesync.StartStateSync(engine, chainRest, storageRest, snapshotPoolId, snapshotBundleId); err != nil {
@@ -90,6 +95,13 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 		if err != nil {
 			panic(err)
 		}
+
+		if err := engine.OpenDBs(); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
+			os.Exit(1)
+		}
+
+		utils.TrackSyncStartEvent(engine, utils.HEIGHT_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
 	}
 
 	// TODO: does app has to be restarted after a state-sync?
@@ -113,7 +125,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 		// wait until process has properly started
 		time.Sleep(10 * time.Second)
 
-		if err := engine.OpenDBs(homePath); err != nil {
+		if err := engine.OpenDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 
 			// stop binary process thread
@@ -144,6 +156,11 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 	// stop binary process thread
 	if err := utils.StopProcessByProcessId(processId); err != nil {
 		panic(err)
+	}
+
+	if err := engine.CloseDBs(); err != nil {
+		logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
+		os.Exit(1)
 	}
 
 	logger.Info().Msg(fmt.Sprintf("reached target height %d with applying state-sync snapshot at %d and block-syncing the remaining %d blocks in %.2f seconds", targetHeight, snapshotHeight, targetHeight-snapshotHeight, elapsed))
