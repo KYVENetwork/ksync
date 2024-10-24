@@ -78,13 +78,18 @@ func PerformStateSyncValidationChecks(chainRest string, snapshotPoolId, targetHe
 func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainId, chainRest, storageRest string, snapshotPoolId, targetHeight, snapshotBundleId, snapshotHeight int64, appFlags string, optOut, debug bool) {
 	logger.Info().Msg("starting state-sync")
 
-	utils.TrackSyncStartEvent(engine, utils.STATE_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
-
 	// start binary process thread
 	processId, err := utils.StartBinaryProcessForDB(engine, binaryPath, debug, strings.Split(appFlags, ","))
 	if err != nil {
 		panic(err)
 	}
+
+	if err := engine.OpenDBs(); err != nil {
+		logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
+		os.Exit(1)
+	}
+
+	utils.TrackSyncStartEvent(engine, utils.STATE_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
 
 	start := time.Now()
 
@@ -105,6 +110,11 @@ func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainId, chainRes
 
 	elapsed := time.Since(start).Seconds()
 	utils.TrackSyncCompletedEvent(snapshotHeight, 0, targetHeight, elapsed, optOut)
+
+	if err := engine.CloseDBs(); err != nil {
+		logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
+		os.Exit(1)
+	}
 
 	logger.Info().Msg(fmt.Sprintf("state-synced at height %d in %.2f seconds", snapshotHeight, elapsed))
 	logger.Info().Msg(fmt.Sprintf("successfully applied state-sync snapshot"))

@@ -29,7 +29,7 @@ var resetCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		utils.TrackResetEvent(optOut)
 
-		if err := engines.EngineFactory(engine).ResetAll(homePath, keepAddrBook); err != nil {
+		if err := engines.EngineFactory(engine, homePath, rpcServerPort).ResetAll(keepAddrBook); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
 			os.Exit(1)
 		}

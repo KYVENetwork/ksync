@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/blocksync"
 	"github.com/KYVENetwork/ksync/engines"
-	"github.com/KYVENetwork/ksync/server"
 	"github.com/KYVENetwork/ksync/servesnapshots"
 	"github.com/KYVENetwork/ksync/sources"
 	"github.com/KYVENetwork/ksync/utils"
@@ -73,15 +72,15 @@ var servesnapshotsCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		defaultEngine := engines.EngineFactory(engine)
+		defaultEngine := engines.EngineFactory(engine, homePath, rpcServerPort)
 		if reset {
-			if err := defaultEngine.ResetAll(homePath, true); err != nil {
+			if err := defaultEngine.ResetAll(true); err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
 				os.Exit(1)
 			}
 		}
 
-		if err := defaultEngine.OpenDBs(homePath); err != nil {
+		if err := defaultEngine.OpenDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 			os.Exit(1)
 		}
@@ -93,6 +92,7 @@ var servesnapshotsCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		height := defaultEngine.GetHeight()
 		continuationHeight := snapshotHeight
 
 		if continuationHeight == 0 {
@@ -103,31 +103,15 @@ var servesnapshotsCmd = &cobra.Command{
 			}
 		}
 
+		utils.TrackServeSnapshotsEvent(defaultEngine, chainId, chainRest, storageRest, snapshotPort, rpcServer, rpcServerPort, startHeight, pruning, keepSnapshots, debug, optOut)
+
 		if err := defaultEngine.CloseDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
 			os.Exit(1)
 		}
 
-		consensusEngine := engines.EngineSourceFactory(engine, registryUrl, source, continuationHeight)
+		consensusEngine := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, continuationHeight)
 
-		if err := consensusEngine.OpenDBs(homePath); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to open dbs engine: %s", err))
-			os.Exit(1)
-		}
-
-		utils.TrackServeSnapshotsEvent(consensusEngine, chainId, chainRest, storageRest, snapshotPort, rpcServer, rpcServerPort, startHeight, pruning, keepSnapshots, debug, optOut)
-
-		if rpcServer {
-			go consensusEngine.StartRPCServer(rpcServerPort)
-		}
-
-		go server.StartSnapshotApiServer(consensusEngine, snapshotPort)
-
-		servesnapshots.StartServeSnapshotsWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, &bId, sId, targetHeight, snapshotBundleId, snapshotHeight, appFlags, pruning, keepSnapshots, skipWaiting, debug)
-
-		if err := consensusEngine.CloseDBs(); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
-			os.Exit(1)
-		}
+		servesnapshots.StartServeSnapshotsWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, &bId, sId, targetHeight, height, snapshotBundleId, snapshotHeight, snapshotPort, appFlags, rpcServer, pruning, keepSnapshots, skipWaiting, debug)
 	},
 }

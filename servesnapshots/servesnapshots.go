@@ -6,6 +6,7 @@ import (
 	"github.com/KYVENetwork/ksync/blocksync"
 	"github.com/KYVENetwork/ksync/bootstrap"
 	"github.com/KYVENetwork/ksync/collectors/pool"
+	"github.com/KYVENetwork/ksync/server"
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
@@ -37,7 +38,7 @@ func PerformServeSnapshotsValidationChecks(engine types.Engine, chainRest string
 	return
 }
 
-func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId *int64, snapshotPoolId, targetHeight, snapshotBundleId, snapshotHeight int64, appFlags string, pruning, keepSnapshots, skipWaiting, debug bool) {
+func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId *int64, snapshotPoolId, targetHeight, height, snapshotBundleId, snapshotHeight, snapshotPort int64, appFlags string, rpcServer, pruning, keepSnapshots, skipWaiting, debug bool) {
 	logger.Info().Msg("starting serve-snapshots")
 
 	if pruning && skipWaiting {
@@ -92,7 +93,6 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		)
 	}
 
-	height := engine.GetHeight()
 	processId := 0
 
 	if height == 0 && snapshotHeight > 0 {
@@ -100,6 +100,11 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, snapshotArgs)
 		if err != nil {
 			panic(err)
+		}
+
+		if err := engine.OpenDBs(); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to open dbs engine: %s", err))
+			os.Exit(1)
 		}
 
 		// found snapshot, applying it and continuing block-sync from here
@@ -134,7 +139,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 			// wait until process has properly started
 			time.Sleep(10 * time.Second)
 
-			if err := engine.OpenDBs(homePath); err != nil {
+			if err := engine.OpenDBs(); err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 
 				// stop binary process thread
@@ -156,7 +161,18 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		if err != nil {
 			panic(err)
 		}
+
+		if err := engine.OpenDBs(); err != nil {
+			logger.Error().Msg(fmt.Sprintf("failed to open dbs engine: %s", err))
+			os.Exit(1)
+		}
 	}
+
+	if rpcServer {
+		go engine.StartRPCServer()
+	}
+
+	go server.StartSnapshotApiServer(engine, snapshotPort)
 
 	// db executes blocks against app until target height
 	if err := blocksync.StartDBExecutor(engine, chainRest, storageRest, nil, blockPoolId, targetHeight, snapshotPoolId, config.Interval, pruning, skipWaiting, nil); err != nil {
@@ -172,6 +188,11 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 	// stop binary process thread
 	if err := utils.StopProcessByProcessId(processId); err != nil {
 		panic(err)
+	}
+
+	if err := engine.CloseDBs(); err != nil {
+		logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
+		os.Exit(1)
 	}
 
 	logger.Info().Msg(fmt.Sprintf("finished serve-snapshots"))

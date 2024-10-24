@@ -83,15 +83,15 @@ var blockSyncCmd = &cobra.Command{
 			return
 		}
 
-		defaultEngine := engines.EngineFactory(engine)
+		defaultEngine := engines.EngineFactory(engine, homePath, rpcServerPort)
 		if reset {
-			if err := defaultEngine.ResetAll(homePath, true); err != nil {
+			if err := defaultEngine.ResetAll(true); err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
 				os.Exit(1)
 			}
 		}
 
-		if err := defaultEngine.OpenDBs(homePath); err != nil {
+		if err := defaultEngine.OpenDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 			os.Exit(1)
 		}
@@ -110,22 +110,8 @@ var blockSyncCmd = &cobra.Command{
 
 		sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, continuationHeight, !y)
 
-		consensusEngine := engines.EngineSourceFactory(engine, registryUrl, source, continuationHeight)
+		consensusEngine := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, continuationHeight)
 
-		if err := consensusEngine.OpenDBs(homePath); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
-			os.Exit(1)
-		}
-
-		if rpcServer {
-			go consensusEngine.StartRPCServer(rpcServerPort)
-		}
-
-		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, nil, &bId, targetHeight, backupCfg, appFlags, optOut, debug)
-
-		if err := consensusEngine.CloseDBs(); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
-			os.Exit(1)
-		}
+		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, nil, &bId, targetHeight, backupCfg, appFlags, rpcServer, optOut, debug)
 	},
 }

@@ -37,8 +37,10 @@ var (
 )
 
 type Engine struct {
-	homePath string
-	config   *cfg.Config
+	HomePath      string
+	RpcServerPort int64
+	areDBsOpen    bool
+	config        *cfg.Config
 
 	blockDB    db.DB
 	blockStore *tmStore.BlockStore
@@ -61,17 +63,30 @@ func (engine *Engine) GetName() string {
 	return utils.EngineTendermintV34
 }
 
-func (engine *Engine) OpenDBs(homePath string) error {
-	engine.homePath = homePath
+func (engine *Engine) LoadConfig() error {
+	if engine.config != nil {
+		return nil
+	}
 
-	config, err := LoadConfig(engine.homePath)
+	config, err := LoadConfig(engine.HomePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
 	}
 
 	engine.config = config
+	return nil
+}
 
-	if err := utils.FormatGenesisFile(config.GenesisFile()); err != nil {
+func (engine *Engine) OpenDBs() error {
+	if engine.areDBsOpen {
+		return nil
+	}
+
+	if err := engine.LoadConfig(); err != nil {
+		return err
+	}
+
+	if err := utils.FormatGenesisFile(engine.config.GenesisFile()); err != nil {
 		return fmt.Errorf("failed to format genesis file: %w", err)
 	}
 
@@ -82,15 +97,15 @@ func (engine *Engine) OpenDBs(homePath string) error {
 	engine.genDoc = genDoc
 
 	privValidatorKey, err := privval.LoadFilePVEmptyState(
-		config.PrivValidatorKeyFile(),
-		config.PrivValidatorStateFile(),
+		engine.config.PrivValidatorKeyFile(),
+		engine.config.PrivValidatorStateFile(),
 	).GetPubKey()
 	if err != nil {
 		return fmt.Errorf("failed to load validator key file: %w", err)
 	}
 	engine.privValidatorKey = privValidatorKey
 
-	blockDB, blockStore, err := GetBlockstoreDBs(config)
+	blockDB, blockStore, err := GetBlockstoreDBs(engine.config)
 	if err != nil {
 		return fmt.Errorf("failed to open blockDB: %w", err)
 	}
@@ -98,7 +113,7 @@ func (engine *Engine) OpenDBs(homePath string) error {
 	engine.blockDB = blockDB
 	engine.blockStore = blockStore
 
-	stateDB, stateStore, err := GetStateDBs(config)
+	stateDB, stateStore, err := GetStateDBs(engine.config)
 	if err != nil {
 		return fmt.Errorf("failed to open stateDB: %w", err)
 	}
@@ -106,10 +121,15 @@ func (engine *Engine) OpenDBs(homePath string) error {
 	engine.stateDB = stateDB
 	engine.stateStore = stateStore
 
+	engine.areDBsOpen = true
 	return nil
 }
 
 func (engine *Engine) CloseDBs() error {
+	if !engine.areDBsOpen {
+		return nil
+	}
+
 	if err := engine.blockDB.Close(); err != nil {
 		return fmt.Errorf("failed to close blockDB: %w", err)
 	}
@@ -118,11 +138,12 @@ func (engine *Engine) CloseDBs() error {
 		return fmt.Errorf("failed to close stateDB: %w", err)
 	}
 
+	engine.areDBsOpen = false
 	return nil
 }
 
 func (engine *Engine) GetHomePath() string {
-	return engine.homePath
+	return engine.HomePath
 }
 
 func (engine *Engine) GetProxyAppAddress() string {
@@ -178,10 +199,9 @@ func (engine *Engine) GetContinuationHeight() (int64, error) {
 }
 
 func (engine *Engine) DoHandshake() error {
-	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(engine.config)
-	state, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(engine.stateDB, defaultDocProvider)
+	state, err := tmState.NewStore(engine.stateDB).LoadFromDBOrGenesisDoc(engine.genDoc)
 	if err != nil {
-		return fmt.Errorf("failed to load state and genDoc: %w", err)
+		return fmt.Errorf("failed to load state from genDoc: %w", err)
 	}
 
 	eventBus, err := CreateAndStartEventBus()
@@ -189,7 +209,7 @@ func (engine *Engine) DoHandshake() error {
 		return fmt.Errorf("failed to start event bus: %w", err)
 	}
 
-	if err := DoHandshake(engine.stateStore, state, engine.blockStore, genDoc, eventBus, engine.proxyApp); err != nil {
+	if err := DoHandshake(engine.stateStore, state, engine.blockStore, engine.genDoc, eventBus, engine.proxyApp); err != nil {
 		return fmt.Errorf("failed to do handshake: %w", err)
 	}
 
@@ -492,7 +512,7 @@ func (engine *Engine) GetBlock(height int64) ([]byte, error) {
 	return json.Marshal(block)
 }
 
-func (engine *Engine) StartRPCServer(port int64) {
+func (engine *Engine) StartRPCServer() {
 	// wait until all reactors have been booted
 	for engine.blockExecutor == nil {
 		time.Sleep(1000)
@@ -550,7 +570,7 @@ func (engine *Engine) StartRPCServer(port int64) {
 	config := rpcserver.DefaultConfig()
 
 	rpcserver.RegisterRPCFuncs(mux, routes, rpcLogger)
-	listener, err := rpcserver.Listen(fmt.Sprintf("tcp://127.0.0.1:%d", port), config)
+	listener, err := rpcserver.Listen(fmt.Sprintf("tcp://127.0.0.1:%d", engine.RpcServerPort), config)
 	if err != nil {
 		tmLogger.Error(fmt.Sprintf("failed to get rpc listener: %s", err))
 		return
@@ -723,8 +743,8 @@ func (engine *Engine) PruneBlocks(toHeight int64) error {
 	return nil
 }
 
-func (engine *Engine) ResetAll(homePath string, keepAddrBook bool) error {
-	config, err := LoadConfig(homePath)
+func (engine *Engine) ResetAll(keepAddrBook bool) error {
+	config, err := LoadConfig(engine.HomePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
 	}
