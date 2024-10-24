@@ -206,10 +206,11 @@ func (engine *Engine) GetContinuationHeight() (int64, error) {
 }
 
 func (engine *Engine) DoHandshake() error {
-	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(engine.config)
-	state, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(engine.stateDB, defaultDocProvider)
+	state, err := tmState.NewStore(engine.stateDB, tmState.StoreOptions{
+		DiscardABCIResponses: false,
+	}).LoadFromDBOrGenesisDoc(engine.genDoc)
 	if err != nil {
-		return fmt.Errorf("failed to load state and genDoc: %w", err)
+		return fmt.Errorf("failed to load state from genDoc: %w", err)
 	}
 
 	eventBus, err := CreateAndStartEventBus()
@@ -217,7 +218,7 @@ func (engine *Engine) DoHandshake() error {
 		return fmt.Errorf("failed to start event bus: %w", err)
 	}
 
-	if err := DoHandshake(engine.stateStore, state, engine.blockStore, genDoc, eventBus, engine.proxyApp); err != nil {
+	if err := DoHandshake(engine.stateStore, state, engine.blockStore, engine.genDoc, eventBus, engine.proxyApp); err != nil {
 		return fmt.Errorf("failed to do handshake: %w", err)
 	}
 
