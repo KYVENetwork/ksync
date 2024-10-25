@@ -65,6 +65,11 @@ var heightSyncCmd = &cobra.Command{
 			homePath = utils.GetHomePathFromBinary(binaryPath)
 		}
 
+		if engine == "" && binaryPath != "" {
+			engine = utils.GetEnginePathFromBinary(binaryPath)
+			logger.Info().Msgf("Loaded engine \"%s\" from binary path", engine)
+		}
+
 		defaultEngine := engines.EngineFactory(engine, homePath, rpcServerPort)
 
 		if source == "" {

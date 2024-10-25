@@ -83,6 +83,11 @@ var blockSyncCmd = &cobra.Command{
 			logger.Info().Msgf("Loaded source \"%s\" from genesis file", source)
 		}
 
+		if engine == "" && binaryPath != "" {
+			engine = utils.GetEnginePathFromBinary(binaryPath)
+			logger.Info().Msgf("Loaded engine \"%s\" from binary path", engine)
+		}
+
 		bId, _, err := sources.GetPoolIds(chainId, source, blockPoolId, "", registryUrl, true, false)
 		if err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to load pool-ids: %s", err))
