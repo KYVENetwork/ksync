@@ -177,10 +177,13 @@ func (engine *Engine) StopProxyApp() error {
 }
 
 func (engine *Engine) GetChainId() (string, error) {
-	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(engine.config)
-	_, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(engine.stateDB, defaultDocProvider)
+	if err := engine.LoadConfig(); err != nil {
+		return "", fmt.Errorf("failed to load config: %w", err)
+	}
+
+	genDoc, err := nm.DefaultGenesisDocProviderFunc(engine.config)()
 	if err != nil {
-		return "", fmt.Errorf("failed to load state and genDoc: %w", err)
+		return "", fmt.Errorf("failed to load genDoc: %w", err)
 	}
 
 	return genDoc.ChainID, nil

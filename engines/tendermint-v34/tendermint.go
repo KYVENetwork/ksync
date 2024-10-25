@@ -178,7 +178,16 @@ func (engine *Engine) StopProxyApp() error {
 }
 
 func (engine *Engine) GetChainId() (string, error) {
-	return engine.genDoc.ChainID, nil
+	if err := engine.LoadConfig(); err != nil {
+		return "", fmt.Errorf("failed to load config: %w", err)
+	}
+
+	genDoc, err := nm.DefaultGenesisDocProviderFunc(engine.config)()
+	if err != nil {
+		return "", fmt.Errorf("failed to load genDoc: %w", err)
+	}
+
+	return genDoc.ChainID, nil
 }
 
 func (engine *Engine) GetContinuationHeight() (int64, error) {

@@ -66,13 +66,24 @@ var servesnapshotsCmd = &cobra.Command{
 			homePath = utils.GetHomePathFromBinary(binaryPath)
 		}
 
+		defaultEngine := engines.EngineFactory(engine, homePath, rpcServerPort)
+
+		if source == "" {
+			s, err := defaultEngine.GetChainId()
+			if err != nil {
+				logger.Error().Msgf("Failed to load chain-id from engine: %s", err.Error())
+				os.Exit(1)
+			}
+			source = s
+			logger.Info().Msgf("Loaded source \"%s\" from genesis file", source)
+		}
+
 		bId, sId, err := sources.GetPoolIds(chainId, source, blockPoolId, snapshotPoolId, registryUrl, true, true)
 		if err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to load pool-ids: %s", err))
 			os.Exit(1)
 		}
 
-		defaultEngine := engines.EngineFactory(engine, homePath, rpcServerPort)
 		if reset {
 			if err := defaultEngine.ResetAll(true); err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
