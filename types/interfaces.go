@@ -6,8 +6,11 @@ type Engine interface {
 	// GetName gets the engine name
 	GetName() string
 
+	// LoadConfig loads and sets the config
+	LoadConfig() error
+
 	// OpenDBs opens the relevant blockstore and state DBs
-	OpenDBs(homePath string) error
+	OpenDBs() error
 
 	// CloseDBs closes the relevant blockstore and state DBs
 	CloseDBs() error
@@ -74,7 +77,7 @@ type Engine interface {
 
 	// StartRPCServer spins up a basic rpc server of the engine which serves
 	// /status, /block and /block_results
-	StartRPCServer(port int64)
+	StartRPCServer()
 
 	// GetState rebuilds the requested state from the blockstore and state.db
 	GetState(height int64) ([]byte, error)
@@ -97,5 +100,5 @@ type Engine interface {
 
 	// ResetAll removes all the data and WAL, reset this node's validator
 	// to genesis state
-	ResetAll(homePath string, keepAddrBook bool) error
+	ResetAll(keepAddrBook bool) error
 }

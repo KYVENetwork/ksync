@@ -65,6 +65,10 @@ func StartBinaryProcessForDB(engine types.Engine, binaryPath string, debug bool,
 		startArgs = append(startArgs, "run")
 	}
 
+	if err := engine.LoadConfig(); err != nil {
+		return processId, fmt.Errorf("failed to load engine config: %w", err)
+	}
+
 	baseArgs := append([]string{
 		"start",
 		"--home",

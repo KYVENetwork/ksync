@@ -40,7 +40,9 @@ func IsBinaryRecommendedVersion(binaryPath, registryUrl, source string, continua
 		os.Exit(1)
 	}
 
-	binaryVersion := fmt.Sprintf("v%s", strings.TrimSuffix(string(out), "\n"))
+	binaryVersion := strings.TrimSuffix(string(out), "\n")
+	binaryVersionFormatted := fmt.Sprintf("v%s", binaryVersion)
+
 	var recommendedVersion string
 
 	entry, err := helpers.GetSourceRegistryEntry(registryUrl, source)
@@ -63,7 +65,7 @@ func IsBinaryRecommendedVersion(binaryPath, registryUrl, source string, continua
 		recommendedVersion = upgrade.RecommendedVersion
 	}
 
-	if binaryVersion == recommendedVersion {
+	if binaryVersion == recommendedVersion || binaryVersionFormatted == recommendedVersion {
 		return
 	}
 

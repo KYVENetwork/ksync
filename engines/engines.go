@@ -17,10 +17,10 @@ var (
 	logger = utils.KsyncLogger("engines")
 )
 
-func EngineSourceFactory(engine, registryUrl, source string, continuationHeight int64) types.Engine {
+func EngineSourceFactory(engine, homePath, registryUrl, source string, rpcServerPort, continuationHeight int64) types.Engine {
 	// if the engine was specified by the user or the source is empty we determine the engine by the engine input
 	if engine != "" || source == "" {
-		return EngineFactory(engine)
+		return EngineFactory(engine, homePath, rpcServerPort)
 	}
 
 	entry, err := helpers.GetSourceRegistryEntry(registryUrl, source)
@@ -44,46 +44,46 @@ func EngineSourceFactory(engine, registryUrl, source string, continuationHeight 
 	}
 
 	logger.Info().Msg(fmt.Sprintf("using \"%s\" as consensus engine", engine))
-	return EngineFactory(engine)
+	return EngineFactory(engine, homePath, rpcServerPort)
 }
 
-func EngineFactory(engine string) types.Engine {
+func EngineFactory(engine, homePath string, rpcServerPort int64) types.Engine {
 	switch engine {
 	case "":
-		return &cometbft_v38.Engine{}
+		return &cometbft_v38.Engine{HomePath: homePath, RpcServerPort: rpcServerPort}
 	case utils.EngineTendermintV34:
-		return &tendermint_v34.Engine{}
+		return &tendermint_v34.Engine{HomePath: homePath, RpcServerPort: rpcServerPort}
 	case utils.EngineCometBFTV37:
-		return &cometbft_v37.Engine{}
+		return &cometbft_v37.Engine{HomePath: homePath, RpcServerPort: rpcServerPort}
 	case utils.EngineCometBFTV38:
-		return &cometbft_v38.Engine{}
+		return &cometbft_v38.Engine{HomePath: homePath, RpcServerPort: rpcServerPort}
 	case utils.EngineCelestiaCoreV34:
-		return &celestia_core_v34.Engine{}
+		return &celestia_core_v34.Engine{HomePath: homePath, RpcServerPort: rpcServerPort}
 
 	// These engines are deprecated and will be removed soon
 	case utils.EngineTendermintV34Legacy:
 		logger.Warn().Msg(fmt.Sprintf("engine %s is deprecated and will soon be removed, use %s instead", utils.EngineTendermintV34Legacy, utils.EngineTendermintV34))
-		return &tendermint_v34.Engine{}
+		return &tendermint_v34.Engine{HomePath: homePath, RpcServerPort: rpcServerPort}
 	case utils.EngineCometBFTV37Legacy:
 		logger.Warn().Msg(fmt.Sprintf("engine %s is deprecated and will soon be removed, use %s instead", utils.EngineCometBFTV37Legacy, utils.EngineCometBFTV37))
-		return &cometbft_v37.Engine{}
+		return &cometbft_v37.Engine{HomePath: homePath, RpcServerPort: rpcServerPort}
 	case utils.EngineCometBFTV38Legacy:
 		logger.Warn().Msg(fmt.Sprintf("engine %s is deprecated and will soon be removed, use %s instead", utils.EngineCometBFTV38Legacy, utils.EngineCometBFTV38))
-		return &cometbft_v38.Engine{}
+		return &cometbft_v38.Engine{HomePath: homePath, RpcServerPort: rpcServerPort}
 	case utils.EngineCelestiaCoreV34Legacy:
 		logger.Warn().Msg(fmt.Sprintf("engine %s is deprecated and will soon be removed, use %s instead", utils.EngineCelestiaCoreV34Legacy, utils.EngineCelestiaCoreV34))
-		return &celestia_core_v34.Engine{}
+		return &celestia_core_v34.Engine{HomePath: homePath, RpcServerPort: rpcServerPort}
 
 	// These engines are deprecated and will be removed soon
 	case utils.EngineTendermintLegacy:
 		logger.Warn().Msg(fmt.Sprintf("engine %s is deprecated and will soon be removed, use %s instead", utils.EngineTendermintLegacy, utils.EngineTendermintV34))
-		return &tendermint_v34.Engine{}
+		return &tendermint_v34.Engine{HomePath: homePath, RpcServerPort: rpcServerPort}
 	case utils.EngineCometBFTLegacy:
 		logger.Warn().Msg(fmt.Sprintf("engine %s is deprecated and will soon be removed, use %s or %s instead", utils.EngineCometBFTLegacy, utils.EngineCometBFTV37, utils.EngineCometBFTV38))
-		return &cometbft_v37.Engine{}
+		return &cometbft_v37.Engine{HomePath: homePath, RpcServerPort: rpcServerPort}
 	case utils.EngineCelestiaCoreLegacy:
 		logger.Warn().Msg(fmt.Sprintf("engine %s is deprecated and will soon be removed, use %s instead", utils.EngineCelestiaCoreLegacy, utils.EngineCelestiaCoreV34))
-		return &celestia_core_v34.Engine{}
+		return &celestia_core_v34.Engine{HomePath: homePath, RpcServerPort: rpcServerPort}
 	default:
 		logger.Error().Msg(fmt.Sprintf("engine %s not found, run \"ksync engines\" to list all available engines", engine))
 		os.Exit(1)
