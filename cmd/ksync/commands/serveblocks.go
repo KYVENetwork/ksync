@@ -64,6 +64,11 @@ var serveBlocksCmd = &cobra.Command{
 			homePath = utils.GetHomePathFromBinary(binaryPath)
 		}
 
+		if engine == "" && binaryPath != "" {
+			engine = utils.GetEnginePathFromBinary(binaryPath)
+			logger.Info().Msgf("Loaded engine \"%s\" from binary path", engine)
+		}
+
 		backupCfg, err := backup.GetBackupConfig(homePath, backupInterval, backupKeepRecent, backupCompression, backupDest)
 		if err != nil {
 			logger.Error().Str("err", err.Error()).Msg("could not get backup config")

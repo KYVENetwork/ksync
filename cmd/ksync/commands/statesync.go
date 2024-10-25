@@ -62,6 +62,11 @@ var stateSyncCmd = &cobra.Command{
 			homePath = utils.GetHomePathFromBinary(binaryPath)
 		}
 
+		if engine == "" && binaryPath != "" {
+			engine = utils.GetEnginePathFromBinary(binaryPath)
+			logger.Info().Msgf("Loaded engine \"%s\" from binary path", engine)
+		}
+
 		_, sId, err := sources.GetPoolIds(chainId, source, "", snapshotPoolId, registryUrl, false, true)
 		if err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to load pool-ids: %s", err))

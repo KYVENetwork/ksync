@@ -65,6 +65,11 @@ var heightSyncCmd = &cobra.Command{
 			homePath = utils.GetHomePathFromBinary(binaryPath)
 		}
 
+		if engine == "" && binaryPath != "" {
+			engine = utils.GetEnginePathFromBinary(binaryPath)
+			logger.Info().Msgf("Loaded engine \"%s\" from binary path", engine)
+		}
+
 		bId, sId, err := sources.GetPoolIds(chainId, source, blockPoolId, snapshotPoolId, registryUrl, true, true)
 		if err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to load pool-ids: %s", err))
