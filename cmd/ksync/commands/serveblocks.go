@@ -64,13 +64,24 @@ var serveBlocksCmd = &cobra.Command{
 			homePath = utils.GetHomePathFromBinary(binaryPath)
 		}
 
+		defaultEngine := engines.EngineFactory(engine, homePath, rpcServerPort)
+
+		if source == "" {
+			s, err := defaultEngine.GetChainId()
+			if err != nil {
+				logger.Error().Msgf("Failed to load chain-id from engine: %s", err.Error())
+				os.Exit(1)
+			}
+			source = s
+			logger.Info().Msgf("Loaded source \"%s\" from genesis file", source)
+		}
+
 		backupCfg, err := backup.GetBackupConfig(homePath, backupInterval, backupKeepRecent, backupCompression, backupDest)
 		if err != nil {
 			logger.Error().Str("err", err.Error()).Msg("could not get backup config")
 			return
 		}
 
-		defaultEngine := engines.EngineFactory(engine, homePath, rpcServerPort)
 		if reset {
 			if err := defaultEngine.ResetAll(true); err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
