@@ -66,9 +66,21 @@ var blockSyncCmd = &cobra.Command{
 			logger.Info().Msg("To start the syncing process, start your chain binary with --with-tendermint=false")
 		}
 
-		// if no home path was given get the default one
 		if homePath == "" {
 			homePath = utils.GetHomePathFromBinary(binaryPath)
+			logger.Info().Msgf("Loaded home path \"%s\" from binary path", homePath)
+		}
+
+		defaultEngine := engines.EngineFactory(engine, homePath, rpcServerPort)
+
+		if source == "" {
+			s, err := defaultEngine.GetChainId()
+			if err != nil {
+				logger.Error().Msgf("Failed to load chain-id from engine: %s", err.Error())
+				os.Exit(1)
+			}
+			source = s
+			logger.Info().Msgf("Loaded source \"%s\" from genesis file", source)
 		}
 
 		if engine == "" && binaryPath != "" {
@@ -88,7 +100,6 @@ var blockSyncCmd = &cobra.Command{
 			return
 		}
 
-		defaultEngine := engines.EngineFactory(engine, homePath, rpcServerPort)
 		if reset {
 			if err := defaultEngine.ResetAll(true); err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
