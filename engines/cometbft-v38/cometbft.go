@@ -192,7 +192,7 @@ func (engine *Engine) GetChainId() (string, error) {
 }
 
 func (engine *Engine) GetContinuationHeight() (int64, error) {
-	height := engine.blockStore.Height()
+	height := engine.GetHeight()
 
 	initialHeight, err := utils.GetInitialHeightFromGenesisFile(engine.GetGenesisPath())
 	if err != nil {
@@ -432,7 +432,12 @@ func (engine *Engine) GetGenesisHeight() (int64, error) {
 }
 
 func (engine *Engine) GetHeight() int64 {
-	return engine.blockStore.Height()
+	height := engine.blockStore.Height()
+	if height == 0 {
+		height, _ = engine.stateStore.GetOfflineStateSyncHeight()
+	}
+
+	return height
 }
 
 func (engine *Engine) GetBaseHeight() int64 {
@@ -732,22 +737,17 @@ func (engine *Engine) BootstrapState(value []byte) error {
 		return fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
 	}
 
-	err := engine.stateStore.Bootstrap(*bundle[0].Value.State)
-	if err != nil {
+	if err := engine.stateStore.Bootstrap(*bundle[0].Value.State); err != nil {
 		return fmt.Errorf("failed to bootstrap state: %w", err)
 	}
 
-	err = engine.blockStore.SaveSeenCommit(bundle[0].Value.State.LastBlockHeight, bundle[0].Value.SeenCommit)
-	if err != nil {
+	if err := engine.blockStore.SaveSeenCommit(bundle[0].Value.State.LastBlockHeight, bundle[0].Value.SeenCommit); err != nil {
 		return fmt.Errorf("failed to save seen commit: %w", err)
 	}
 
-	blockParts, err := bundle[0].Value.Block.MakePartSet(tmTypes.BlockPartSizeBytes)
-	if err != nil {
-		return fmt.Errorf("failed make part set of block: %w", err)
+	if err := engine.stateStore.SetOfflineStateSyncHeight(bundle[0].Value.State.LastBlockHeight); err != nil {
+		return fmt.Errorf("failed to set offline state sync height: %w", err)
 	}
-
-	engine.blockStore.SaveBlock(bundle[0].Value.Block, blockParts, bundle[0].Value.SeenCommit)
 
 	return nil
 }
