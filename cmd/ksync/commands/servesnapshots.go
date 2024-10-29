@@ -73,7 +73,7 @@ var servesnapshotsCmd = &cobra.Command{
 
 		defaultEngine := engines.EngineFactory(engine, homePath, rpcServerPort)
 
-		if source == "" {
+		if source == "" && blockPoolId == "" && snapshotPoolId == "" {
 			s, err := defaultEngine.GetChainId()
 			if err != nil {
 				logger.Error().Msgf("Failed to load chain-id from engine: %s", err.Error())

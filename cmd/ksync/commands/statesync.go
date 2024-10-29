@@ -69,7 +69,7 @@ var stateSyncCmd = &cobra.Command{
 
 		defaultEngine := engines.EngineFactory(engine, homePath, rpcServerPort)
 
-		if source == "" {
+		if source == "" && snapshotPoolId == "" {
 			s, err := defaultEngine.GetChainId()
 			if err != nil {
 				logger.Error().Msgf("Failed to load chain-id from engine: %s", err.Error())
