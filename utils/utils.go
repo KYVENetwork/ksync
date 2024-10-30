@@ -207,18 +207,14 @@ func GetChainRest(chainId, chainRest string) string {
 	}
 
 	// if no custom rest endpoint was given we take it from the chainId
-	if chainRest == "" {
-		switch chainId {
-		case ChainIdMainnet:
-			return RestEndpointMainnet
-		case ChainIdKaon:
-			return RestEndpointKaon
-		case ChainIdKorellia:
-			return RestEndpointKorellia
-		default:
-			panic(fmt.Sprintf("flag --chain-id has to be either \"%s\", \"%s\" or \"%s\"", ChainIdMainnet, ChainIdKaon, ChainIdKorellia))
-		}
+	switch chainId {
+	case ChainIdMainnet:
+		return RestEndpointMainnet
+	case ChainIdKaon:
+		return RestEndpointKaon
+	case ChainIdKorellia:
+		return RestEndpointKorellia
+	default:
+		panic(fmt.Sprintf("flag --chain-id has to be either \"%s\", \"%s\" or \"%s\"", ChainIdMainnet, ChainIdKaon, ChainIdKorellia))
 	}
-
-	return ""
 }
