@@ -9,9 +9,10 @@ const (
 	RestEndpointKaon     = "https://api.kaon.kyve.network"
 	RestEndpointKorellia = "https://api.korellia.kyve.network"
 
-	RestEndpointArweave     = "https://arweave.net"
-	RestEndpointBundlr      = "https://arweave.net"
-	RestEndpointKYVEStorage = "https://storage.kyve.network"
+	RestEndpointArweave      = "https://arweave.net"
+	RestEndpointBundlr       = "https://arweave.net"
+	RestEndpointKYVEStorage  = "https://storage.kyve.network"
+	RestEndpointTurboStorage = "https://arweave.net"
 
 	SegmentKey = "quSEhAvH5fqlHyop9r9mDGxgd97ro3vQ"
 )

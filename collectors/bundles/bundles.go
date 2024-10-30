@@ -130,6 +130,8 @@ func RetrieveDataFromStorageProvider(bundle types.FinalizedBundle, storageRest s
 		return utils.GetFromUrlWithBackoff(fmt.Sprintf("%v/%s", utils.RestEndpointBundlr, bundle.StorageId))
 	case 3:
 		return utils.GetFromUrlWithBackoff(fmt.Sprintf("%v/%s", utils.RestEndpointKYVEStorage, bundle.StorageId))
+	case 4:
+		return utils.GetFromUrlWithBackoff(fmt.Sprintf("%v/%s", utils.RestEndpointTurboStorage, bundle.StorageId))
 	default:
 		return nil, fmt.Errorf("bundle has an invalid storage provider id %s. canceling sync", bundle.StorageProviderId)
 	}
