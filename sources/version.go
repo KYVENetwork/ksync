@@ -15,7 +15,7 @@ var (
 )
 
 func IsBinaryRecommendedVersion(binaryPath, registryUrl, source string, continuationHeight int64, userInput bool) {
-	if source == "" || !userInput {
+	if binaryPath == "" || source == "" || !userInput {
 		return
 	}
 
@@ -34,7 +34,7 @@ func IsBinaryRecommendedVersion(binaryPath, registryUrl, source string, continua
 
 	startArgs = append(startArgs, "version")
 
-	out, err := exec.Command(cmdPath, startArgs...).Output()
+	out, err := exec.Command(cmdPath, startArgs...).CombinedOutput()
 	if err != nil {
 		logger.Error().Msg("failed to get output of binary")
 		os.Exit(1)
