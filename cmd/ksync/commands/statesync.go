@@ -37,7 +37,7 @@ func init() {
 	stateSyncCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint app")
 	stateSyncCmd.Flags().BoolVarP(&y, "yes", "y", false, "automatically answer yes for all questions")
 
-	rootCmd.AddCommand(stateSyncCmd)
+	RootCmd.AddCommand(stateSyncCmd)
 }
 
 var stateSyncCmd = &cobra.Command{
@@ -101,7 +101,7 @@ var stateSyncCmd = &cobra.Command{
 
 		sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, snapshotHeight, !y)
 
-		consensusEngine := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, snapshotHeight)
+		consensusEngine, err := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, snapshotHeight)
 
 		statesync.StartStateSyncWithBinary(consensusEngine, binaryPath, chainId, chainRest, storageRest, sId, targetHeight, snapshotBundleId, snapshotHeight, appFlags, optOut, debug)
 	},

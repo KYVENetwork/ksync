@@ -51,7 +51,7 @@ func init() {
 	servesnapshotsCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
 	servesnapshotsCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint app")
 
-	rootCmd.AddCommand(servesnapshotsCmd)
+	RootCmd.AddCommand(servesnapshotsCmd)
 }
 
 var servesnapshotsCmd = &cobra.Command{
@@ -126,7 +126,7 @@ var servesnapshotsCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		consensusEngine := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, continuationHeight)
+		consensusEngine, err := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, continuationHeight)
 
 		servesnapshots.StartServeSnapshotsWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, &bId, sId, targetHeight, height, snapshotBundleId, snapshotHeight, snapshotPort, appFlags, rpcServer, pruning, keepSnapshots, skipWaiting, debug)
 	},

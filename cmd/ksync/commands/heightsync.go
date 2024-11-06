@@ -40,7 +40,7 @@ func init() {
 	heightSyncCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint app")
 	heightSyncCmd.Flags().BoolVarP(&y, "assumeyes", "y", false, "automatically answer yes for all questions")
 
-	rootCmd.AddCommand(heightSyncCmd)
+	RootCmd.AddCommand(heightSyncCmd)
 }
 
 var heightSyncCmd = &cobra.Command{
@@ -136,7 +136,7 @@ var heightSyncCmd = &cobra.Command{
 
 		sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, continuationHeight, !y)
 
-		consensusEngine := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, continuationHeight)
+		consensusEngine, err := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, continuationHeight)
 
 		heightsync.StartHeightSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, sId, &bId, targetHeight, snapshotBundleId, snapshotHeight, appFlags, optOut, debug)
 	},

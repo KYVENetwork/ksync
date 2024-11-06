@@ -4,27 +4,22 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 func init() {
 	versionCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
 
-	rootCmd.AddCommand(versionCmd)
+	RootCmd.AddCommand(versionCmd)
 }
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version of KSYNC",
-	Run: func(cmd *cobra.Command, args []string) {
-		os.Exit(RunVersionCmd(args))
+	RunE: func(cmd *cobra.Command, args []string) error {
+		utils.TrackVersionEvent(optOut)
+		fmt.Println(utils.GetVersion())
+		return nil
 	},
-}
-
-func RunVersionCmd(args []string) (code int) {
-	utils.TrackVersionEvent(optOut)
-	fmt.Println(utils.GetVersion())
-	return
 }
 
 // Create Wrapper functions for commands

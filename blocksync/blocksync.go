@@ -7,7 +7,6 @@ import (
 	"github.com/KYVENetwork/ksync/bootstrap"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
-	"os"
 	"strings"
 	"time"
 )
@@ -15,10 +14,6 @@ import (
 var (
 	logger = utils.KsyncLogger("block-sync")
 )
-
-func StartBlockSync(engine types.Engine, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, poolId *int64, targetHeight int64, backupCfg *types.BackupConfig) error {
-	return StartDBExecutor(engine, chainRest, storageRest, blockRpcConfig, poolId, targetHeight, 0, 0, false, false, backupCfg)
-}
 
 func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, targetHeight int64, checkEndHeight, userInput bool) (continuationHeight int64, err error) {
 	continuationHeight, err = engine.GetContinuationHeight()
@@ -77,23 +72,21 @@ func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blo
 	return
 }
 
-func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, targetHeight int64, backupCfg *types.BackupConfig, appFlags string, rpcServer, optOut, debug bool) {
+func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, targetHeight int64, backupCfg *types.BackupConfig, appFlags string, rpcServer, optOut, debug bool) error {
 	logger.Info().Msg("starting block-sync")
 
 	if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, blockRpcConfig, blockPoolId, appFlags, debug); err != nil {
-		logger.Error().Msg(fmt.Sprintf("failed to bootstrap node: %s", err))
-		os.Exit(1)
+		return fmt.Errorf("failed to bootstrap node: %w", err)
 	}
 
 	// start binary process thread
 	processId, err := utils.StartBinaryProcessForDB(engine, binaryPath, debug, strings.Split(appFlags, ","))
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to start binary process: %w", err)
 	}
 
 	if err := engine.OpenDBs(); err != nil {
-		logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
-		os.Exit(1)
+		return fmt.Errorf("failed to open dbs in engine: %w", err)
 	}
 
 	if rpcServer {
@@ -107,14 +100,15 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId
 	currentHeight := engine.GetHeight()
 
 	// db executes blocks against app until target height is reached
-	if err := StartBlockSync(engine, chainRest, storageRest, blockRpcConfig, blockPoolId, targetHeight, backupCfg); err != nil {
+	if err := StartDBExecutor(engine, chainRest, storageRest, blockRpcConfig, blockPoolId, targetHeight, 0, 0, false, false, backupCfg); err != nil {
 		logger.Error().Msg(fmt.Sprintf("%s", err))
 
 		// stop binary process thread
 		if err := utils.StopProcessByProcessId(processId); err != nil {
-			panic(err)
+			return fmt.Errorf("failed to stop process by process id: %w", err)
 		}
-		os.Exit(1)
+
+		return fmt.Errorf("failed to start db executor: %w", err)
 	}
 
 	elapsed := time.Since(start).Seconds()
@@ -122,14 +116,14 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId
 
 	// stop binary process thread
 	if err := utils.StopProcessByProcessId(processId); err != nil {
-		panic(err)
+		return fmt.Errorf("failed to stop process by process id: %w", err)
 	}
 
 	if err := engine.CloseDBs(); err != nil {
-		logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
-		os.Exit(1)
+		return fmt.Errorf("failed to close dbs in engine: %w", err)
 	}
 
 	logger.Info().Msg(fmt.Sprintf("block-synced from %d to %d (%d blocks) in %.2f seconds", currentHeight, targetHeight, targetHeight-currentHeight, elapsed))
 	logger.Info().Msg(fmt.Sprintf("successfully finished block-sync"))
+	return nil
 }

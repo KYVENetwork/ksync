@@ -44,7 +44,7 @@ func init() {
 	serveBlocksCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint app")
 	serveBlocksCmd.Flags().BoolVarP(&y, "yes", "y", false, "automatically answer yes for all questions")
 
-	rootCmd.AddCommand(serveBlocksCmd)
+	RootCmd.AddCommand(serveBlocksCmd)
 }
 
 var serveBlocksCmd = &cobra.Command{
@@ -111,7 +111,7 @@ var serveBlocksCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		consensusEngine := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, continuationHeight)
+		consensusEngine, err := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, continuationHeight)
 
 		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, &blockRpcConfig, nil, targetHeight, backupCfg, appFlags, rpcServer, optOut, debug)
 	},

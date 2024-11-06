@@ -20,7 +20,7 @@ func init() {
 
 	resetCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
 
-	rootCmd.AddCommand(resetCmd)
+	RootCmd.AddCommand(resetCmd)
 }
 
 var resetCmd = &cobra.Command{

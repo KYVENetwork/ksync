@@ -9,7 +9,7 @@ import (
 func init() {
 	enginesCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
 
-	rootCmd.AddCommand(enginesCmd)
+	RootCmd.AddCommand(enginesCmd)
 }
 
 var enginesCmd = &cobra.Command{

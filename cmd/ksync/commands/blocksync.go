@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"github.com/KYVENetwork/ksync/backup"
 	"github.com/KYVENetwork/ksync/blocksync"
@@ -8,7 +9,6 @@ import (
 	"github.com/KYVENetwork/ksync/sources"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
-	"os"
 	"strings"
 )
 
@@ -46,29 +46,28 @@ func init() {
 	blockSyncCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint app")
 	blockSyncCmd.Flags().BoolVarP(&y, "yes", "y", false, "automatically answer yes for all questions")
 
-	rootCmd.AddCommand(blockSyncCmd)
+	RootCmd.AddCommand(blockSyncCmd)
 }
 
 var blockSyncCmd = &cobra.Command{
 	Use:   "block-sync",
 	Short: "Start fast syncing blocks with KSYNC",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
 
 		// if no binary was provided at least the home path needs to be defined
 		if binaryPath == "" && homePath == "" {
-			logger.Error().Msg(fmt.Sprintf("flag 'home' is required"))
-			os.Exit(1)
+			return errors.New("flag 'home' is required")
 		}
 
 		if binaryPath == "" {
-			logger.Info().Msg("To start the syncing process, start your chain binary with --with-tendermint=false")
+			logger.Info().Msg("to start the syncing process, start your chain binary with --with-tendermint=false")
 		}
 
 		if homePath == "" {
 			homePath = utils.GetHomePathFromBinary(binaryPath)
-			logger.Info().Msgf("Loaded home path \"%s\" from binary path", homePath)
+			logger.Info().Msgf("loaded home path \"%s\" from binary path", homePath)
 		}
 
 		defaultEngine := engines.EngineFactory(engine, homePath, rpcServerPort)
@@ -76,58 +75,56 @@ var blockSyncCmd = &cobra.Command{
 		if source == "" && blockPoolId == "" {
 			s, err := defaultEngine.GetChainId()
 			if err != nil {
-				logger.Error().Msgf("Failed to load chain-id from engine: %s", err.Error())
-				os.Exit(1)
+				return fmt.Errorf("failed to load chain-id from engine: %w", err)
 			}
 			source = s
-			logger.Info().Msgf("Loaded source \"%s\" from genesis file", source)
+			logger.Info().Msgf("loaded source \"%s\" from genesis file", source)
 		}
 
 		if engine == "" && binaryPath != "" {
 			engine = utils.GetEnginePathFromBinary(binaryPath)
-			logger.Info().Msgf("Loaded engine \"%s\" from binary path", engine)
+			logger.Info().Msgf("loaded engine \"%s\" from binary path", engine)
 		}
 
 		bId, _, err := sources.GetPoolIds(chainId, source, blockPoolId, "", registryUrl, true, false)
 		if err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to load pool-ids: %s", err))
-			os.Exit(1)
+			return fmt.Errorf("failed to load pool-ids: %w", err)
 		}
 
 		backupCfg, err := backup.GetBackupConfig(homePath, backupInterval, backupKeepRecent, backupCompression, backupDest)
 		if err != nil {
-			logger.Error().Str("err", err.Error()).Msg("could not get backup config")
-			return
+			return fmt.Errorf("could not get backup config: %w", err)
 		}
 
 		if reset {
 			if err := defaultEngine.ResetAll(true); err != nil {
-				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
-				os.Exit(1)
+				return fmt.Errorf("could not reset tendermint application: %w", err)
 			}
 		}
 
 		if err := defaultEngine.OpenDBs(); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
-			os.Exit(1)
+			return fmt.Errorf("failed to open dbs in engine: %w", err)
 		}
 
 		// perform validation checks before booting state-sync process
 		continuationHeight, err := blocksync.PerformBlockSyncValidationChecks(defaultEngine, chainRest, nil, &bId, targetHeight, true, !y)
 		if err != nil {
-			logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
-			os.Exit(1)
+			return fmt.Errorf("block-sync validation checks failed: %w", err)
 		}
 
 		if err := defaultEngine.CloseDBs(); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
-			os.Exit(1)
+			return fmt.Errorf("failed to close dbs in engine: %w", err)
 		}
 
-		sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, continuationHeight, !y)
+		if err := sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, continuationHeight, !y); err != nil {
+			return fmt.Errorf("failed to check if binary has the recommended version: %w", err)
+		}
 
-		consensusEngine := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, continuationHeight)
+		consensusEngine, err := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, continuationHeight)
+		if err != nil {
+			return fmt.Errorf("failed to create consensus engine for source: %w", err)
+		}
 
-		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, nil, &bId, targetHeight, backupCfg, appFlags, rpcServer, optOut, debug)
+		return blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, nil, &bId, targetHeight, backupCfg, appFlags, rpcServer, optOut, debug)
 	},
 }

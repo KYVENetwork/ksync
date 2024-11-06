@@ -2,13 +2,18 @@ package cmd_test
 
 import (
 	cmd "github.com/KYVENetwork/ksync/cmd/ksync/commands"
+	"gotest.tools/assert"
+	"os"
 	"testing"
-
-	"github.com/matryer/is"
 )
 
 func Test(t *testing.T) {
-	code := cmd.RunVersionCmd([]string{})
+	cmd.RootCmd.SetOut(os.Stdout)
+	cmd.RootCmd.SetErr(os.Stdout)
+	cmd.RootCmd.PersistentFlags().BoolP("help", "", false, "help for this command")
+	cmd.RootCmd.SetArgs([]string{"block-sync", "--binary", "/Users/troykessler/work/kyve/bins/kyved-v1.0.0", "--chain-id", "kaon-1", "-t", "100", "-r", "-y"})
 
-	is.New(t).True(code == 0)
+	err := cmd.RootCmd.Execute()
+
+	assert.Equal(t, err, nil, "error is not nil")
 }
