@@ -1,6 +1,7 @@
-package cmd_test
+package e2e_test
 
 import (
+	"fmt"
 	cmd "github.com/KYVENetwork/ksync/cmd/ksync/commands"
 	"gotest.tools/assert"
 	"os"
@@ -8,12 +9,13 @@ import (
 )
 
 func Test(t *testing.T) {
-	cmd.RootCmd.SetOut(os.Stdout)
-	cmd.RootCmd.SetErr(os.Stdout)
-	cmd.RootCmd.PersistentFlags().BoolP("help", "", false, "help for this command")
-	cmd.RootCmd.SetArgs([]string{"block-sync", "--binary", "/Users/troykessler/work/kyve/bins/kyved-v1.0.0", "--chain-id", "kaon-1", "-t", "100", "-r", "-y"})
+	homeDir, err := os.UserHomeDir()
+	assert.NilError(t, err)
 
-	err := cmd.RootCmd.Execute()
+	cmd.RootCmd.PersistentFlags().BoolP("help", "", false, "help for this command")
+	cmd.RootCmd.SetArgs([]string{"block-sync", "--binary", fmt.Sprintf("%s/bins/kyved-v1.0.0", homeDir), "--chain-id", "kaon-1", "-t", "100", "-r", "-y"})
+
+	err = cmd.RootCmd.Execute()
 
 	assert.Equal(t, err, nil, "error is not nil")
 }

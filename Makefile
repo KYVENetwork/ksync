@@ -8,7 +8,7 @@ build: ensure_version
 	go build -mod=readonly -o ./build/ksync ./cmd/ksync/main.go
 
 test: ensure_version
-	go test ./cmd_test/*
+	go test -v ./test/*
 
 ###############################################################################
 ###                                 Checks                                  ###
