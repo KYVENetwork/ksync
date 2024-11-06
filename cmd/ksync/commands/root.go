@@ -3,6 +3,7 @@ package commands
 import (
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 var (
@@ -63,6 +64,6 @@ func Execute() {
 	RootCmd.PersistentFlags().BoolP("help", "", false, "help for this command")
 
 	if err := RootCmd.Execute(); err != nil {
-		//panic(fmt.Errorf("failed to execute root command: %w", err))
+		os.Exit(1)
 	}
 }
