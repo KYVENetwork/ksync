@@ -1,0 +1,19 @@
+@test "KYVE: block sync 50 blocks from genesis" {
+  run ./build/ksync block-sync -b $HOME/bins/kyved-v1.0.0 -c kaon-1 -t 50 -r -y
+  [ "$status" -eq 0 ]
+}
+
+@test "KYVE: continue block sync from height 50" {
+  run ./build/ksync block-sync -b $HOME/bins/kyved-v1.0.0 -c kaon-1 -t 100 -y
+  [ "$status" -eq 0 ]
+}
+
+@test "KYVE: try to block-sync with target height lower than current one" {
+  run ./build/ksync block-sync -b $HOME/bins/kyved-v1.0.0 -c kaon-1 -t 50 -y
+  [ "$status" -eq 1 ]
+}
+
+@test "Celestia: block sync 10 blocks from genesis" {
+  run ./build/ksync block-sync -b $HOME/bins/celestia-appd-v1.3.0 -t 10 -r -y
+  [ "$status" -eq 0 ]
+}
