@@ -100,7 +100,7 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId
 	currentHeight := engine.GetHeight()
 
 	// db executes blocks against app until target height is reached
-	if err := StartDBExecutor(engine, chainRest, storageRest, blockRpcConfig, blockPoolId, targetHeight, 0, 0, false, false, backupCfg); err != nil {
+	if err := StartBlockSyncExecutor(engine, chainRest, storageRest, blockRpcConfig, blockPoolId, targetHeight, 0, 0, false, false, backupCfg); err != nil {
 		logger.Error().Msg(fmt.Sprintf("%s", err))
 
 		// stop binary process thread
@@ -108,7 +108,7 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId
 			return fmt.Errorf("failed to stop process by process id: %w", err)
 		}
 
-		return fmt.Errorf("failed to start db executor: %w", err)
+		return fmt.Errorf("failed to start block-sync executor: %w", err)
 	}
 
 	elapsed := time.Since(start).Seconds()

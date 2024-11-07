@@ -175,7 +175,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 	go server.StartSnapshotApiServer(engine, snapshotPort)
 
 	// db executes blocks against app until target height
-	if err := blocksync.StartDBExecutor(engine, chainRest, storageRest, nil, blockPoolId, targetHeight, snapshotPoolId, config.Interval, pruning, skipWaiting, nil); err != nil {
+	if err := blocksync.StartBlockSyncExecutor(engine, chainRest, storageRest, nil, blockPoolId, targetHeight, snapshotPoolId, config.Interval, pruning, skipWaiting, nil); err != nil {
 		logger.Error().Msg(fmt.Sprintf("failed to start db executor: %s", err))
 
 		// stop binary process thread
