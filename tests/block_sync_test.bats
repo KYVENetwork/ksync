@@ -13,6 +13,16 @@
   [ "$status" -eq 1 ]
 }
 
+@test "dYdX: block sync 50 blocks from genesis" {
+  run ./build/ksync block-sync -b $HOME/bins/dydxprotocold-v2.0.1 -t 50 -r -y
+  [ "$status" -eq 0 ]
+}
+
+@test "dYdX: continue block sync from height 50" {
+  run ./build/ksync block-sync -b $HOME/bins/dydxprotocold-v2.0.1 -t 100 -y
+  [ "$status" -eq 0 ]
+}
+
 @test "Archway: block sync 50 blocks from genesis with p2p bootstrap" {
   run ./build/ksync block-sync -b $HOME/bins/archwayd-v1.0.1 -t 50 -r -y
   [ "$status" -eq 0 ]

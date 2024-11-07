@@ -74,7 +74,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 		utils.TrackSyncStartEvent(engine, utils.HEIGHT_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
 
 		// apply state sync snapshot
-		if err := statesync.StartStateSync(engine, chainRest, storageRest, snapshotPoolId, snapshotBundleId); err != nil {
+		if err := statesync.StartStateSyncExecutor(engine, chainRest, storageRest, snapshotPoolId, snapshotBundleId); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to apply state-sync: %s", err))
 
 			// stop binary process thread

@@ -108,7 +108,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		}
 
 		// found snapshot, applying it and continuing block-sync from here
-		if err := statesync.StartStateSync(engine, chainRest, storageRest, snapshotPoolId, snapshotBundleId); err != nil {
+		if err := statesync.StartStateSyncExecutor(engine, chainRest, storageRest, snapshotPoolId, snapshotBundleId); err != nil {
 			logger.Error().Msg(fmt.Sprintf("state-sync failed with: %s", err))
 
 			// stop binary process thread

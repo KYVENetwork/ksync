@@ -30,6 +30,12 @@ RUN wget -qO- https://github.com/KYVENetwork/chain/releases/download/v1.0.0/kyve
     && ~/bins/kyved-v1.0.0 init ksync --chain-id kyve-1 \
     && wget https://raw.githubusercontent.com/KYVENetwork/networks/main/kyve-1/genesis.json -O ~/.kyve/config/genesis.json
 
+# install dydxprotocold
+RUN wget -qO- https://github.com/dydxprotocol/v4-chain/releases/download/protocol%2Fv2.0.1/dydxprotocold-v2.0.1-linux-amd64.tar.gz | tar -xzv \
+    && mv build/dydxprotocold-v2.0.1-linux-amd64 ~/bins/dydxprotocold-v2.0.1 \
+    && ~/bins/dydxprotocold-v2.0.1 init ksync --chain-id dydx-mainnet-1 \
+    && wget https://raw.githubusercontent.com/dydxopsdao/networks/main/dydx-mainnet-1/genesis.json -O ~/.dydxprotocol/config/genesis.json
+
 # install archwayd
 RUN git clone https://github.com/archway-network/archway.git \
     && cd archway \
