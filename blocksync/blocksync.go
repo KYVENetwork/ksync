@@ -15,36 +15,31 @@ var (
 	logger = utils.KsyncLogger("block-sync")
 )
 
-func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, targetHeight int64, checkEndHeight, userInput bool) (continuationHeight int64, err error) {
-	continuationHeight, err = engine.GetContinuationHeight()
-	if err != nil {
-		return continuationHeight, fmt.Errorf("failed to get continuation height from engine: %w", err)
-	}
-
+func PerformBlockSyncValidationChecks(chainRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, continuationHeight, targetHeight int64, checkEndHeight, userInput bool) error {
 	logger.Info().Msg(fmt.Sprintf("loaded current block height of node: %d", continuationHeight-1))
 
 	// perform boundary checks
 	_, startHeight, endHeight, err := helpers.GetBlockBoundaries(chainRest, blockRpcConfig, blockPoolId)
 	if err != nil {
-		return continuationHeight, fmt.Errorf("failed to get block boundaries: %w", err)
+		return fmt.Errorf("failed to get block boundaries: %w", err)
 	}
 
 	logger.Info().Msg(fmt.Sprintf("retrieved block boundaries, earliest block height = %d, latest block height %d", startHeight, endHeight))
 
 	if continuationHeight < startHeight {
-		return continuationHeight, fmt.Errorf("app is currently at height %d but first available block on pool is %d", continuationHeight, startHeight)
+		return fmt.Errorf("app is currently at height %d but first available block on pool is %d", continuationHeight, startHeight)
 	}
 
 	if continuationHeight > endHeight {
-		return continuationHeight, fmt.Errorf("app is currently at height %d but last available block on pool is %d", continuationHeight, endHeight)
+		return fmt.Errorf("app is currently at height %d but last available block on pool is %d", continuationHeight, endHeight)
 	}
 
 	if targetHeight > 0 && continuationHeight > targetHeight {
-		return continuationHeight, fmt.Errorf("requested target height is %d but app is already at block height %d", targetHeight, continuationHeight)
+		return fmt.Errorf("requested target height is %d but app is already at block height %d", targetHeight, continuationHeight)
 	}
 
 	if checkEndHeight && targetHeight > 0 && targetHeight > endHeight {
-		return continuationHeight, fmt.Errorf("requested target height is %d but last available block on pool is %d", targetHeight, endHeight)
+		return fmt.Errorf("requested target height is %d but last available block on pool is %d", targetHeight, endHeight)
 	}
 
 	if targetHeight == 0 {
@@ -61,15 +56,15 @@ func PerformBlockSyncValidationChecks(engine types.Engine, chainRest string, blo
 		}
 
 		if _, err := fmt.Scan(&answer); err != nil {
-			return continuationHeight, fmt.Errorf("failed to read in user input: %s", err)
+			return fmt.Errorf("failed to read in user input: %s", err)
 		}
 
 		if strings.ToLower(answer) != "y" {
-			return continuationHeight, errors.New("aborted block-sync")
+			return errors.New("aborted block-sync")
 		}
 	}
 
-	return
+	return nil
 }
 
 func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, targetHeight int64, backupCfg *types.BackupConfig, appFlags string, rpcServer, optOut, debug bool) error {

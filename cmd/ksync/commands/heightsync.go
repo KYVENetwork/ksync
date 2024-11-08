@@ -113,12 +113,16 @@ var heightSyncCmd = &cobra.Command{
 		}
 
 		continuationHeight := snapshotHeight
-
 		if continuationHeight == 0 {
-			continuationHeight, err = blocksync.PerformBlockSyncValidationChecks(defaultEngine, chainRest, nil, &bId, targetHeight, true, false)
+			c, err := defaultEngine.GetContinuationHeight()
 			if err != nil {
-				return fmt.Errorf("block-sync validation checks failed: %w", err)
+				return fmt.Errorf("failed to get continuation height: %w", err)
 			}
+			continuationHeight = c
+		}
+
+		if err := blocksync.PerformBlockSyncValidationChecks(chainRest, nil, &bId, continuationHeight, targetHeight, true, false); err != nil {
+			return fmt.Errorf("block-sync validation checks failed: %w", err)
 		}
 
 		if err := defaultEngine.CloseDBs(); err != nil {

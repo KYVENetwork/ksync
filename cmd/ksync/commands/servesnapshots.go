@@ -104,12 +104,16 @@ var servesnapshotsCmd = &cobra.Command{
 
 		height := defaultEngine.GetHeight()
 		continuationHeight := snapshotHeight
-
 		if continuationHeight == 0 {
-			continuationHeight, err = blocksync.PerformBlockSyncValidationChecks(defaultEngine, chainRest, nil, &bId, targetHeight, false, false)
+			c, err := defaultEngine.GetContinuationHeight()
 			if err != nil {
-				return fmt.Errorf("block-sync validation checks failed: %w", err)
+				return fmt.Errorf("failed to get continuation height: %w", err)
 			}
+			continuationHeight = c
+		}
+
+		if err := blocksync.PerformBlockSyncValidationChecks(chainRest, nil, &bId, continuationHeight, targetHeight, true, false); err != nil {
+			return fmt.Errorf("block-sync validation checks failed: %w", err)
 		}
 
 		utils.TrackServeSnapshotsEvent(defaultEngine, chainId, chainRest, storageRest, snapshotPort, rpcServer, rpcServerPort, startHeight, pruning, keepSnapshots, debug, optOut)

@@ -22,3 +22,8 @@
   run ./build/ksync state-sync -b $HOME/bins/celestia-appd-v1.3.0 -t 10000 -r -y
   [ "$status" -eq 0 ]
 }
+
+@test "Andromeda: state-sync exact height" {
+  run ./build/ksync state-sync -b $HOME/bins/andromedad-1-v0.1.1-beta-patch -c kaon-1 -t 3000000 -r -y
+  [ "$status" -eq 0 ]
+}

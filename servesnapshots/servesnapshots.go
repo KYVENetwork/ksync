@@ -29,7 +29,16 @@ func PerformServeSnapshotsValidationChecks(engine types.Engine, chainRest string
 		snapshotBundleId, snapshotHeight, _ = statesync.PerformStateSyncValidationChecks(chainRest, snapshotPoolId, startHeight, false)
 	}
 
-	if _, err = blocksync.PerformBlockSyncValidationChecks(engine, chainRest, nil, &blockPoolId, targetHeight, false, false); err != nil {
+	continuationHeight := snapshotHeight
+	if continuationHeight == 0 {
+		c, err := engine.GetContinuationHeight()
+		if err != nil {
+			return 0, 0, fmt.Errorf("failed to get continuation height: %w", err)
+		}
+		continuationHeight = c
+	}
+
+	if err := blocksync.PerformBlockSyncValidationChecks(chainRest, nil, &blockPoolId, continuationHeight, targetHeight, false, false); err != nil {
 		return 0, 0, fmt.Errorf("block-sync validation checks failed: %w", err)
 	}
 

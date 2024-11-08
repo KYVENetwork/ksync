@@ -18,7 +18,23 @@ var (
 // PerformHeightSyncValidationChecks checks if the targetHeight lies in the range of available blocks and checks
 // if a state-sync snapshot is available right before the targetHeight
 func PerformHeightSyncValidationChecks(engine types.Engine, chainRest string, snapshotPoolId int64, blockPoolId *int64, targetHeight int64, userInput bool) (snapshotBundleId, snapshotHeight int64, err error) {
-	if _, err := blocksync.PerformBlockSyncValidationChecks(engine, chainRest, nil, blockPoolId, targetHeight, true, false); err != nil {
+	height := engine.GetHeight()
+
+	// only if the app has not indexed any blocks yet we state-sync to the specified startHeight
+	if height == 0 {
+		snapshotBundleId, snapshotHeight, _ = statesync.PerformStateSyncValidationChecks(chainRest, snapshotPoolId, targetHeight, false)
+	}
+
+	continuationHeight := snapshotHeight
+	if continuationHeight == 0 {
+		c, err := engine.GetContinuationHeight()
+		if err != nil {
+			return 0, 0, fmt.Errorf("failed to get continuation height: %w", err)
+		}
+		continuationHeight = c
+	}
+
+	if err := blocksync.PerformBlockSyncValidationChecks(chainRest, nil, blockPoolId, continuationHeight, targetHeight, true, false); err != nil {
 		return 0, 0, fmt.Errorf("block-sync validation checks failed: %w", err)
 	}
 

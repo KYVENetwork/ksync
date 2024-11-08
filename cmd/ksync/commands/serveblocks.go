@@ -95,9 +95,13 @@ var serveBlocksCmd = &cobra.Command{
 			return fmt.Errorf("failed to open dbs in engine: %w", err)
 		}
 
-		// perform validation checks before booting block-sync process
-		continuationHeight, err := blocksync.PerformBlockSyncValidationChecks(defaultEngine, chainRest, &blockRpcConfig, nil, targetHeight, true, !y)
+		continuationHeight, err := defaultEngine.GetContinuationHeight()
 		if err != nil {
+			return fmt.Errorf("failed to get continuation height: %w", err)
+		}
+
+		// perform validation checks before booting block-sync process
+		if err := blocksync.PerformBlockSyncValidationChecks(chainRest, &blockRpcConfig, nil, continuationHeight, targetHeight, true, !y); err != nil {
 			return fmt.Errorf("block-sync validation checks failed: %w", err)
 		}
 

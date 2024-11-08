@@ -8,7 +8,7 @@ RUN apt install git
 RUN apt install make
 
 # install testing framework "bats" from source
-RUN git clone https://github.com/bats-core/bats-core \
+RUN git clone --depth 1 --branch v1.11.0 https://github.com/bats-core/bats-core \
     && cd bats-core \
     && ./install.sh /usr/local \
     && cd ..
@@ -37,9 +37,8 @@ RUN wget -qO- https://github.com/dydxprotocol/v4-chain/releases/download/protoco
     && wget https://raw.githubusercontent.com/dydxopsdao/networks/main/dydx-mainnet-1/genesis.json -O ~/.dydxprotocol/config/genesis.json
 
 # install archwayd
-RUN git clone https://github.com/archway-network/archway.git \
+RUN git clone --depth 1 --branch v1.0.1  https://github.com/archway-network/archway.git \
     && cd archway \
-    && git checkout 86409142585b7157c628ca52b8357002fe60a165 \
     && make build \
     && mv build/archwayd ~/bins/archwayd-v1.0.1 \
     && ~/bins/archwayd-v1.0.1 init ksync --chain-id archway-1 \
@@ -55,5 +54,11 @@ RUN wget -qO- https://github.com/celestiaorg/celestia-app/releases/download/v1.3
     && sed -i -r 's/pyroscope_profile_types = .*/pyroscope_profile_types = ""/' ~/.celestia-app/config/config.toml \
     && rm LICENSE README.md
 
+# install andromedad
+RUN wget https://files.kyve.network/infrastructure/andromeda/andromedad-1-v0.1.1-beta-patch -O ~/bins/andromedad-1-v0.1.1-beta-patch \
+    && chmod +x ~/bins/andromedad-1-v0.1.1-beta-patch \
+    && ~/bins/andromedad-1-v0.1.1-beta-patch init ksync --chain-id andromeda-1 \
+    && wget https://files.kyve.network/infrastructure/andromeda/genesis.json -O ~/.andromeda/config/genesis.json
+
 # run tests
-CMD ["bats", "--print-output-on-failure", "tests"]
+CMD ["bats", "-T", "--print-output-on-failure", "--verbose-run", "tests"]

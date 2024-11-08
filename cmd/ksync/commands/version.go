@@ -21,7 +21,3 @@ var versionCmd = &cobra.Command{
 		return nil
 	},
 }
-
-// Create Wrapper functions for commands
-// Create a try catch for panics
-// if ever something goes wrong in a sync we catch and return an error
