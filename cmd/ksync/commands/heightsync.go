@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"github.com/KYVENetwork/ksync/blocksync"
 	blocksyncHelpers "github.com/KYVENetwork/ksync/blocksync/helpers"
@@ -9,7 +10,6 @@ import (
 	"github.com/KYVENetwork/ksync/sources"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
-	"os"
 	"strings"
 )
 
@@ -46,14 +46,13 @@ func init() {
 var heightSyncCmd = &cobra.Command{
 	Use:   "height-sync",
 	Short: "Sync fast to any height with state- and block-sync",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
 
 		// if no binary was provided at least the home path needs to be defined
 		if binaryPath == "" && homePath == "" {
-			logger.Error().Msg(fmt.Sprintf("flag 'home' is required"))
-			os.Exit(1)
+			return errors.New("flag 'home' is required")
 		}
 
 		if binaryPath == "" {
@@ -75,8 +74,7 @@ var heightSyncCmd = &cobra.Command{
 		if source == "" && blockPoolId == "" && snapshotPoolId == "" {
 			s, err := defaultEngine.GetChainId()
 			if err != nil {
-				logger.Error().Msgf("Failed to load chain-id from engine: %s", err.Error())
-				os.Exit(1)
+				return fmt.Errorf("failed to load chain-id from engine: %w", err)
 			}
 			source = s
 			logger.Info().Msgf("Loaded source \"%s\" from genesis file", source)
@@ -84,26 +82,22 @@ var heightSyncCmd = &cobra.Command{
 
 		bId, sId, err := sources.GetPoolIds(chainId, source, blockPoolId, snapshotPoolId, registryUrl, true, true)
 		if err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to load pool-ids: %s", err))
-			os.Exit(1)
+			return fmt.Errorf("failed to load pool-ids: %w", err)
 		}
 
 		if reset {
 			if err := defaultEngine.ResetAll(true); err != nil {
-				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
-				os.Exit(1)
+				return fmt.Errorf("could not reset tendermint application: %w", err)
 			}
 		}
 
 		if err := defaultEngine.OpenDBs(); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
-			os.Exit(1)
+			return fmt.Errorf("failed to open dbs in engine: %w", err)
 		}
 
 		_, _, blockEndHeight, err := blocksyncHelpers.GetBlockBoundaries(chainRest, nil, &bId)
 		if err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to get block boundaries: %s", err))
-			os.Exit(1)
+			return fmt.Errorf("failed to get block boundaries: %w", err)
 		}
 
 		// if target height was not specified we sync to the latest available height
@@ -115,8 +109,7 @@ var heightSyncCmd = &cobra.Command{
 		// perform validation checks before booting state-sync process
 		snapshotBundleId, snapshotHeight, err := heightsync.PerformHeightSyncValidationChecks(defaultEngine, chainRest, sId, &bId, targetHeight, !y)
 		if err != nil {
-			logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
-			os.Exit(1)
+			return fmt.Errorf("height-sync validation checks failed: %w", err)
 		}
 
 		continuationHeight := snapshotHeight
@@ -124,20 +117,23 @@ var heightSyncCmd = &cobra.Command{
 		if continuationHeight == 0 {
 			continuationHeight, err = blocksync.PerformBlockSyncValidationChecks(defaultEngine, chainRest, nil, &bId, targetHeight, true, false)
 			if err != nil {
-				logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
-				os.Exit(1)
+				return fmt.Errorf("block-sync validation checks failed: %w", err)
 			}
 		}
 
 		if err := defaultEngine.CloseDBs(); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
-			os.Exit(1)
+			return fmt.Errorf("failed to close dbs in engine: %w", err)
 		}
 
-		sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, continuationHeight, !y)
+		if err := sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, continuationHeight, !y); err != nil {
+			return fmt.Errorf("failed to check if binary has the recommended version: %w", err)
+		}
 
 		consensusEngine, err := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, continuationHeight)
+		if err != nil {
+			return fmt.Errorf("failed to create consensus engine for source: %w", err)
+		}
 
-		heightsync.StartHeightSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, sId, &bId, targetHeight, snapshotBundleId, snapshotHeight, appFlags, optOut, debug)
+		return heightsync.StartHeightSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, sId, &bId, targetHeight, snapshotBundleId, snapshotHeight, appFlags, optOut, debug)
 	},
 }

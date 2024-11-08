@@ -8,7 +8,6 @@ import (
 	"github.com/KYVENetwork/ksync/sources"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
-	"os"
 	"strings"
 )
 
@@ -57,7 +56,7 @@ func init() {
 var servesnapshotsCmd = &cobra.Command{
 	Use:   "serve-snapshots",
 	Short: "Serve snapshots for running KYVE state-sync pools",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
 
@@ -76,8 +75,7 @@ var servesnapshotsCmd = &cobra.Command{
 		if source == "" && blockPoolId == "" && snapshotPoolId == "" {
 			s, err := defaultEngine.GetChainId()
 			if err != nil {
-				logger.Error().Msgf("Failed to load chain-id from engine: %s", err.Error())
-				os.Exit(1)
+				return fmt.Errorf("failed to close dbs in engine: %w", err)
 			}
 			source = s
 			logger.Info().Msgf("Loaded source \"%s\" from genesis file", source)
@@ -85,27 +83,23 @@ var servesnapshotsCmd = &cobra.Command{
 
 		bId, sId, err := sources.GetPoolIds(chainId, source, blockPoolId, snapshotPoolId, registryUrl, true, true)
 		if err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to load pool-ids: %s", err))
-			os.Exit(1)
+			return fmt.Errorf("failed to load pool-ids: %w", err)
 		}
 
 		if reset {
 			if err := defaultEngine.ResetAll(true); err != nil {
-				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
-				os.Exit(1)
+				return fmt.Errorf("could not reset tendermint application: %w", err)
 			}
 		}
 
 		if err := defaultEngine.OpenDBs(); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
-			os.Exit(1)
+			return fmt.Errorf("failed to open dbs in engine: %w", err)
 		}
 
 		// perform validation checks before booting state-sync process
 		snapshotBundleId, snapshotHeight, err := servesnapshots.PerformServeSnapshotsValidationChecks(defaultEngine, chainRest, sId, bId, startHeight, targetHeight)
 		if err != nil {
-			logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
-			os.Exit(1)
+			return fmt.Errorf("serve-snapshots validation checks failed: %w", err)
 		}
 
 		height := defaultEngine.GetHeight()
@@ -114,20 +108,25 @@ var servesnapshotsCmd = &cobra.Command{
 		if continuationHeight == 0 {
 			continuationHeight, err = blocksync.PerformBlockSyncValidationChecks(defaultEngine, chainRest, nil, &bId, targetHeight, false, false)
 			if err != nil {
-				logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
-				os.Exit(1)
+				return fmt.Errorf("block-sync validation checks failed: %w", err)
 			}
 		}
 
 		utils.TrackServeSnapshotsEvent(defaultEngine, chainId, chainRest, storageRest, snapshotPort, rpcServer, rpcServerPort, startHeight, pruning, keepSnapshots, debug, optOut)
 
 		if err := defaultEngine.CloseDBs(); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
-			os.Exit(1)
+			return fmt.Errorf("failed to close dbs in engine: %w", err)
+		}
+
+		if err := sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, continuationHeight, !y); err != nil {
+			return fmt.Errorf("failed to check if binary has the recommended version: %w", err)
 		}
 
 		consensusEngine, err := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, continuationHeight)
+		if err != nil {
+			return fmt.Errorf("failed to create consensus engine for source: %w", err)
+		}
 
-		servesnapshots.StartServeSnapshotsWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, &bId, sId, targetHeight, height, snapshotBundleId, snapshotHeight, snapshotPort, appFlags, rpcServer, pruning, keepSnapshots, skipWaiting, debug)
+		return servesnapshots.StartServeSnapshotsWithBinary(consensusEngine, binaryPath, homePath, chainRest, storageRest, &bId, sId, targetHeight, height, snapshotBundleId, snapshotHeight, snapshotPort, appFlags, rpcServer, pruning, keepSnapshots, skipWaiting, debug)
 	},
 }
