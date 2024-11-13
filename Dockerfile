@@ -7,8 +7,5 @@ RUN go mod download
 
 COPY . .
 
-# test if build succeeds
-RUN go build -mod=readonly -o ./build/ksync ./cmd/ksync/main.go
-
-# run tests
-CMD ["bats", "-T", "--print-output-on-failure", "--verbose-run", "tests"]
+RUN make build
+RUN bats -T --print-output-on-failure --verbose-run tests
