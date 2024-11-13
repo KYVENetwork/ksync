@@ -11,11 +11,8 @@ build: ensure_version
 ###                                  Tests                                  ###
 ###############################################################################
 
-test-setup:
-	docker build --platform linux/amd64 -t docker-ksync-test .
-
 test:
-	docker run --platform linux/amd64 --rm docker-ksync-test
+	docker build --platform linux/amd64 --no-cache -t ksync:test .
 
 ###############################################################################
 ###                                 Checks                                  ###
