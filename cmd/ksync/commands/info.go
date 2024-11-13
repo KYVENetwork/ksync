@@ -21,24 +21,22 @@ func init() {
 
 	infoCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
 
-	rootCmd.AddCommand(infoCmd)
+	RootCmd.AddCommand(infoCmd)
 }
 
 var infoCmd = &cobra.Command{
 	Use:   "info",
 	Short: "Get KSYNC chain support information",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		utils.TrackInfoEvent(chainId, optOut)
 
 		if chainId != utils.ChainIdMainnet && chainId != utils.ChainIdKaon {
-			logger.Error().Str("chain-id", chainId).Msg("chain information not supported")
-			return
+			return fmt.Errorf("chain-id %s not supported", chainId)
 		}
 
 		sourceRegistry, err := helpers.GetSourceRegistry(registryUrl)
 		if err != nil {
-			logger.Error().Str("err", err.Error()).Msg("failed to get source registry")
-			return
+			return fmt.Errorf("failed to get source registry: %w", err)
 		}
 
 		// Sort SourceRegistry
@@ -117,5 +115,6 @@ var infoCmd = &cobra.Command{
 
 		t.SetStyle(table.StyleRounded)
 		t.Render()
+		return nil
 	},
 }

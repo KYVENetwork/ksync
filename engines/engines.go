@@ -17,23 +17,21 @@ var (
 	logger = utils.KsyncLogger("engines")
 )
 
-func EngineSourceFactory(engine, homePath, registryUrl, source string, rpcServerPort, continuationHeight int64) types.Engine {
+func EngineSourceFactory(engine, homePath, registryUrl, source string, rpcServerPort, continuationHeight int64) (types.Engine, error) {
 	// if the engine was specified by the user or the source is empty we determine the engine by the engine input
 	if engine != "" || source == "" {
-		return EngineFactory(engine, homePath, rpcServerPort)
+		return EngineFactory(engine, homePath, rpcServerPort), nil
 	}
 
 	entry, err := helpers.GetSourceRegistryEntry(registryUrl, source)
 	if err != nil {
-		logger.Error().Msg(fmt.Sprintf("failed to get source registry entry: %s", err))
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to get source registry entry: %w", err)
 	}
 
 	for _, upgrade := range entry.Codebase.Settings.Upgrades {
 		height, err := strconv.ParseInt(upgrade.Height, 10, 64)
 		if err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to parse upgrade height %s: %s", upgrade.Height, err))
-			os.Exit(1)
+			return nil, fmt.Errorf("failed to parse upgrade height %s: %w", upgrade.Height, err)
 		}
 
 		if continuationHeight < height {
@@ -44,7 +42,7 @@ func EngineSourceFactory(engine, homePath, registryUrl, source string, rpcServer
 	}
 
 	logger.Info().Msg(fmt.Sprintf("using \"%s\" as consensus engine", engine))
-	return EngineFactory(engine, homePath, rpcServerPort)
+	return EngineFactory(engine, homePath, rpcServerPort), nil
 }
 
 func EngineFactory(engine, homePath string, rpcServerPort int64) types.Engine {

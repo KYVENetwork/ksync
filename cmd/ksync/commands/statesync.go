@@ -1,13 +1,13 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"github.com/KYVENetwork/ksync/engines"
 	"github.com/KYVENetwork/ksync/sources"
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
-	"os"
 	"strings"
 )
 
@@ -37,20 +37,19 @@ func init() {
 	stateSyncCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint app")
 	stateSyncCmd.Flags().BoolVarP(&y, "yes", "y", false, "automatically answer yes for all questions")
 
-	rootCmd.AddCommand(stateSyncCmd)
+	RootCmd.AddCommand(stateSyncCmd)
 }
 
 var stateSyncCmd = &cobra.Command{
 	Use:   "state-sync",
 	Short: "Apply a state-sync snapshot",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		chainRest = utils.GetChainRest(chainId, chainRest)
 		storageRest = strings.TrimSuffix(storageRest, "/")
 
 		// if no binary was provided at least the home path needs to be defined
 		if binaryPath == "" && homePath == "" {
-			logger.Error().Msg(fmt.Sprintf("flag 'home' is required"))
-			os.Exit(1)
+			return errors.New("flag 'home' is required")
 		}
 
 		if binaryPath == "" {
@@ -72,8 +71,7 @@ var stateSyncCmd = &cobra.Command{
 		if source == "" && snapshotPoolId == "" {
 			s, err := defaultEngine.GetChainId()
 			if err != nil {
-				logger.Error().Msgf("Failed to load chain-id from engine: %s", err.Error())
-				os.Exit(1)
+				return fmt.Errorf("failed to load chain-id from engine: %w", err)
 			}
 			source = s
 			logger.Info().Msgf("Loaded source \"%s\" from genesis file", source)
@@ -81,28 +79,30 @@ var stateSyncCmd = &cobra.Command{
 
 		_, sId, err := sources.GetPoolIds(chainId, source, "", snapshotPoolId, registryUrl, false, true)
 		if err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to load pool-ids: %s", err))
-			os.Exit(1)
+			return fmt.Errorf("failed to load pool-ids: %w", err)
 		}
 
 		if reset {
 			if err := defaultEngine.ResetAll(true); err != nil {
-				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
-				os.Exit(1)
+				return fmt.Errorf("could not reset tendermint application: %w", err)
 			}
 		}
 
 		// perform validation checks before booting state-sync process
 		snapshotBundleId, snapshotHeight, err := statesync.PerformStateSyncValidationChecks(chainRest, sId, targetHeight, !y)
 		if err != nil {
-			logger.Error().Msg(fmt.Sprintf("state-sync validation checks failed: %s", err))
-			os.Exit(1)
+			return fmt.Errorf("state-sync validation checks failed: %w", err)
 		}
 
-		sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, snapshotHeight, !y)
+		if err := sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, snapshotHeight, !y); err != nil {
+			return fmt.Errorf("failed to check if binary has the recommended version: %w", err)
+		}
 
-		consensusEngine := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, snapshotHeight)
+		consensusEngine, err := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, snapshotHeight)
+		if err != nil {
+			return fmt.Errorf("failed to create consensus engine for source: %w", err)
+		}
 
-		statesync.StartStateSyncWithBinary(consensusEngine, binaryPath, chainId, chainRest, storageRest, sId, targetHeight, snapshotBundleId, snapshotHeight, appFlags, optOut, debug)
+		return statesync.StartStateSyncWithBinary(consensusEngine, binaryPath, chainId, chainRest, storageRest, sId, targetHeight, snapshotBundleId, snapshotHeight, appFlags, optOut, debug)
 	},
 }

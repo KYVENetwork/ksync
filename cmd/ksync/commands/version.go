@@ -9,14 +9,15 @@ import (
 func init() {
 	versionCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
 
-	rootCmd.AddCommand(versionCmd)
+	RootCmd.AddCommand(versionCmd)
 }
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version of KSYNC",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		utils.TrackVersionEvent(optOut)
 		fmt.Println(utils.GetVersion())
+		return nil
 	},
 }
