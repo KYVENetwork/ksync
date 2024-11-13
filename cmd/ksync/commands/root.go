@@ -1,9 +1,9 @@
 package commands
 
 import (
-	"fmt"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 var (
@@ -44,7 +44,7 @@ var (
 )
 
 // RootCmd is the root command for KSYNC.
-var rootCmd = &cobra.Command{
+var RootCmd = &cobra.Command{
 	Use:   "ksync",
 	Short: "Fast Sync validated and archived blocks from KYVE to every Tendermint based Blockchain Application",
 }
@@ -61,9 +61,9 @@ func Execute() {
 	versionCmd.Flags().SortFlags = false
 
 	// overwrite help command so we can use -h as a shortcut
-	rootCmd.PersistentFlags().BoolP("help", "", false, "help for this command")
+	RootCmd.PersistentFlags().BoolP("help", "", false, "help for this command")
 
-	if err := rootCmd.Execute(); err != nil {
-		panic(fmt.Errorf("failed to execute root command: %w", err))
+	if err := RootCmd.Execute(); err != nil {
+		os.Exit(1)
 	}
 }

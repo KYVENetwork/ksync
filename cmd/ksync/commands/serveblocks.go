@@ -5,10 +5,10 @@ import (
 	"github.com/KYVENetwork/ksync/backup"
 	"github.com/KYVENetwork/ksync/blocksync"
 	"github.com/KYVENetwork/ksync/engines"
+	"github.com/KYVENetwork/ksync/sources"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
-	"os"
 	"time"
 )
 
@@ -44,13 +44,13 @@ func init() {
 	serveBlocksCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint app")
 	serveBlocksCmd.Flags().BoolVarP(&y, "yes", "y", false, "automatically answer yes for all questions")
 
-	rootCmd.AddCommand(serveBlocksCmd)
+	RootCmd.AddCommand(serveBlocksCmd)
 }
 
 var serveBlocksCmd = &cobra.Command{
 	Use:   "serve-blocks",
 	Short: "Start fast syncing blocks from RPC endpoints with KSYNC",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		chainRest = ""
 		storageRest = ""
 
@@ -74,8 +74,7 @@ var serveBlocksCmd = &cobra.Command{
 		if source == "" && blockPoolId == "" {
 			s, err := defaultEngine.GetChainId()
 			if err != nil {
-				logger.Error().Msgf("Failed to load chain-id from engine: %s", err.Error())
-				os.Exit(1)
+				return fmt.Errorf("failed to load chain-id from engine: %w", err)
 			}
 			source = s
 			logger.Info().Msgf("Loaded source \"%s\" from genesis file", source)
@@ -83,36 +82,42 @@ var serveBlocksCmd = &cobra.Command{
 
 		backupCfg, err := backup.GetBackupConfig(homePath, backupInterval, backupKeepRecent, backupCompression, backupDest)
 		if err != nil {
-			logger.Error().Str("err", err.Error()).Msg("could not get backup config")
-			return
+			return fmt.Errorf("could not get backup config: %w", err)
 		}
 
 		if reset {
 			if err := defaultEngine.ResetAll(true); err != nil {
-				logger.Error().Msg(fmt.Sprintf("failed to reset tendermint application: %s", err))
-				os.Exit(1)
+				return fmt.Errorf("could not reset tendermint application: %w", err)
 			}
 		}
 
 		if err := defaultEngine.OpenDBs(); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
-			os.Exit(1)
+			return fmt.Errorf("failed to open dbs in engine: %w", err)
+		}
+
+		continuationHeight, err := defaultEngine.GetContinuationHeight()
+		if err != nil {
+			return fmt.Errorf("failed to get continuation height: %w", err)
 		}
 
 		// perform validation checks before booting block-sync process
-		continuationHeight, err := blocksync.PerformBlockSyncValidationChecks(defaultEngine, chainRest, &blockRpcConfig, nil, targetHeight, true, !y)
-		if err != nil {
-			logger.Error().Msg(fmt.Sprintf("block-sync validation checks failed: %s", err))
-			os.Exit(1)
+		if err := blocksync.PerformBlockSyncValidationChecks(chainRest, &blockRpcConfig, nil, continuationHeight, targetHeight, true, !y); err != nil {
+			return fmt.Errorf("block-sync validation checks failed: %w", err)
 		}
 
 		if err := defaultEngine.CloseDBs(); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to close dbs in engine: %s", err))
-			os.Exit(1)
+			return fmt.Errorf("failed to close dbs in engine: %w", err)
 		}
 
-		consensusEngine := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, continuationHeight)
+		if err := sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, continuationHeight, !y); err != nil {
+			return fmt.Errorf("failed to check if binary has the recommended version: %w", err)
+		}
 
-		blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, &blockRpcConfig, nil, targetHeight, backupCfg, appFlags, rpcServer, optOut, debug)
+		consensusEngine, err := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, continuationHeight)
+		if err != nil {
+			return fmt.Errorf("failed to create consensus engine for source: %w", err)
+		}
+
+		return blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, &blockRpcConfig, nil, targetHeight, backupCfg, appFlags, rpcServer, optOut, debug)
 	},
 }

@@ -25,13 +25,13 @@ func init() {
 
 	backupCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
 
-	rootCmd.AddCommand(backupCmd)
+	RootCmd.AddCommand(backupCmd)
 }
 
 var backupCmd = &cobra.Command{
 	Use:   "backup",
 	Short: "Backup data directory",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		utils.TrackBackupEvent(backupCompression, backupKeepRecent, optOut)
 
 		// if no home path was given get the default one
@@ -42,8 +42,7 @@ var backupCmd = &cobra.Command{
 		// load tendermint config
 		config, err := tendermint_v34.LoadConfig(homePath)
 		if err != nil {
-			logger.Error().Str("err", err.Error()).Msg("failed to load config.toml")
-			return
+			return fmt.Errorf("failed to load config.toml: %w", err)
 		}
 
 		// load block store
@@ -51,8 +50,7 @@ var backupCmd = &cobra.Command{
 		defer blockStoreDB.Close()
 
 		if err != nil {
-			logger.Error().Str("err", err.Error()).Msg("failed to load blockstore db")
-			return
+			return fmt.Errorf("fail to load blockstore db: %w", err)
 		}
 
 		// load state store
@@ -60,27 +58,28 @@ var backupCmd = &cobra.Command{
 		defer stateDB.Close()
 
 		if err != nil {
-			logger.Error().Str("err", err.Error()).Msg("failed to load state db")
-			return
+			return fmt.Errorf("fail to load state db: %w", err)
 		}
 
 		// load genesis file
 		defaultDocProvider := nm.DefaultGenesisDocProviderFunc(config)
 		_, genDoc, err := nm.LoadStateFromDBOrGenesisDocProvider(stateDB, defaultDocProvider)
+		if err != nil {
+			return fmt.Errorf("fail to load state from database: %w", err)
+		}
 
 		// create backup config
 		backupCfg, err := backup.GetBackupConfig(homePath, 2, backupKeepRecent, backupCompression, backupDest)
 		if err != nil {
-			logger.Error().Str("err", err.Error()).Msg("failed to create backup config")
-			return
+			return fmt.Errorf("fail to load backup config: %w", err)
 		}
 
 		// create backup
 		if err = backup.CreateBackup(backupCfg, genDoc.ChainID, blockStore.Height(), false); err != nil {
-			logger.Error().Str("err", err.Error()).Msg("failed to create backup")
-			return
+			return fmt.Errorf("fail to create backup: %w", err)
 		}
 
 		logger.Info().Int64("height", blockStore.Height()).Msg("finished backup at block height")
+		return nil
 	},
 }

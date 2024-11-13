@@ -7,8 +7,8 @@ import (
 	"github.com/KYVENetwork/ksync/utils"
 )
 
-// startStateSyncExecutor takes the bundle id of the first snapshot chunk and applies the snapshot from there
-func startStateSyncExecutor(engine types.Engine, chainRest, storageRest string, snapshotPoolId, snapshotBundleId int64) error {
+// StartStateSyncExecutor takes the bundle id of the first snapshot chunk and applies the snapshot from there
+func StartStateSyncExecutor(engine types.Engine, chainRest, storageRest string, snapshotPoolId, snapshotBundleId int64) error {
 	logger.Info().Msg(fmt.Sprintf("applying state-sync snapshot"))
 
 	appHeight, err := engine.GetAppHeight()
