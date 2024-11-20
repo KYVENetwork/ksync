@@ -1,0 +1,25 @@
+FROM golang:1.22
+
+WORKDIR /app
+
+# install latest updates
+RUN apt update && apt upgrade -y
+
+# create folder for all binaries
+RUN mkdir bins
+
+# install kyved
+RUN wget -qO- https://github.com/KYVENetwork/chain/releases/download/v1.0.0/kyved_linux_amd64.tar.gz | tar -xzv \
+    && mv kyved bins/kyved-v1.0.0 \
+    && bins/kyved-v1.0.0 init ksync --chain-id kyve-1 \
+    && wget https://raw.githubusercontent.com/KYVENetwork/networks/main/kyve-1/genesis.json -O ~/.kyve/config/genesis.json
+
+# install ksync
+# COPY go.mod go.sum ./
+# RUN go mod download
+
+COPY . .
+
+# RUN make build
+
+CMD /app/build/ksync height-sync -b "/app/bins/kyved-v1.0.0" -c "kaon-1" --opt-out -y -r -t ${TARGET_HEIGHT} && /app/bins/kyved-v1.0.0 start --rpc.laddr="tcp://0.0.0.0:26657" --api.enable=true

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/sources/helpers"
 	log "github.com/KYVENetwork/ksync/utils"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -12,6 +13,42 @@ import (
 var (
 	logger = log.KsyncLogger("sources")
 )
+
+func SelectCosmovisorVersion(binaryPath, homePath, registryUrl, source string, continuationHeight int64) error {
+	if !strings.HasSuffix(binaryPath, "cosmovisor") {
+		return fmt.Errorf("--autoselect-binary-version only works if the specified --binary is cosmovisor with all installed upgrades")
+	}
+
+	var upgradeName string
+
+	entry, err := helpers.GetSourceRegistryEntry(registryUrl, source)
+	if err != nil {
+		return fmt.Errorf("failed to get source registry entry: %w", err)
+	}
+
+	for _, upgrade := range entry.Codebase.Settings.Upgrades {
+		height, err := strconv.ParseInt(upgrade.Height, 10, 64)
+		if err != nil {
+			return fmt.Errorf("failed to parse upgrade height %s: %w", upgrade.Height, err)
+		}
+
+		if continuationHeight < height {
+			break
+		}
+
+		upgradeName = upgrade.Name
+	}
+
+	symlinkPath := fmt.Sprintf("%s/cosmovisor/current", homePath)
+
+	if _, err := os.Lstat(symlinkPath); err == nil {
+		if err := os.Remove(symlinkPath); err != nil {
+			return fmt.Errorf("failed to remove symlink from path %s: %w", symlinkPath, err)
+		}
+	}
+
+	return os.Symlink(fmt.Sprintf("%s/cosmovisor/upgrades/%s", homePath, upgradeName), symlinkPath)
+}
 
 func IsBinaryRecommendedVersion(binaryPath, registryUrl, source string, continuationHeight int64, userInput bool) error {
 	if source == "" || !userInput {
