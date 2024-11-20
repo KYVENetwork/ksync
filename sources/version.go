@@ -16,7 +16,7 @@ var (
 
 func SelectCosmovisorVersion(binaryPath, homePath, registryUrl, source string, continuationHeight int64) error {
 	if !strings.HasSuffix(binaryPath, "cosmovisor") {
-		return fmt.Errorf("--autoselect-binary-version only works if the specified --binary is cosmovisor with all installed upgrades")
+		return nil
 	}
 
 	var upgradeName string
@@ -39,6 +39,10 @@ func SelectCosmovisorVersion(binaryPath, homePath, registryUrl, source string, c
 		upgradeName = upgrade.Name
 	}
 
+	if _, err := os.Stat(fmt.Sprintf("%s/cosmovisor/upgrades/%s", homePath, upgradeName)); err != nil {
+		return fmt.Errorf("upgrade \"%s\" not installed in cosmovisor", upgradeName)
+	}
+
 	symlinkPath := fmt.Sprintf("%s/cosmovisor/current", homePath)
 
 	if _, err := os.Lstat(symlinkPath); err == nil {
@@ -51,7 +55,7 @@ func SelectCosmovisorVersion(binaryPath, homePath, registryUrl, source string, c
 		return fmt.Errorf("failed to create symlink: %w", err)
 	}
 
-	logger.Info().Msgf("selected binary version \"%s\" for cosmovisor", upgradeName)
+	logger.Info().Msgf("selected binary version \"%s\" from height %d for cosmovisor", upgradeName, continuationHeight)
 	return nil
 }
 
