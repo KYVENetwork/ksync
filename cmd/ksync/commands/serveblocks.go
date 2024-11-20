@@ -39,6 +39,7 @@ func init() {
 	serveBlocksCmd.Flags().StringVarP(&source, "source", "s", "", "chain-id of the source")
 	serveBlocksCmd.Flags().StringVar(&registryUrl, "registry-url", utils.DefaultRegistryURL, "URL to fetch latest KYVE Source-Registry")
 
+	serveBlocksCmd.Flags().BoolVarP(&autoselectBinaryVersion, "autoselect-binary-version", "a", false, "if provided binary is cosmovisor KSYNC will automatically change the \"current\" symlink to the correct upgrade version")
 	serveBlocksCmd.Flags().BoolVarP(&reset, "reset-all", "r", false, "reset this node's validator to genesis state")
 	serveBlocksCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
 	serveBlocksCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint app")
@@ -107,6 +108,12 @@ var serveBlocksCmd = &cobra.Command{
 
 		if err := defaultEngine.CloseDBs(); err != nil {
 			return fmt.Errorf("failed to close dbs in engine: %w", err)
+		}
+
+		if autoselectBinaryVersion {
+			if err := sources.SelectCosmovisorVersion(binaryPath, homePath, registryUrl, source, continuationHeight); err != nil {
+				return fmt.Errorf("failed to autoselect binary version: %w", err)
+			}
 		}
 
 		if err := sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, continuationHeight, !y); err != nil {

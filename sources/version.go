@@ -47,7 +47,12 @@ func SelectCosmovisorVersion(binaryPath, homePath, registryUrl, source string, c
 		}
 	}
 
-	return os.Symlink(fmt.Sprintf("%s/cosmovisor/upgrades/%s", homePath, upgradeName), symlinkPath)
+	if err := os.Symlink(fmt.Sprintf("%s/cosmovisor/upgrades/%s", homePath, upgradeName), symlinkPath); err != nil {
+		return fmt.Errorf("failed to create symlink: %w", err)
+	}
+
+	logger.Info().Msgf("selected binary version \"%s\" for cosmovisor", upgradeName)
+	return nil
 }
 
 func IsBinaryRecommendedVersion(binaryPath, registryUrl, source string, continuationHeight int64, userInput bool) error {

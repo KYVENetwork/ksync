@@ -41,7 +41,7 @@ func init() {
 
 	blockSyncCmd.Flags().StringVarP(&appFlags, "app-flags", "f", "", "custom flags which are applied to the app binary start command. Example: --app-flags=\"--x-crisis-skip-assert-invariants,--iavl-disable-fastnode\"")
 
-	blockSyncCmd.Flags().BoolVarP(&reset, "autoselect-binary-version", "a", false, "if provided binary is cosmovisor KSYNC will automatically change the \"current\" symlink to the correct upgrade version")
+	blockSyncCmd.Flags().BoolVarP(&autoselectBinaryVersion, "autoselect-binary-version", "a", false, "if provided binary is cosmovisor KSYNC will automatically change the \"current\" symlink to the correct upgrade version")
 	blockSyncCmd.Flags().BoolVarP(&reset, "reset-all", "r", false, "reset this node's validator to genesis state")
 	blockSyncCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
 	blockSyncCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint app")
@@ -121,14 +121,14 @@ var blockSyncCmd = &cobra.Command{
 			return fmt.Errorf("failed to close dbs in engine: %w", err)
 		}
 
-		if err := sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, continuationHeight, !y); err != nil {
-			return fmt.Errorf("failed to check if binary has the recommended version: %w", err)
-		}
-
 		if autoselectBinaryVersion {
 			if err := sources.SelectCosmovisorVersion(binaryPath, homePath, registryUrl, source, continuationHeight); err != nil {
 				return fmt.Errorf("failed to autoselect binary version: %w", err)
 			}
+		}
+
+		if err := sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, continuationHeight, !y); err != nil {
+			return fmt.Errorf("failed to check if binary has the recommended version: %w", err)
 		}
 
 		consensusEngine, err := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, continuationHeight)

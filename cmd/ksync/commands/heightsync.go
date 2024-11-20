@@ -35,6 +35,7 @@ func init() {
 
 	heightSyncCmd.Flags().Int64VarP(&targetHeight, "target-height", "t", 0, "target height (including), if not specified it will sync to the latest available block height")
 
+	heightSyncCmd.Flags().BoolVarP(&autoselectBinaryVersion, "autoselect-binary-version", "a", false, "if provided binary is cosmovisor KSYNC will automatically change the \"current\" symlink to the correct upgrade version")
 	heightSyncCmd.Flags().BoolVarP(&reset, "reset-all", "r", false, "reset this node's validator to genesis state")
 	heightSyncCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
 	heightSyncCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint app")
@@ -127,6 +128,12 @@ var heightSyncCmd = &cobra.Command{
 
 		if err := defaultEngine.CloseDBs(); err != nil {
 			return fmt.Errorf("failed to close dbs in engine: %w", err)
+		}
+
+		if autoselectBinaryVersion {
+			if err := sources.SelectCosmovisorVersion(binaryPath, homePath, registryUrl, source, continuationHeight); err != nil {
+				return fmt.Errorf("failed to autoselect binary version: %w", err)
+			}
 		}
 
 		if err := sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, continuationHeight, !y); err != nil {
