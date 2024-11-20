@@ -65,11 +65,6 @@ var heightSyncCmd = &cobra.Command{
 			homePath = utils.GetHomePathFromBinary(binaryPath)
 		}
 
-		if engine == "" && binaryPath != "" {
-			engine = utils.GetEnginePathFromBinary(binaryPath)
-			logger.Info().Msgf("Loaded engine \"%s\" from binary path", engine)
-		}
-
 		defaultEngine := engines.EngineFactory(engine, homePath, rpcServerPort)
 
 		if source == "" && blockPoolId == "" && snapshotPoolId == "" {
@@ -138,6 +133,11 @@ var heightSyncCmd = &cobra.Command{
 
 		if err := sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, continuationHeight, !y); err != nil {
 			return fmt.Errorf("failed to check if binary has the recommended version: %w", err)
+		}
+
+		if engine == "" && binaryPath != "" {
+			engine = utils.GetEnginePathFromBinary(binaryPath)
+			logger.Info().Msgf("Loaded engine \"%s\" from binary path", engine)
 		}
 
 		consensusEngine, err := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, continuationHeight)

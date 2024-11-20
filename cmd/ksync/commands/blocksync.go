@@ -82,11 +82,6 @@ var blockSyncCmd = &cobra.Command{
 			logger.Info().Msgf("loaded source \"%s\" from genesis file", source)
 		}
 
-		if engine == "" && binaryPath != "" {
-			engine = utils.GetEnginePathFromBinary(binaryPath)
-			logger.Info().Msgf("loaded engine \"%s\" from binary path", engine)
-		}
-
 		bId, _, err := sources.GetPoolIds(chainId, source, blockPoolId, "", registryUrl, true, false)
 		if err != nil {
 			return fmt.Errorf("failed to load pool-ids: %w", err)
@@ -129,6 +124,11 @@ var blockSyncCmd = &cobra.Command{
 
 		if err := sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, continuationHeight, !y); err != nil {
 			return fmt.Errorf("failed to check if binary has the recommended version: %w", err)
+		}
+
+		if engine == "" && binaryPath != "" {
+			engine = utils.GetEnginePathFromBinary(binaryPath)
+			logger.Info().Msgf("loaded engine \"%s\" from binary path", engine)
 		}
 
 		consensusEngine, err := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, continuationHeight)
