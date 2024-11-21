@@ -60,7 +60,7 @@ func SelectCosmovisorVersion(binaryPath, homePath, registryUrl, source string, c
 }
 
 func IsBinaryRecommendedVersion(binaryPath, registryUrl, source string, continuationHeight int64, userInput bool) error {
-	if source == "" || !userInput {
+	if binaryPath == "" || source == "" || !userInput {
 		return nil
 	}
 
@@ -69,16 +69,17 @@ func IsBinaryRecommendedVersion(binaryPath, registryUrl, source string, continua
 		return fmt.Errorf("failed to lookup binary path: %w", err)
 	}
 
-	startArgs := make([]string, 0)
+	cmd := exec.Command(cmdPath)
 
 	// if we run with cosmovisor we start with the cosmovisor run command
 	if strings.HasSuffix(binaryPath, "cosmovisor") {
-		startArgs = append(startArgs, "run")
+		cmd.Args = append(cmd.Args, "run")
+		cmd.Env = append(os.Environ(), "COSMOVISOR_DISABLE_LOGS=true")
 	}
 
-	startArgs = append(startArgs, "version")
+	cmd.Args = append(cmd.Args, "version")
 
-	out, err := exec.Command(cmdPath, startArgs...).Output()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to get output of binary: %w", err)
 	}
@@ -118,8 +119,7 @@ func IsBinaryRecommendedVersion(binaryPath, registryUrl, source string, continua
 	}
 
 	if strings.ToLower(answer) != "y" {
-		logger.Error().Msg("abort")
-		return nil
+		return fmt.Errorf("abort")
 	}
 
 	return nil
