@@ -39,8 +39,14 @@ func SelectCosmovisorVersion(binaryPath, homePath, registryUrl, source string, c
 		upgradeName = upgrade.Name
 	}
 
-	if _, err := os.Stat(fmt.Sprintf("%s/cosmovisor/upgrades/%s", homePath, upgradeName)); err != nil {
-		return fmt.Errorf("upgrade \"%s\" not installed in cosmovisor", upgradeName)
+	if upgradeName == "genesis" {
+		if _, err := os.Stat(fmt.Sprintf("%s/cosmovisor/%s", homePath, upgradeName)); err != nil {
+			return fmt.Errorf("\"%s\" not installed in cosmovisor", upgradeName)
+		}
+	} else {
+		if _, err := os.Stat(fmt.Sprintf("%s/cosmovisor/upgrades/%s", homePath, upgradeName)); err != nil {
+			return fmt.Errorf("upgrade \"%s\" not installed in cosmovisor", upgradeName)
+		}
 	}
 
 	symlinkPath := fmt.Sprintf("%s/cosmovisor/current", homePath)
@@ -51,8 +57,14 @@ func SelectCosmovisorVersion(binaryPath, homePath, registryUrl, source string, c
 		}
 	}
 
-	if err := os.Symlink(fmt.Sprintf("%s/cosmovisor/upgrades/%s", homePath, upgradeName), symlinkPath); err != nil {
-		return fmt.Errorf("failed to create symlink: %w", err)
+	if upgradeName == "genesis" {
+		if err := os.Symlink(fmt.Sprintf("%s/cosmovisor/%s", homePath, upgradeName), symlinkPath); err != nil {
+			return fmt.Errorf("failed to create symlink: %w", err)
+		}
+	} else {
+		if err := os.Symlink(fmt.Sprintf("%s/cosmovisor/upgrades/%s", homePath, upgradeName), symlinkPath); err != nil {
+			return fmt.Errorf("failed to create symlink: %w", err)
+		}
 	}
 
 	logger.Info().Msgf("selected binary version \"%s\" from height %d for cosmovisor", upgradeName, continuationHeight)
