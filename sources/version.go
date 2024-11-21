@@ -15,7 +15,7 @@ var (
 )
 
 func SelectCosmovisorVersion(binaryPath, homePath, registryUrl, source string, continuationHeight int64) error {
-	if !strings.HasSuffix(binaryPath, "cosmovisor") {
+	if !strings.HasSuffix(binaryPath, "cosmovisor") || source == "" {
 		return nil
 	}
 
