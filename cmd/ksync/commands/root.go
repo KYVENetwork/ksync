@@ -7,36 +7,36 @@ import (
 )
 
 var (
-	engine               string
-	binaryPath           string
-	homePath             string
-	chainId              string
-	chainRest            string
-	storageRest          string
-	blockRpc             string
-	snapshotPoolId       string
-	blockPoolId          string
-	startHeight          int64
-	targetHeight         int64
-	rpcServer            bool
-	rpcServerPort        int64
-	snapshotPort         int64
-	blockRpcReqTimeout   int64
-	source               string
-	pruning              bool
-	keepSnapshots        bool
-	skipWaiting          bool
-	backupInterval       int64
-	backupKeepRecent     int64
-	backupCompression    string
-	backupDest           string
-	appFlags             string
-	skipCrisisInvariants bool
-	reset                bool
-	keepAddrBook         bool
-	optOut               bool
-	debug                bool
-	y                    bool
+	engine                  string
+	binaryPath              string
+	homePath                string
+	chainId                 string
+	chainRest               string
+	storageRest             string
+	blockRpc                string
+	snapshotPoolId          string
+	blockPoolId             string
+	startHeight             int64
+	targetHeight            int64
+	rpcServer               bool
+	rpcServerPort           int64
+	snapshotPort            int64
+	blockRpcReqTimeout      int64
+	source                  string
+	pruning                 bool
+	keepSnapshots           bool
+	skipWaiting             bool
+	backupInterval          int64
+	backupKeepRecent        int64
+	backupCompression       string
+	backupDest              string
+	appFlags                string
+	autoselectBinaryVersion bool
+	reset                   bool
+	keepAddrBook            bool
+	optOut                  bool
+	debug                   bool
+	y                       bool
 )
 
 var (

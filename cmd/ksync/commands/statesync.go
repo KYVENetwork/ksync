@@ -32,6 +32,7 @@ func init() {
 
 	stateSyncCmd.Flags().Int64VarP(&targetHeight, "target-height", "t", 0, "snapshot height, if not specified it will use the latest available snapshot height")
 
+	stateSyncCmd.Flags().BoolVarP(&autoselectBinaryVersion, "autoselect-binary-version", "a", false, "if provided binary is cosmovisor KSYNC will automatically change the \"current\" symlink to the correct upgrade version")
 	stateSyncCmd.Flags().BoolVarP(&reset, "reset-all", "r", false, "reset this node's validator to genesis state")
 	stateSyncCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
 	stateSyncCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint app")
@@ -59,11 +60,6 @@ var stateSyncCmd = &cobra.Command{
 		// if no home path was given get the default one
 		if homePath == "" {
 			homePath = utils.GetHomePathFromBinary(binaryPath)
-		}
-
-		if engine == "" && binaryPath != "" {
-			engine = utils.GetEnginePathFromBinary(binaryPath)
-			logger.Info().Msgf("Loaded engine \"%s\" from binary path", engine)
 		}
 
 		defaultEngine := engines.EngineFactory(engine, homePath, rpcServerPort)
@@ -94,8 +90,19 @@ var stateSyncCmd = &cobra.Command{
 			return fmt.Errorf("state-sync validation checks failed: %w", err)
 		}
 
+		if autoselectBinaryVersion {
+			if err := sources.SelectCosmovisorVersion(binaryPath, homePath, registryUrl, source, snapshotHeight); err != nil {
+				return fmt.Errorf("failed to autoselect binary version: %w", err)
+			}
+		}
+
 		if err := sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, snapshotHeight, !y); err != nil {
 			return fmt.Errorf("failed to check if binary has the recommended version: %w", err)
+		}
+
+		if engine == "" && binaryPath != "" {
+			engine = utils.GetEnginePathFromBinary(binaryPath)
+			logger.Info().Msgf("Loaded engine \"%s\" from binary path", engine)
 		}
 
 		consensusEngine, err := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, snapshotHeight)

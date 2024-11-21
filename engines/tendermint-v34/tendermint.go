@@ -719,6 +719,14 @@ func (engine *Engine) BootstrapState(value []byte) error {
 		return fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
 	}
 
+	// if TimeIotaMs is zero we set it to 1 else the app would panic.
+	// in rare circumstances this can be zero if the snapshot got
+	// created with the engine cometbft-v0.37 or cometbft-v0.38 but the
+	// height is still for tendermint-v0.34
+	if bundle[0].Value.State.ConsensusParams.Block.TimeIotaMs == 0 {
+		bundle[0].Value.State.ConsensusParams.Block.TimeIotaMs = 1
+	}
+
 	err := engine.stateStore.Bootstrap(*bundle[0].Value.State)
 	if err != nil {
 		return fmt.Errorf("failed to bootstrap state: %s\"", err)
