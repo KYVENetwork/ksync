@@ -32,7 +32,7 @@ func init() {
 
 	stateSyncCmd.Flags().Int64VarP(&targetHeight, "target-height", "t", 0, "snapshot height, if not specified it will use the latest available snapshot height")
 
-	stateSyncCmd.Flags().BoolVarP(&autoselectBinaryVersion, "autoselect-binary-version", "a", true, "if provided binary is cosmovisor KSYNC will automatically change the \"current\" symlink to the correct upgrade version")
+	stateSyncCmd.Flags().BoolVarP(&autoselectBinaryVersion, "autoselect-binary-version", "a", false, "if provided binary is cosmovisor KSYNC will automatically change the \"current\" symlink to the correct upgrade version")
 	stateSyncCmd.Flags().BoolVarP(&reset, "reset-all", "r", false, "reset this node's validator to genesis state")
 	stateSyncCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
 	stateSyncCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint app")
