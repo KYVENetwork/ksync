@@ -7,7 +7,9 @@ import (
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
+	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -66,14 +68,14 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 	logger.Info().Msg("starting height-sync")
 
 	start := time.Now()
-	processId := 0
+	var cmd *exec.Cmd
 	args := strings.Split(appFlags, ",")
 	var err error
 
 	// if there are snapshots available before the requested height we apply the nearest
 	if snapshotHeight > 0 {
 		// start binary process thread
-		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, args)
+		cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, args)
 		if err != nil {
 			return fmt.Errorf("failed to start binary process: %w", err)
 		}
@@ -89,8 +91,13 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 			logger.Error().Msg(fmt.Sprintf("failed to apply state-sync: %s", err))
 
 			// stop binary process thread
-			if err := utils.StopProcessByProcessId(processId); err != nil {
+			if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 				return fmt.Errorf("failed to stop process by process id: %w", err)
+			}
+
+			// wait for process to properly terminate
+			if _, err := cmd.Process.Wait(); err != nil {
+				return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
 			}
 
 			return fmt.Errorf("failed to start state-sync executor: %w", err)
@@ -102,7 +109,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 		}
 
 		// after the node is bootstrapped we start the binary process thread
-		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, args)
+		cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, args)
 		if err != nil {
 			return fmt.Errorf("failed to start binary process: %w", err)
 		}
@@ -120,27 +127,40 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 		e := engine.CloseDBs()
 		_ = e
 
-		if err := utils.StopProcessByProcessId(processId); err != nil {
-			return fmt.Errorf("failed to stop binary process: %w", err)
+		// stop binary process thread
+		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+			return fmt.Errorf("failed to stop process by process id: %w", err)
+		}
+
+		// wait for process to properly terminate
+		if _, err := cmd.Process.Wait(); err != nil {
+			return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
 		}
 
 		// wait until process has properly shut down
+		// TODO: can remove
 		time.Sleep(10 * time.Second)
 
-		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, args)
+		cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, args)
 		if err != nil {
 			return fmt.Errorf("failed to start binary process: %w", err)
 		}
 
 		// wait until process has properly started
+		// TODO: can remove?
 		time.Sleep(10 * time.Second)
 
 		if err := engine.OpenDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 
 			// stop binary process thread
-			if err := utils.StopProcessByProcessId(processId); err != nil {
-				return fmt.Errorf("failed to stop binary process: %w", err)
+			if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+				return fmt.Errorf("failed to stop process by process id: %w", err)
+			}
+
+			// wait for process to properly terminate
+			if _, err := cmd.Process.Wait(); err != nil {
+				return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
 			}
 
 			return fmt.Errorf("failed to close dbs in engine: %w", err)
@@ -154,8 +174,13 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 			logger.Error().Msg(fmt.Sprintf("failed to apply block-sync: %s", err))
 
 			// stop binary process thread
-			if err := utils.StopProcessByProcessId(processId); err != nil {
+			if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 				return fmt.Errorf("failed to stop process by process id: %w", err)
+			}
+
+			// wait for process to properly terminate
+			if _, err := cmd.Process.Wait(); err != nil {
+				return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
 			}
 
 			return fmt.Errorf("failed to start block-sync executor: %w", err)
@@ -166,8 +191,13 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 	utils.TrackSyncCompletedEvent(snapshotHeight, targetHeight-snapshotHeight, targetHeight, elapsed, optOut)
 
 	// stop binary process thread
-	if err := utils.StopProcessByProcessId(processId); err != nil {
+	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 		return fmt.Errorf("failed to stop process by process id: %w", err)
+	}
+
+	// wait for process to properly terminate
+	if _, err := cmd.Process.Wait(); err != nil {
+		return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
 	}
 
 	if err := engine.CloseDBs(); err != nil {

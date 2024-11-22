@@ -75,7 +75,7 @@ func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainId, chainRes
 	logger.Info().Msg("starting state-sync")
 
 	// start binary process thread
-	cmd, err := utils.StartBinaryProcessForDBNew(engine, binaryPath, debug, strings.Split(appFlags, ","))
+	cmd, err := utils.StartBinaryProcessForDB(engine, binaryPath, debug, strings.Split(appFlags, ","))
 	if err != nil {
 		return fmt.Errorf("failed to start binary process: %w", err)
 	}
@@ -96,12 +96,17 @@ func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainId, chainRes
 			return fmt.Errorf("failed to stop process by process id: %w", err)
 		}
 
+		// wait for process to properly terminate
+		if _, err := cmd.Process.Wait(); err != nil {
+			return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
+		}
+
 		return fmt.Errorf("failed to start state-sync executor: %w", err)
 	}
 
 	// stop binary process thread
 	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-		return fmt.Errorf("failed to stop process by process id %d: %w", cmd.Process.Pid, err)
+		return fmt.Errorf("failed to stop process by process id: %w", err)
 	}
 
 	// wait for process to properly terminate

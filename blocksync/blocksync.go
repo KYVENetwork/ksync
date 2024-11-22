@@ -76,7 +76,7 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId
 	}
 
 	// start binary process thread
-	cmd, err := utils.StartBinaryProcessForDBNew(engine, binaryPath, debug, strings.Split(appFlags, ","))
+	cmd, err := utils.StartBinaryProcessForDB(engine, binaryPath, debug, strings.Split(appFlags, ","))
 	if err != nil {
 		return fmt.Errorf("failed to start binary process: %w", err)
 	}
@@ -92,20 +92,10 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId
 	utils.TrackSyncStartEvent(engine, utils.BLOCK_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
 
 	start := time.Now()
-
 	currentHeight := engine.GetHeight()
 
 	for {
-		err := StartBlockSyncExecutor(engine, chainRest, storageRest, blockRpcConfig, blockPoolId, targetHeight, 0, 0, false, false, backupCfg)
-		if err == nil {
-			break
-		}
-
-		// if block-sync executor had an error due to an upgrade we restart it after
-		// we have reopened and reinitialized the db and app connections
-		if err.Error() != "UPGRADE" {
-			return err
-		}
+		syncErr := StartBlockSyncExecutor(engine, chainRest, storageRest, blockRpcConfig, blockPoolId, targetHeight, 0, 0, false, false, backupCfg)
 
 		// stop binary process thread
 		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
@@ -121,36 +111,32 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId
 			return fmt.Errorf("failed to close dbs in engine: %w", err)
 		}
 
-		if err := engine.StopProxyApp(); err != nil {
-			return fmt.Errorf("failed to stop proxy app: %w", err)
+		if syncErr == nil {
+			break
 		}
 
-		cmd, err = utils.StartBinaryProcessForDBNew(engine, binaryPath, debug, strings.Split(appFlags, ","))
-		if err != nil {
-			return fmt.Errorf("failed to start binary process: %w", err)
+		if syncErr.Error() == "UPGRADE" && strings.HasSuffix(binaryPath, "cosmovisor") {
+			if err := engine.StopProxyApp(); err != nil {
+				return fmt.Errorf("failed to stop proxy app: %w", err)
+			}
+
+			cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, strings.Split(appFlags, ","))
+			if err != nil {
+				return fmt.Errorf("failed to start binary process: %w", err)
+			}
+
+			if err := engine.OpenDBs(); err != nil {
+				return fmt.Errorf("failed to open dbs in engine: %w", err)
+			}
+
+			continue
 		}
 
-		if err := engine.OpenDBs(); err != nil {
-			return fmt.Errorf("failed to open dbs in engine: %w", err)
-		}
+		return fmt.Errorf("failed to start block-sync executor: %w", syncErr)
 	}
 
 	elapsed := time.Since(start).Seconds()
 	utils.TrackSyncCompletedEvent(0, targetHeight-currentHeight, targetHeight, elapsed, optOut)
-
-	// stop binary process thread
-	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-		return fmt.Errorf("failed to stop process by process id: %w", err)
-	}
-
-	// wait for process to properly terminate
-	if _, err := cmd.Process.Wait(); err != nil {
-		return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
-	}
-
-	if err := engine.CloseDBs(); err != nil {
-		return fmt.Errorf("failed to close dbs in engine: %w", err)
-	}
 
 	logger.Info().Msg(fmt.Sprintf("block-synced from %d to %d (%d blocks) in %.2f seconds", currentHeight, targetHeight, targetHeight-currentHeight, elapsed))
 	logger.Info().Msg(fmt.Sprintf("successfully finished block-sync"))

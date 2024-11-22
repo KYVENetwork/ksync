@@ -8,6 +8,7 @@ import (
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -78,7 +79,7 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 	}
 
 	// start binary process thread
-	processId, err := utils.StartBinaryProcessForP2P(engine, binaryPath, debug, strings.Split(appFlags, ","))
+	cmd, err := utils.StartBinaryProcessForP2P(engine, binaryPath, debug, strings.Split(appFlags, ","))
 	if err != nil {
 		return err
 	}
@@ -100,8 +101,13 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 	// start p2p executors and try to execute the first block on the app
 	if err := engine.ApplyFirstBlockOverP2P(poolResponse.Pool.Data.Runtime, item.Value, nextItem.Value); err != nil {
 		// stop binary process thread
-		if err := utils.StopProcessByProcessId(processId); err != nil {
-			panic(err)
+		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+			return fmt.Errorf("failed to stop process by process id: %w", err)
+		}
+
+		// wait for process to properly terminate
+		if _, err := cmd.Process.Wait(); err != nil {
+			return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
 		}
 
 		return fmt.Errorf("failed to start p2p executor: %w", err)
@@ -125,13 +131,15 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 
 	logger.Info().Msg("node was bootstrapped. Cleaning up")
 
-	// stop process by sending signal SIGTERM
-	if err := utils.StopProcessByProcessId(processId); err != nil {
-		return err
+	// stop binary process thread
+	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+		return fmt.Errorf("failed to stop process by process id: %w", err)
 	}
 
-	// wait until process has properly shut down
-	time.Sleep(10 * time.Second)
+	// wait for process to properly terminate
+	if _, err := cmd.Process.Wait(); err != nil {
+		return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
+	}
 
 	logger.Info().Msg("successfully bootstrapped node. Continuing with syncing blocks over DB")
 	return nil

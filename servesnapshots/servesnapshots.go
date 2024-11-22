@@ -10,8 +10,10 @@ import (
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
+	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -98,11 +100,11 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		)
 	}
 
-	processId := 0
+	var cmd *exec.Cmd
 
 	if height == 0 && snapshotHeight > 0 {
 		// start binary process thread
-		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, snapshotArgs)
+		cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, snapshotArgs)
 		if err != nil {
 			return fmt.Errorf("failed to start binary process: %w", err)
 		}
@@ -116,8 +118,13 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 			logger.Error().Msg(fmt.Sprintf("state-sync failed with: %s", err))
 
 			// stop binary process thread
-			if err := utils.StopProcessByProcessId(processId); err != nil {
+			if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 				return fmt.Errorf("failed to stop process by process id: %w", err)
+			}
+
+			// wait for process to properly terminate
+			if _, err := cmd.Process.Wait(); err != nil {
+				return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
 			}
 
 			return fmt.Errorf("failed to start state-sync executor: %w", err)
@@ -129,27 +136,40 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 			e := engine.CloseDBs()
 			_ = e
 
-			if err := utils.StopProcessByProcessId(processId); err != nil {
+			// stop binary process thread
+			if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 				return fmt.Errorf("failed to stop process by process id: %w", err)
 			}
 
+			// wait for process to properly terminate
+			if _, err := cmd.Process.Wait(); err != nil {
+				return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
+			}
+
 			// wait until process has properly shut down
+			// TODO: remove?
 			time.Sleep(10 * time.Second)
 
-			processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, snapshotArgs)
+			cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, snapshotArgs)
 			if err != nil {
 				return fmt.Errorf("failed to start process: %w", err)
 			}
 
 			// wait until process has properly started
+			// TODO: remove?
 			time.Sleep(10 * time.Second)
 
 			if err := engine.OpenDBs(); err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
 
 				// stop binary process thread
-				if err := utils.StopProcessByProcessId(processId); err != nil {
+				if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 					return fmt.Errorf("failed to stop process by process id: %w", err)
+				}
+
+				// wait for process to properly terminate
+				if _, err := cmd.Process.Wait(); err != nil {
+					return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
 				}
 
 				return fmt.Errorf("failed to open dbs in engine: %w", err)
@@ -162,7 +182,7 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		}
 
 		// after the node is bootstrapped we start the binary process thread
-		processId, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, snapshotArgs)
+		cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, snapshotArgs)
 		if err != nil {
 			return fmt.Errorf("failed to start binary process: %w", err)
 		}
@@ -183,16 +203,26 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 		logger.Error().Msg(fmt.Sprintf("failed to start db executor: %s", err))
 
 		// stop binary process thread
-		if err := utils.StopProcessByProcessId(processId); err != nil {
+		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 			return fmt.Errorf("failed to stop process by process id: %w", err)
+		}
+
+		// wait for process to properly terminate
+		if _, err := cmd.Process.Wait(); err != nil {
+			return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
 		}
 
 		return fmt.Errorf("failed to start block-sync executor: %w", err)
 	}
 
 	// stop binary process thread
-	if err := utils.StopProcessByProcessId(processId); err != nil {
+	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 		return fmt.Errorf("failed to stop process by process id: %w", err)
+	}
+
+	// wait for process to properly terminate
+	if _, err := cmd.Process.Wait(); err != nil {
+		return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
 	}
 
 	if err := engine.CloseDBs(); err != nil {
