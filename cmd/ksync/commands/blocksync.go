@@ -136,6 +136,10 @@ var blockSyncCmd = &cobra.Command{
 			return fmt.Errorf("failed to create consensus engine for source: %w", err)
 		}
 
-		return blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, nil, &bId, targetHeight, backupCfg, appFlags, rpcServer, optOut, debug)
+		if err := blocksync.StartBlockSyncWithBinary(consensusEngine, binaryPath, homePath, chainId, chainRest, storageRest, nil, &bId, targetHeight, backupCfg, appFlags, rpcServer, optOut, debug); err != nil {
+			return fmt.Errorf("failed to start block-sync: %w", err)
+		}
+
+		return nil
 	},
 }

@@ -231,10 +231,11 @@ func (engine *Engine) DoHandshake() error {
 
 	_, mempool := CreateMempoolAndMempoolReactor(engine.config, engine.proxyApp, state)
 
-	_, evidencePool, err := CreateEvidenceReactor(engine.config, engine.stateStore, engine.blockStore)
-	if err != nil {
-		return fmt.Errorf("failed to create evidence reactor: %w", err)
-	}
+	_, evidencePool, _ := CreateEvidenceReactor(engine.config, engine.stateStore, engine.blockStore)
+	// TODO: what to do with this error? -> maybe add evidence db to open/closedbs
+	//if err != nil {
+	//	return fmt.Errorf("failed to create evidence reactor: %w", err)
+	//}
 
 	engine.mempool = mempool
 	engine.evidencePool = evidencePool
@@ -286,6 +287,11 @@ func (engine *Engine) ApplyBlock(runtime *string, value []byte) error {
 	blockParts := engine.prevBlock.MakePartSet(tmTypes.BlockPartSizeBytes)
 	blockId := tmTypes.BlockID{Hash: engine.prevBlock.Hash(), PartSetHeader: blockParts.Header()}
 
+	fmt.Println("current state", engine.state.LastBlockHeight)
+	fmt.Println("prev block", engine.prevBlock.Height)
+	fmt.Println("incoming block", block.Height)
+	fmt.Println(fmt.Sprintf("prev block %d needs to be current state %d+1", engine.prevBlock.Height, engine.state.LastBlockHeight))
+
 	// verify block
 	if err := engine.blockExecutor.ValidateBlock(engine.state, engine.prevBlock); err != nil {
 		return fmt.Errorf("block validation failed at height %d: %w", engine.prevBlock.Height, err)
@@ -302,6 +308,9 @@ func (engine *Engine) ApplyBlock(runtime *string, value []byte) error {
 	// execute block against app
 	state, _, err := engine.blockExecutor.ApplyBlock(engine.state, blockId, engine.prevBlock)
 	if err != nil {
+		// TODO: if we have an upgrade here set prevBlock
+		fmt.Println("setting prevBlock to ", block.Height)
+		engine.prevBlock = block
 		return fmt.Errorf("failed to apply block at height %d: %w", engine.prevBlock.Height, err)
 	}
 

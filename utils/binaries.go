@@ -140,6 +140,50 @@ func StartBinaryProcessForDB(engine types.Engine, binaryPath string, debug bool,
 	return
 }
 
+func StartBinaryProcessForDBNew(engine types.Engine, binaryPath string, debug bool, args []string) (*exec.Cmd, error) {
+	if binaryPath == "" {
+		return nil, nil
+	}
+
+	cmdPath, err := exec.LookPath(binaryPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup binary path: %w", err)
+	}
+
+	cmd := exec.Command(cmdPath)
+
+	// if we run with cosmovisor we start with the cosmovisor run command
+	if strings.HasSuffix(binaryPath, "cosmovisor") {
+		cmd.Args = append(cmd.Args, "run")
+		cmd.Env = append(os.Environ(), "COSMOVISOR_DISABLE_LOGS=true", "UNSAFE_SKIP_BACKUP=true")
+	}
+
+	if err := engine.LoadConfig(); err != nil {
+		return nil, fmt.Errorf("failed to load engine config: %w", err)
+	}
+
+	cmd.Args = append(cmd.Args, "start",
+		"--home",
+		engine.GetHomePath(),
+		"--with-tendermint=false",
+		"--address",
+		engine.GetProxyAppAddress(),
+	)
+
+	cmd.Args = append(cmd.Args, args...)
+
+	if debug {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+
+	if err := cmd.Start(); err != nil {
+		return cmd, fmt.Errorf("failed to start binary process: %w", err)
+	}
+
+	return cmd, nil
+}
+
 func StartBinaryProcessForP2P(engine types.Engine, binaryPath string, debug bool, args []string) (processId int, err error) {
 	if binaryPath == "" {
 		return

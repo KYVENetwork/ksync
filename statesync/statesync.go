@@ -8,6 +8,7 @@ import (
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -74,7 +75,7 @@ func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainId, chainRes
 	logger.Info().Msg("starting state-sync")
 
 	// start binary process thread
-	processId, err := utils.StartBinaryProcessForDB(engine, binaryPath, debug, strings.Split(appFlags, ","))
+	cmd, err := utils.StartBinaryProcessForDBNew(engine, binaryPath, debug, strings.Split(appFlags, ","))
 	if err != nil {
 		return fmt.Errorf("failed to start binary process: %w", err)
 	}
@@ -91,7 +92,7 @@ func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainId, chainRes
 		logger.Error().Msg(fmt.Sprintf("failed to start state-sync: %s", err))
 
 		// stop binary process thread
-		if err := utils.StopProcessByProcessId(processId); err != nil {
+		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 			return fmt.Errorf("failed to stop process by process id: %w", err)
 		}
 
@@ -99,8 +100,13 @@ func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainId, chainRes
 	}
 
 	// stop binary process thread
-	if err := utils.StopProcessByProcessId(processId); err != nil {
-		return fmt.Errorf("failed to stop process by process id: %w", err)
+	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+		return fmt.Errorf("failed to stop process by process id %d: %w", cmd.Process.Pid, err)
+	}
+
+	// wait for process to properly terminate
+	if _, err := cmd.Process.Wait(); err != nil {
+		return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
 	}
 
 	elapsed := time.Since(start).Seconds()

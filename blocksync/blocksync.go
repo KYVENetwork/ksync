@@ -8,6 +8,7 @@ import (
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -75,7 +76,7 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId
 	}
 
 	// start binary process thread
-	processId, err := utils.StartBinaryProcessForDB(engine, binaryPath, debug, strings.Split(appFlags, ","))
+	cmd, err := utils.StartBinaryProcessForDBNew(engine, binaryPath, debug, strings.Split(appFlags, ","))
 	if err != nil {
 		return fmt.Errorf("failed to start binary process: %w", err)
 	}
@@ -94,24 +95,56 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId
 
 	currentHeight := engine.GetHeight()
 
-	// db executes blocks against app until target height is reached
-	if err := StartBlockSyncExecutor(engine, chainRest, storageRest, blockRpcConfig, blockPoolId, targetHeight, 0, 0, false, false, backupCfg); err != nil {
-		logger.Error().Msg(fmt.Sprintf("%s", err))
+	for {
+		err := StartBlockSyncExecutor(engine, chainRest, storageRest, blockRpcConfig, blockPoolId, targetHeight, 0, 0, false, false, backupCfg)
+		if err == nil {
+			break
+		}
+		// TODO: check if error indicates an upgrade, if yes proceed to restart after restarting app connections
+		// TODO: upgrade cosmovisor binary
+
+		fmt.Println("rebooting StartBlockSyncExecutor")
+		fmt.Println(err)
 
 		// stop binary process thread
-		if err := utils.StopProcessByProcessId(processId); err != nil {
+		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 			return fmt.Errorf("failed to stop process by process id: %w", err)
 		}
 
-		return fmt.Errorf("failed to start block-sync executor: %w", err)
+		// wait for process to properly terminate
+		if _, err := cmd.Process.Wait(); err != nil {
+			return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
+		}
+
+		if err := engine.CloseDBs(); err != nil {
+			return fmt.Errorf("failed to close dbs in engine: %w", err)
+		}
+
+		if err := engine.StopProxyApp(); err != nil {
+			return fmt.Errorf("failed to stop proxy app: %w", err)
+		}
+
+		cmd, err = utils.StartBinaryProcessForDBNew(engine, binaryPath, debug, strings.Split(appFlags, ","))
+		if err != nil {
+			return fmt.Errorf("failed to start binary process: %w", err)
+		}
+
+		if err := engine.OpenDBs(); err != nil {
+			return fmt.Errorf("failed to open dbs in engine: %w", err)
+		}
 	}
 
 	elapsed := time.Since(start).Seconds()
 	utils.TrackSyncCompletedEvent(0, targetHeight-currentHeight, targetHeight, elapsed, optOut)
 
 	// stop binary process thread
-	if err := utils.StopProcessByProcessId(processId); err != nil {
+	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 		return fmt.Errorf("failed to stop process by process id: %w", err)
+	}
+
+	// wait for process to properly terminate
+	if _, err := cmd.Process.Wait(); err != nil {
+		return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
 	}
 
 	if err := engine.CloseDBs(); err != nil {

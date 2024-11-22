@@ -22,7 +22,7 @@ func LogFormatter(keyvals ...interface{}) zerolog.Logger {
 	writer := io.MultiWriter(os.Stdout)
 	customConsoleWriter := zerolog.ConsoleWriter{Out: writer}
 	customConsoleWriter.FormatCaller = func(i interface{}) string {
-		return "\x1b[36m[APP]\x1b[0m"
+		return "\x1b[36m[ENGINE]\x1b[0m"
 	}
 
 	logger := zerolog.New(customConsoleWriter).With()
