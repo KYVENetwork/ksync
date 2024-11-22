@@ -9,9 +9,9 @@ import (
 	stateSyncHelpers "github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
-	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -44,7 +44,7 @@ func StartBlockSyncExecutor(cmd *exec.Cmd, binaryPath string, engine types.Engin
 
 		// stop binary process thread
 		// TODO: this does not work in docker??
-		if err := cmd.Process.Signal(os.Interrupt); err != nil {
+		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 			return fmt.Errorf("failed to stop process by process id: %w", err)
 		}
 
