@@ -87,7 +87,16 @@ func StartBlockSyncExecutor(engine types.Engine, chainRest, storageRest string, 
 			prevHeight := height - 1
 
 			if err := engine.ApplyBlock(runtime, item.Value); err != nil {
-				// TODO: check for upgrade here and return special error message
+				// before we return we check if this is due to an upgrade, in this
+				// case we return a special error code to handle this
+				isUpgrade, upgradeErr := utils.IsUpgradeHeight(engine.GetHomePath(), height)
+				if upgradeErr != nil {
+					return fmt.Errorf("failed to apply block in engine and to check upgrade height: %w %w", err, upgradeErr)
+				}
+
+				if isUpgrade {
+					return fmt.Errorf("UPGRADE")
+				}
 
 				return fmt.Errorf("failed to apply block in engine: %w", err)
 			}

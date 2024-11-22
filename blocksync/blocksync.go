@@ -101,7 +101,11 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId
 			break
 		}
 
-		// TODO: check if error indicates an upgrade, if yes proceed to restart after restarting app connections
+		// if block-sync executor had an error due to an upgrade we restart it after
+		// we have reopened and reinitialized the db and app connections
+		if err.Error() != "UPGRADE" {
+			return err
+		}
 
 		// stop binary process thread
 		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
