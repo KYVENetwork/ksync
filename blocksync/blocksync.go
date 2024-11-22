@@ -100,11 +100,8 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId
 		if err == nil {
 			break
 		}
-		// TODO: check if error indicates an upgrade, if yes proceed to restart after restarting app connections
-		// TODO: upgrade cosmovisor binary
 
-		fmt.Println("rebooting StartBlockSyncExecutor")
-		fmt.Println(err)
+		// TODO: check if error indicates an upgrade, if yes proceed to restart after restarting app connections
 
 		// stop binary process thread
 		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
