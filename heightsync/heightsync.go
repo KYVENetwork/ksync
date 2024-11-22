@@ -138,7 +138,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 		}
 
 		// wait until process has properly shut down
-		// TODO: can remove
+		// TODO: can remove?
 		time.Sleep(10 * time.Second)
 
 		cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, args)
@@ -170,8 +170,9 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 	// if we have not reached our target height yet we block-sync the remaining ones
 	if remaining := targetHeight - snapshotHeight; remaining > 0 {
 		logger.Info().Msg(fmt.Sprintf("block-syncing remaining %d blocks", remaining))
-		if err := blocksync.StartBlockSyncExecutor(engine, chainRest, storageRest, nil, blockPoolId, targetHeight, 0, 0, false, false, nil); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to apply block-sync: %s", err))
+
+		for {
+			syncErr := blocksync.StartBlockSyncExecutor(engine, chainRest, storageRest, nil, blockPoolId, targetHeight, 0, 0, false, false, nil)
 
 			// stop binary process thread
 			if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
@@ -183,26 +184,37 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 				return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
 			}
 
-			return fmt.Errorf("failed to start block-sync executor: %w", err)
+			if err := engine.CloseDBs(); err != nil {
+				return fmt.Errorf("failed to close dbs in engine: %w", err)
+			}
+
+			if syncErr == nil {
+				break
+			}
+
+			if syncErr.Error() == "UPGRADE" && strings.HasSuffix(binaryPath, "cosmovisor") {
+				if err := engine.StopProxyApp(); err != nil {
+					return fmt.Errorf("failed to stop proxy app: %w", err)
+				}
+
+				cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, strings.Split(appFlags, ","))
+				if err != nil {
+					return fmt.Errorf("failed to start binary process: %w", err)
+				}
+
+				if err := engine.OpenDBs(); err != nil {
+					return fmt.Errorf("failed to open dbs in engine: %w", err)
+				}
+
+				continue
+			}
+
+			return fmt.Errorf("failed to start block-sync executor: %w", syncErr)
 		}
 	}
 
 	elapsed := time.Since(start).Seconds()
 	utils.TrackSyncCompletedEvent(snapshotHeight, targetHeight-snapshotHeight, targetHeight, elapsed, optOut)
-
-	// stop binary process thread
-	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-		return fmt.Errorf("failed to stop process by process id: %w", err)
-	}
-
-	// wait for process to properly terminate
-	if _, err := cmd.Process.Wait(); err != nil {
-		return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
-	}
-
-	if err := engine.CloseDBs(); err != nil {
-		return fmt.Errorf("failed to close dbs in engine: %w", err)
-	}
 
 	logger.Info().Msg(fmt.Sprintf("reached target height %d with applying state-sync snapshot at %d and block-syncing the remaining %d blocks in %.2f seconds", targetHeight, snapshotHeight, targetHeight-snapshotHeight, elapsed))
 	logger.Info().Msg(fmt.Sprintf("successfully reached target height with height-sync"))

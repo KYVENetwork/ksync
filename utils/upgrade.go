@@ -7,7 +7,6 @@ import (
 	"os"
 )
 
-// TODO: add check if binary is cosmovisor and if it has actually ugpraded
 func IsUpgradeHeight(homePath string, height int64) (bool, error) {
 	upgradeInfoPath := fmt.Sprintf("%s/data/upgrade-info.json", homePath)
 
