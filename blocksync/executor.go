@@ -8,6 +8,9 @@ import (
 	stateSyncHelpers "github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
+	"os/exec"
+	"strings"
+	"syscall"
 	"time"
 )
 
@@ -16,12 +19,68 @@ var (
 	errorCh = make(chan error)
 )
 
-func StartBlockSyncExecutor(engine types.Engine, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, targetHeight int64, snapshotPoolId, snapshotInterval int64, pruning, skipWaiting bool, backupCfg *types.BackupConfig) error {
+func StartBlockSyncExecutor(cmd *exec.Cmd, binaryPath string, engine types.Engine, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, targetHeight int64, snapshotPoolId, snapshotInterval int64, pruning, skipWaiting bool, backupCfg *types.BackupConfig, debug bool, appFlags string) (err error) {
 	continuationHeight, err := engine.GetContinuationHeight()
 	if err != nil {
 		return fmt.Errorf("failed to get continuation height from engine: %w", err)
 	}
 
+	var poolResponse *types.PoolResponse
+	if blockPoolId != nil {
+		poolResponse, err = pool.GetPoolInfo(chainRest, *blockPoolId)
+		if err != nil {
+			return fmt.Errorf("failed to get pool info: %w", err)
+		}
+	}
+
+	// start block collector. we must exit if snapshot interval is zero
+	go blocks.StartBlockCollector(itemCh, errorCh, chainRest, storageRest, blockRpcConfig, poolResponse, continuationHeight, targetHeight, snapshotInterval == 0)
+
+	for {
+		syncErr := sync(engine, chainRest, blockPoolId, continuationHeight, targetHeight, snapshotPoolId, snapshotInterval, pruning, skipWaiting, backupCfg)
+
+		// stop binary process thread
+		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+			return fmt.Errorf("failed to stop process by process id: %w", err)
+		}
+
+		// wait for process to properly terminate
+		if _, err := cmd.Process.Wait(); err != nil {
+			return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
+		}
+
+		if err := engine.CloseDBs(); err != nil {
+			return fmt.Errorf("failed to close dbs in engine: %w", err)
+		}
+
+		if syncErr == nil {
+			break
+		}
+
+		if syncErr.Error() == "UPGRADE" && strings.HasSuffix(binaryPath, "cosmovisor") {
+			if err := engine.StopProxyApp(); err != nil {
+				return fmt.Errorf("failed to stop proxy app: %w", err)
+			}
+
+			cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, strings.Split(appFlags, ","))
+			if err != nil {
+				return fmt.Errorf("failed to start binary process: %w", err)
+			}
+
+			if err := engine.OpenDBs(); err != nil {
+				return fmt.Errorf("failed to open dbs in engine: %w", err)
+			}
+
+			continue
+		}
+
+		return fmt.Errorf("failed to start block-sync executor: %w", syncErr)
+	}
+
+	return nil
+}
+
+func sync(engine types.Engine, chainRest string, blockPoolId *int64, continuationHeight, targetHeight int64, snapshotPoolId, snapshotInterval int64, pruning, skipWaiting bool, backupCfg *types.BackupConfig) error {
 	appHeight, err := engine.GetAppHeight()
 	if err != nil {
 		return fmt.Errorf("failed to get app height from engine: %w", err)
@@ -44,9 +103,6 @@ func StartBlockSyncExecutor(engine types.Engine, chainRest, storageRest string, 
 		}
 		runtime = &poolResponse.Pool.Data.Runtime
 	}
-
-	// start block collector. we must exit if snapshot interval is zero
-	go blocks.StartBlockCollector(itemCh, errorCh, chainRest, storageRest, blockRpcConfig, poolResponse, continuationHeight, targetHeight, snapshotInterval == 0)
 
 	snapshotPoolHeight := int64(0)
 

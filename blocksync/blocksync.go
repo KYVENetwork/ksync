@@ -8,7 +8,6 @@ import (
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -94,45 +93,8 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId
 	start := time.Now()
 	currentHeight := engine.GetHeight()
 
-	for {
-		syncErr := StartBlockSyncExecutor(engine, chainRest, storageRest, blockRpcConfig, blockPoolId, targetHeight, 0, 0, false, false, backupCfg)
-
-		// stop binary process thread
-		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-			return fmt.Errorf("failed to stop process by process id: %w", err)
-		}
-
-		// wait for process to properly terminate
-		if _, err := cmd.Process.Wait(); err != nil {
-			return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
-		}
-
-		if err := engine.CloseDBs(); err != nil {
-			return fmt.Errorf("failed to close dbs in engine: %w", err)
-		}
-
-		if syncErr == nil {
-			break
-		}
-
-		if syncErr.Error() == "UPGRADE" && strings.HasSuffix(binaryPath, "cosmovisor") {
-			if err := engine.StopProxyApp(); err != nil {
-				return fmt.Errorf("failed to stop proxy app: %w", err)
-			}
-
-			cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, strings.Split(appFlags, ","))
-			if err != nil {
-				return fmt.Errorf("failed to start binary process: %w", err)
-			}
-
-			if err := engine.OpenDBs(); err != nil {
-				return fmt.Errorf("failed to open dbs in engine: %w", err)
-			}
-
-			continue
-		}
-
-		return fmt.Errorf("failed to start block-sync executor: %w", syncErr)
+	if err := StartBlockSyncExecutor(cmd, binaryPath, engine, chainRest, storageRest, blockRpcConfig, blockPoolId, targetHeight, 0, 0, false, false, backupCfg, debug, appFlags); err != nil {
+		return fmt.Errorf("failed to start block sync executor: %w", err)
 	}
 
 	elapsed := time.Since(start).Seconds()

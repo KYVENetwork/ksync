@@ -198,45 +198,8 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 
 	go server.StartSnapshotApiServer(engine, snapshotPort)
 
-	for {
-		syncErr := blocksync.StartBlockSyncExecutor(engine, chainRest, storageRest, nil, blockPoolId, targetHeight, snapshotPoolId, config.Interval, pruning, skipWaiting, nil)
-
-		// stop binary process thread
-		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-			return fmt.Errorf("failed to stop process by process id: %w", err)
-		}
-
-		// wait for process to properly terminate
-		if _, err := cmd.Process.Wait(); err != nil {
-			return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
-		}
-
-		if err := engine.CloseDBs(); err != nil {
-			return fmt.Errorf("failed to close dbs in engine: %w", err)
-		}
-
-		if syncErr == nil {
-			break
-		}
-
-		if syncErr.Error() == "UPGRADE" && strings.HasSuffix(binaryPath, "cosmovisor") {
-			if err := engine.StopProxyApp(); err != nil {
-				return fmt.Errorf("failed to stop proxy app: %w", err)
-			}
-
-			cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, strings.Split(appFlags, ","))
-			if err != nil {
-				return fmt.Errorf("failed to start binary process: %w", err)
-			}
-
-			if err := engine.OpenDBs(); err != nil {
-				return fmt.Errorf("failed to open dbs in engine: %w", err)
-			}
-
-			continue
-		}
-
-		return fmt.Errorf("failed to start block-sync executor: %w", syncErr)
+	if err := blocksync.StartBlockSyncExecutor(cmd, binaryPath, engine, chainRest, storageRest, nil, blockPoolId, targetHeight, snapshotPoolId, config.Interval, pruning, skipWaiting, nil, debug, appFlags); err != nil {
+		return fmt.Errorf("failed to start block sync executor: %w", err)
 	}
 
 	logger.Info().Msg(fmt.Sprintf("finished serve-snapshots"))
