@@ -125,11 +125,7 @@ func CreateMempool(config *Config, proxyApp proxy.AppConns, state sm.State) memp
 	return mp
 }
 
-func CreateEvidenceReactor(config *Config, stateStore sm.Store, blockStore *store.BlockStore) (*evidence.Reactor, *evidence.Pool, error) {
-	evidenceDB, err := DefaultDBProvider(&DBContext{ID: "evidence", Config: config})
-	if err != nil {
-		return nil, nil, err
-	}
+func CreateEvidenceReactor(evidenceDB dbm.DB, stateStore sm.Store, blockStore *store.BlockStore) (*evidence.Reactor, *evidence.Pool, error) {
 	evidenceLogger := cometLogger.With("module", "evidence")
 	evidencePool, err := evidence.NewPool(evidenceDB, stateStore, blockStore)
 	if err != nil {

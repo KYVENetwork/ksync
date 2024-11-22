@@ -12,8 +12,6 @@ import (
 )
 
 func init() {
-	stateSyncCmd.Flags().StringVarP(&engine, "engine", "e", "", fmt.Sprintf("consensus engine of the binary by default %s is used, list all engines with \"ksync engines\"", utils.DefaultEngine))
-
 	stateSyncCmd.Flags().StringVarP(&binaryPath, "binary", "b", "", "binary path of node to be synced, if not provided the binary has to be started externally with --with-tendermint=false")
 
 	stateSyncCmd.Flags().StringVarP(&homePath, "home", "h", "", "home directory")

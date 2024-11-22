@@ -55,6 +55,7 @@ type Engine struct {
 
 	state         tmState.State
 	prevBlock     *Block
+	prevValue     []byte
 	proxyApp      proxy.AppConns
 	mempool       *mempool.CListMempool
 	evidencePool  *evidence.Pool
@@ -157,6 +158,14 @@ func (engine *Engine) CloseDBs() error {
 
 func (engine *Engine) GetHomePath() string {
 	return engine.HomePath
+}
+
+func (engine *Engine) GetRpcServerPort() int64 {
+	return engine.RpcServerPort
+}
+
+func (engine *Engine) GetPrevValue() []byte {
+	return engine.prevValue
 }
 
 func (engine *Engine) GetProxyAppAddress() string {
@@ -286,12 +295,13 @@ func (engine *Engine) ApplyBlock(runtime *string, value []byte) error {
 			return fmt.Errorf("failed to unmarshal value: %w", err)
 		}
 	} else {
-		return fmt.Errorf("runtime %s unknown", runtime)
+		return fmt.Errorf("runtime %s unknown", *runtime)
 	}
 
 	// if the previous block is not defined we continue
 	if engine.prevBlock == nil {
 		engine.prevBlock = block
+		engine.prevValue = value
 		return nil
 	}
 
@@ -315,13 +325,14 @@ func (engine *Engine) ApplyBlock(runtime *string, value []byte) error {
 	// execute block against app
 	state, _, err := engine.blockExecutor.ApplyBlock(engine.state, blockId, engine.prevBlock)
 	if err != nil {
-		engine.prevBlock = block
+		engine.prevValue = value
 		return fmt.Errorf("failed to apply block at height %d: %w", engine.prevBlock.Height, err)
 	}
 
 	// update values for next round
 	engine.state = state
 	engine.prevBlock = block
+	engine.prevValue = value
 
 	return nil
 }

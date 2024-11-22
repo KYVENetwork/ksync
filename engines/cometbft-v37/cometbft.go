@@ -47,11 +47,14 @@ type Engine struct {
 	stateDB    db.DB
 	stateStore tmState.Store
 
+	evidenceDB db.DB
+
 	genDoc           *GenesisDoc
 	privValidatorKey crypto.PubKey
 
 	state         tmState.State
 	prevBlock     *Block
+	prevValue     []byte
 	proxyApp      proxy.AppConns
 	mempool       *mempool.Mempool
 	evidencePool  *evidence.Pool
@@ -120,6 +123,13 @@ func (engine *Engine) OpenDBs() error {
 	engine.stateDB = stateDB
 	engine.stateStore = stateStore
 
+	evidenceDB, err := DefaultDBProvider(&DBContext{ID: "evidence", Config: engine.config})
+	if err != nil {
+		return fmt.Errorf("failed to open evidenceDB: %w", err)
+	}
+
+	engine.evidenceDB = evidenceDB
+
 	engine.areDBsOpen = true
 	return nil
 }
@@ -137,12 +147,24 @@ func (engine *Engine) CloseDBs() error {
 		return fmt.Errorf("failed to close stateDB: %w", err)
 	}
 
+	if err := engine.evidenceDB.Close(); err != nil {
+		return fmt.Errorf("failed to close evidenceDB: %w", err)
+	}
+
 	engine.areDBsOpen = false
 	return nil
 }
 
 func (engine *Engine) GetHomePath() string {
 	return engine.HomePath
+}
+
+func (engine *Engine) GetRpcServerPort() int64 {
+	return engine.RpcServerPort
+}
+
+func (engine *Engine) GetPrevValue() []byte {
+	return engine.prevValue
 }
 
 func (engine *Engine) GetProxyAppAddress() string {
@@ -232,7 +254,7 @@ func (engine *Engine) DoHandshake() error {
 
 	mempool := CreateMempool(engine.config, engine.proxyApp, state)
 
-	_, evidencePool, err := CreateEvidenceReactor(engine.config, engine.stateStore, engine.blockStore)
+	_, evidencePool, err := CreateEvidenceReactor(engine.evidenceDB, engine.stateStore, engine.blockStore)
 	if err != nil {
 		return fmt.Errorf("failed to create evidence reactor: %w", err)
 	}
@@ -280,6 +302,7 @@ func (engine *Engine) ApplyBlock(runtime *string, value []byte) error {
 	// if the previous block is not defined we continue
 	if engine.prevBlock == nil {
 		engine.prevBlock = block
+		engine.prevValue = value
 		return nil
 	}
 
@@ -307,12 +330,14 @@ func (engine *Engine) ApplyBlock(runtime *string, value []byte) error {
 	// execute block against app
 	state, _, err := engine.blockExecutor.ApplyBlock(engine.state, blockId, engine.prevBlock)
 	if err != nil {
+		engine.prevValue = value
 		return fmt.Errorf("failed to apply block at height %d: %w", engine.prevBlock.Height, err)
 	}
 
 	// update values for next round
 	engine.state = state
 	engine.prevBlock = block
+	engine.prevValue = value
 
 	return nil
 }

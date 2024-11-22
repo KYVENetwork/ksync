@@ -8,8 +8,6 @@ import (
 )
 
 func init() {
-	resetCmd.Flags().StringVarP(&engine, "engine", "e", "", fmt.Sprintf("consensus engine of the binary by default %s is used, list all engines with \"ksync engines\"", utils.DefaultEngine))
-
 	resetCmd.Flags().StringVar(&homePath, "home", "", "home directory")
 	if err := resetCmd.MarkFlagRequired("home"); err != nil {
 		panic(fmt.Errorf("flag 'home' should be required: %w", err))

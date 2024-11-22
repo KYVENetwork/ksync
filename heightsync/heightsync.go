@@ -137,18 +137,10 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 			return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
 		}
 
-		// wait until process has properly shut down
-		// TODO: can remove?
-		time.Sleep(10 * time.Second)
-
 		cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, args)
 		if err != nil {
 			return fmt.Errorf("failed to start binary process: %w", err)
 		}
-
-		// wait until process has properly started
-		// TODO: can remove?
-		time.Sleep(10 * time.Second)
 
 		if err := engine.OpenDBs(); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))

@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 )
 
 var (
@@ -146,18 +145,10 @@ func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, ch
 				return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
 			}
 
-			// wait until process has properly shut down
-			// TODO: remove?
-			time.Sleep(10 * time.Second)
-
 			cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, snapshotArgs)
 			if err != nil {
 				return fmt.Errorf("failed to start process: %w", err)
 			}
-
-			// wait until process has properly started
-			// TODO: remove?
-			time.Sleep(10 * time.Second)
 
 			if err := engine.OpenDBs(); err != nil {
 				logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))

@@ -18,6 +18,12 @@ type Engine interface {
 	// GetHomePath gets the home path of the config and data folder
 	GetHomePath() string
 
+	// GetRpcServerPort gets the rpc server port
+	GetRpcServerPort() int64
+
+	// GetPrevValue gets the previous block in raw form
+	GetPrevValue() []byte
+
 	// GetProxyAppAddress gets the proxy app address of the TSP connection
 	GetProxyAppAddress() string
 

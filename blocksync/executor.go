@@ -5,6 +5,7 @@ import (
 	"github.com/KYVENetwork/ksync/backup"
 	"github.com/KYVENetwork/ksync/collectors/blocks"
 	"github.com/KYVENetwork/ksync/collectors/pool"
+	"github.com/KYVENetwork/ksync/engines"
 	stateSyncHelpers "github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
@@ -26,11 +27,13 @@ func StartBlockSyncExecutor(cmd *exec.Cmd, binaryPath string, engine types.Engin
 	}
 
 	var poolResponse *types.PoolResponse
+	var runtime *string
 	if blockPoolId != nil {
 		poolResponse, err = pool.GetPoolInfo(chainRest, *blockPoolId)
 		if err != nil {
 			return fmt.Errorf("failed to get pool info: %w", err)
 		}
+		runtime = &poolResponse.Pool.Data.Runtime
 	}
 
 	// start block collector. we must exit if snapshot interval is zero
@@ -58,8 +61,32 @@ func StartBlockSyncExecutor(cmd *exec.Cmd, binaryPath string, engine types.Engin
 		}
 
 		if syncErr.Error() == "UPGRADE" && strings.HasSuffix(binaryPath, "cosmovisor") {
+			logger.Info().Msg("detected chain upgrade, restarting application")
+
 			if err := engine.StopProxyApp(); err != nil {
 				return fmt.Errorf("failed to stop proxy app: %w", err)
+			}
+
+			prevValue := engine.GetPrevValue()
+
+			engineName := utils.GetEnginePathFromBinary(binaryPath)
+			logger.Info().Msgf("loaded engine \"%s\" from binary path", engineName)
+
+			engine = engines.EngineFactory(engineName, engine.GetHomePath(), engine.GetRpcServerPort())
+
+			if blockPoolId != nil {
+				poolResponse, err = pool.GetPoolInfo(chainRest, *blockPoolId)
+				if err != nil {
+					return fmt.Errorf("failed to get pool info: %w", err)
+				}
+			}
+
+			// here we got the prevValue (last raw block applied against the app) and insert
+			// it into the new engine so there is no gap in the blocks
+			if prevValue != nil {
+				if err := engine.ApplyBlock(runtime, prevValue); err != nil {
+					return fmt.Errorf("failed to apply block: %w", err)
+				}
 			}
 
 			cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, strings.Split(appFlags, ","))
