@@ -42,8 +42,10 @@ func StartBlockSyncExecutor(cmd *exec.Cmd, binaryPath string, engine types.Engin
 	for {
 		syncErr := sync(engine, chainRest, blockPoolId, continuationHeight, targetHeight, snapshotPoolId, snapshotInterval, pruning, skipWaiting, backupCfg)
 
+		// TODO: how can we improve this, maybe send multiple SIGTERM signals while waiting?
+		time.Sleep(5 * time.Second)
+
 		// stop binary process thread
-		// TODO: this does not work in docker??
 		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 			return fmt.Errorf("failed to stop process by process id: %w", err)
 		}

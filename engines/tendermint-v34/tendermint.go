@@ -26,7 +26,7 @@ import (
 	"net/http"
 	"time"
 
-	db "github.com/tendermint/tm-db"
+	db "github.com/cometbft/cometbft-db"
 	"net/url"
 	"os"
 	"strconv"
@@ -57,7 +57,7 @@ type Engine struct {
 	prevBlock     *Block
 	prevValue     []byte
 	proxyApp      proxy.AppConns
-	mempool       *mempool.CListMempool
+	mempool       *mempool.Mempool
 	evidencePool  *evidence.Pool
 	blockExecutor *tmState.BlockExecutor
 }
@@ -230,7 +230,9 @@ func (engine *Engine) GetContinuationHeight() (int64, error) {
 }
 
 func (engine *Engine) DoHandshake() error {
-	state, err := tmState.NewStore(engine.stateDB).LoadFromDBOrGenesisDoc(engine.genDoc)
+	state, err := tmState.NewStore(engine.stateDB, tmState.StoreOptions{
+		DiscardABCIResponses: false,
+	}).LoadFromDBOrGenesisDoc(engine.genDoc)
 	if err != nil {
 		return fmt.Errorf("failed to load state from genDoc: %w", err)
 	}
@@ -251,14 +253,14 @@ func (engine *Engine) DoHandshake() error {
 
 	engine.state = state
 
-	_, mempool := CreateMempoolAndMempoolReactor(engine.config, engine.proxyApp, state)
+	mempool := CreateMempoolAndMempoolReactor(engine.config, engine.proxyApp, state)
 
 	_, evidencePool, err := CreateEvidenceReactor(engine.evidenceDB, engine.stateStore, engine.blockStore)
 	if err != nil {
 		return fmt.Errorf("failed to create evidence reactor: %w", err)
 	}
 
-	engine.mempool = mempool
+	engine.mempool = &mempool
 	engine.evidencePool = evidencePool
 	engine.blockExecutor = tmState.NewBlockExecutor(
 		engine.stateStore,
@@ -559,7 +561,7 @@ func (engine *Engine) StartRPCServer() {
 		engine.state.Copy(),
 		engine.blockExecutor,
 		engine.blockStore,
-		engine.mempool,
+		*engine.mempool,
 		engine.evidencePool,
 	), false, cs.ReactorMetrics(cs.NopMetrics()))
 
