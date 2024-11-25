@@ -32,11 +32,11 @@ RUN wget https://github.com/KYVENetwork/chain/releases/download/v1.5.0/kyved_mai
 
 RUN rm kyved
 
-# COPY go.mod go.sum ./
-# RUN go mod download
+COPY go.mod go.sum ./
+RUN go mod download
 
 COPY . .
 
-# RUN make build
+RUN make build
 
 CMD ["/bin/sh", "-c", "if [ ! -f /app/.first_run ]; then echo 'First run detected. Initializing...'; touch /app/.first_run; /app/build/ksync height-sync -b cosmovisor -c kaon-1 --opt-out -a -y -r -d -t ${TARGET_HEIGHT}; else echo 'Subsequent run detected. Skipping initialization...'; fi && exec cosmovisor run start --rpc.laddr='tcp://0.0.0.0:26657' --api.enable=true"]
