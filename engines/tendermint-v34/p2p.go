@@ -127,6 +127,27 @@ func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 	}
 }
 
+func (bcR *BlockchainReactor) ReceiveEnvelope(e p2p.Envelope) {
+	if err := bc.ValidateMsg(e.Message); err != nil {
+		bcR.Logger.Error("Peer sent us invalid msg", "peer", e.Src, "msg", e.Message, "err", err)
+		bcR.Switch.StopPeerForError(e.Src, err)
+		return
+	}
+
+	switch msg := e.Message.(type) {
+	case *bcproto.StatusRequest:
+		logger.Info().Msg("Incoming status request")
+		bcR.sendStatusToPeer(e.Src)
+	case *bcproto.BlockRequest:
+		logger.Info().Int64("height", msg.Height).Msg("Incoming block request")
+		bcR.sendBlockToPeer(msg, e.Src)
+	case *bcproto.StatusResponse:
+		logger.Info().Int64("base", msg.Base).Int64("height", msg.Height).Msgf("Incoming status response")
+	default:
+		logger.Error().Msg(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
+	}
+}
+
 func MakeNodeInfo(
 	config *Config,
 	nodeKey *p2p.NodeKey,
