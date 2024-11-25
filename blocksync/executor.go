@@ -11,7 +11,6 @@ import (
 	"github.com/KYVENetwork/ksync/utils"
 	"os/exec"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -42,17 +41,8 @@ func StartBlockSyncExecutor(cmd *exec.Cmd, binaryPath string, engine types.Engin
 	for {
 		syncErr := sync(engine, chainRest, blockPoolId, continuationHeight, targetHeight, snapshotPoolId, snapshotInterval, pruning, skipWaiting, backupCfg)
 
-		// TODO: how can we improve this, maybe send multiple SIGTERM signals while waiting?
-		time.Sleep(5 * time.Second)
-
-		// stop binary process thread
-		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-			return fmt.Errorf("failed to stop process by process id: %w", err)
-		}
-
-		// wait for process to properly terminate
-		if _, err := cmd.Process.Wait(); err != nil {
-			return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
+		if err := utils.StopBinaryProcess(cmd); err != nil {
+			return fmt.Errorf("failed to stop binary process: %w", err)
 		}
 
 		if err := engine.CloseDBs(); err != nil {

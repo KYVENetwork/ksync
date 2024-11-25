@@ -8,7 +8,6 @@ import (
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -100,14 +99,8 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 
 	// start p2p executors and try to execute the first block on the app
 	if err := engine.ApplyFirstBlockOverP2P(poolResponse.Pool.Data.Runtime, item.Value, nextItem.Value); err != nil {
-		// stop binary process thread
-		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-			return fmt.Errorf("failed to stop process by process id: %w", err)
-		}
-
-		// wait for process to properly terminate
-		if _, err := cmd.Process.Wait(); err != nil {
-			return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
+		if err := utils.StopBinaryProcess(cmd); err != nil {
+			return fmt.Errorf("failed to stop binary process: %w", err)
 		}
 
 		return fmt.Errorf("failed to start p2p executor: %w", err)
@@ -131,14 +124,8 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 
 	logger.Info().Msg("node was bootstrapped. Cleaning up")
 
-	// stop binary process thread
-	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-		return fmt.Errorf("failed to stop process by process id: %w", err)
-	}
-
-	// wait for process to properly terminate
-	if _, err := cmd.Process.Wait(); err != nil {
-		return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
+	if err := utils.StopBinaryProcess(cmd); err != nil {
+		return fmt.Errorf("failed to stop binary process: %w", err)
 	}
 
 	logger.Info().Msg("successfully bootstrapped node. Continuing with syncing blocks over DB")

@@ -9,7 +9,6 @@ import (
 	"github.com/KYVENetwork/ksync/utils"
 	"os/exec"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -90,14 +89,8 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 		if err := statesync.StartStateSyncExecutor(engine, chainRest, storageRest, snapshotPoolId, snapshotBundleId); err != nil {
 			logger.Error().Msg(fmt.Sprintf("failed to apply state-sync: %s", err))
 
-			// stop binary process thread
-			if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-				return fmt.Errorf("failed to stop process by process id: %w", err)
-			}
-
-			// wait for process to properly terminate
-			if _, err := cmd.Process.Wait(); err != nil {
-				return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
+			if err := utils.StopBinaryProcess(cmd); err != nil {
+				return fmt.Errorf("failed to stop binary process: %w", err)
 			}
 
 			return fmt.Errorf("failed to start state-sync executor: %w", err)
@@ -127,14 +120,8 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 		e := engine.CloseDBs()
 		_ = e
 
-		// stop binary process thread
-		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-			return fmt.Errorf("failed to stop process by process id: %w", err)
-		}
-
-		// wait for process to properly terminate
-		if _, err := cmd.Process.Wait(); err != nil {
-			return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
+		if err := utils.StopBinaryProcess(cmd); err != nil {
+			return fmt.Errorf("failed to stop binary process: %w", err)
 		}
 
 		cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, args)
@@ -143,19 +130,7 @@ func StartHeightSyncWithBinary(engine types.Engine, binaryPath, homePath, chainI
 		}
 
 		if err := engine.OpenDBs(); err != nil {
-			logger.Error().Msg(fmt.Sprintf("failed to open dbs in engine: %s", err))
-
-			// stop binary process thread
-			if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-				return fmt.Errorf("failed to stop process by process id: %w", err)
-			}
-
-			// wait for process to properly terminate
-			if _, err := cmd.Process.Wait(); err != nil {
-				return fmt.Errorf("failed to wait for prcess with id %d to be terminated: %w", cmd.Process.Pid, err)
-			}
-
-			return fmt.Errorf("failed to close dbs in engine: %w", err)
+			return fmt.Errorf("failed to open dbs in engine: %w", err)
 		}
 	}
 

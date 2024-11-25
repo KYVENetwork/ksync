@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
+	"time"
 )
 
 func GetHomePathFromBinary(binaryPath string) string {
@@ -180,4 +182,24 @@ func StartBinaryProcessForP2P(engine types.Engine, binaryPath string, debug bool
 	}
 
 	return cmd, nil
+}
+
+func StopBinaryProcess(cmd *exec.Cmd) error {
+	quit := false
+	defer func() {
+		quit = true
+	}()
+
+	go func() {
+		for !quit {
+			_ = cmd.Process.Signal(syscall.SIGTERM)
+			time.Sleep(5 * time.Second)
+		}
+	}()
+
+	if _, err := cmd.Process.Wait(); err != nil {
+		return fmt.Errorf("failed to wait for process with id %d to be terminated: %w", cmd.Process.Pid, err)
+	}
+
+	return nil
 }

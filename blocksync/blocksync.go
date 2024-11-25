@@ -74,7 +74,6 @@ func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId
 		return fmt.Errorf("failed to bootstrap node: %w", err)
 	}
 
-	// start binary process thread
 	cmd, err := utils.StartBinaryProcessForDB(engine, binaryPath, debug, strings.Split(appFlags, ","))
 	if err != nil {
 		return fmt.Errorf("failed to start binary process: %w", err)
