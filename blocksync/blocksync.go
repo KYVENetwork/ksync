@@ -81,11 +81,6 @@ func Start(flags types.KsyncFlags) error {
 		return fmt.Errorf("failed to init cosmos app: %w", err)
 	}
 
-	blockPoolId, err := app.Source.GetSourceBlockPoolId()
-	if err != nil {
-		return fmt.Errorf("failed to get block pool id: %w", err)
-	}
-
 	// TODO: remove backups?
 	backupCfg, err := backup.GetBackupConfig(homePath, backupInterval, backupKeepRecent, backupCompression, backupDest)
 	if err != nil {

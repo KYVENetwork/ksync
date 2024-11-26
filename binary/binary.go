@@ -29,6 +29,8 @@ type CosmosApp struct {
 	Source          *source.Source
 	ConsensusEngine types.Engine
 	BlockCollector  types.BlockCollector
+	// TODO: build collector for snapshots
+	SnapshotCollector types.BlockCollector
 }
 
 // TODO: add logs
@@ -62,17 +64,24 @@ func NewCosmosApp(flags types.KsyncFlags) (*CosmosApp, error) {
 		return nil, fmt.Errorf("failed to init source: %w", err)
 	}
 
-	// TODO: init block collector here or later -> probably init collector in sync type file accordingly
-	// TODO: also add snapshots.go collector
-	if flags.BlockRpc == "" {
-		app.BlockCollector, err = collector.NewKyveBlockCollector(0, flags.ChainRest)
-		if err != nil {
-			return nil, fmt.Errorf("failed to init kyve block collector: %w", err)
-		}
-	} else {
+	// we always get info about the block pool here since for every
+	// source there is an existing block pool
+	if flags.BlockRpc != "" {
 		app.BlockCollector, err = collector.NewRpcBlockCollector(flags.BlockRpc, flags.BlockRpcReqTimeout)
 		if err != nil {
 			return nil, fmt.Errorf("failed to init rpc block collector: %w", err)
+		}
+	} else {
+		// if there is no entry in the source registry for the source
+		// and if no block pool id was provided with the flags it would fail here
+		blockPoolId, err := app.Source.GetSourceBlockPoolId()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get block pool id: %w", err)
+		}
+
+		app.BlockCollector, err = collector.NewKyveBlockCollector(blockPoolId, flags.ChainRest, flags.StorageRest)
+		if err != nil {
+			return nil, fmt.Errorf("failed to init kyve block collector: %w", err)
 		}
 	}
 
