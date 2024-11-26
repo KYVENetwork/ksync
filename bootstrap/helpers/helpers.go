@@ -10,6 +10,8 @@ import (
 	"strings"
 )
 
+// TODO: move to engine
+
 func GetAppHeightFromRPC(homePath string) (height int64, err error) {
 	config, err := tendermint_v34.LoadConfig(homePath)
 	if err != nil {
@@ -39,6 +41,8 @@ func GetAppHeightFromRPC(homePath string) (height int64, err error) {
 
 	return
 }
+
+// TODO: remove
 
 func GetBlockHeightFromDB(homePath string) (int64, error) {
 	config, err := tendermint_v34.LoadConfig(homePath)

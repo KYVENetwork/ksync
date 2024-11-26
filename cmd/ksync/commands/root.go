@@ -1,10 +1,13 @@
 package commands
 
 import (
+	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 	"os"
 )
+
+var flags types.KsyncFlags
 
 var (
 	engine                  string
@@ -23,6 +26,7 @@ var (
 	snapshotPort            int64
 	blockRpcReqTimeout      int64
 	source                  string
+	registryUrl             string
 	pruning                 bool
 	keepSnapshots           bool
 	skipWaiting             bool

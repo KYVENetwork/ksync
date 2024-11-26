@@ -48,6 +48,11 @@ type DataItem struct {
 
 type Bundle = []DataItem
 
+type BlockItem struct {
+	Height int64
+	Block  json.RawMessage
+}
+
 type Pagination struct {
 	NextKey []byte `json:"next_key"`
 }
@@ -156,4 +161,38 @@ type SourceRegistry struct {
 type BlockRpcConfig struct {
 	Endpoint       string
 	RequestTimeout time.Duration
+}
+
+type KsyncFlags struct {
+	Engine                  string
+	BinaryPath              string
+	HomePath                string
+	ChainId                 string
+	ChainRest               string
+	StorageRest             string
+	BlockRpc                string
+	SnapshotPoolId          string
+	BlockPoolId             string
+	StartHeight             int64
+	TargetHeight            int64
+	RpcServer               bool
+	RpcServerPort           int64
+	SnapshotPort            int64
+	BlockRpcReqTimeout      int64
+	Source                  string
+	RegistryUrl             string
+	Pruning                 bool
+	KeepSnapshots           bool
+	SkipWaiting             bool
+	BackupInterval          int64
+	BackupKeepRecent        int64
+	BackupCompression       string
+	BackupDest              string
+	AppFlags                string
+	AutoSelectBinaryVersion bool
+	Reset                   bool
+	KeepAddrBook            bool
+	OptOut                  bool
+	Debug                   bool
+	Y                       bool
 }

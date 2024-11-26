@@ -1,44 +1,45 @@
 package types
 
-// Engine is an interface defining common behaviour for each consensus engine.
-// Currently, both tendermint-v34 and cometbft-v38 are supported
-type Engine interface {
-	// GetName gets the engine name
-	GetName() string
-
-	// LoadConfig loads and sets the config
-	LoadConfig() error
-
+type Store interface {
 	// OpenDBs opens the relevant blockstore and state DBs
 	OpenDBs() error
 
 	// CloseDBs closes the relevant blockstore and state DBs
 	CloseDBs() error
 
-	// GetHomePath gets the home path of the config and data folder
-	GetHomePath() string
+	// GetHeight gets the latest height stored in the blockstore.db
+	GetHeight() int64
 
-	// GetRpcServerPort gets the rpc server port
-	GetRpcServerPort() int64
+	// GetBaseHeight gets the earliest height stored in the blockstore.db
+	GetBaseHeight() int64
 
-	// GetPrevValue gets the previous block in raw form
-	GetPrevValue() []byte
+	// GetBlock loads the requested block from the blockstore.db
+	GetBlock(height int64) ([]byte, error)
 
-	// GetProxyAppAddress gets the proxy app address of the TSP connection
-	GetProxyAppAddress() string
+	// GetState rebuilds the requested state from the blockstore and state.db
+	GetState(height int64) ([]byte, error)
 
+	// GetSeenCommit loads the seen commit from the blockstore.db
+	GetSeenCommit(height int64) ([]byte, error)
+
+	// BootstrapState initializes the tendermint state
+	BootstrapState(value []byte) error
+
+	// PruneBlocks prunes blocks from the block store and state store
+	// from the earliest found base height to the specified height
+	PruneBlocks(toHeight int64) error
+
+	// ResetAll removes all the data and WAL, reset this node's validator
+	// to genesis state
+	ResetAll(keepAddrBook bool) error
+}
+
+type ProxyApp interface {
 	// StartProxyApp starts the proxy app connections to the app
 	StartProxyApp() error
 
 	// StopProxyApp stops the proxy app connections to the app
 	StopProxyApp() error
-
-	// GetChainId gets the chain id of the app
-	GetChainId() (string, error)
-
-	// GetContinuationHeight gets the block height from the app at which
-	// KSYNC should proceed block-syncing
-	GetContinuationHeight() (int64, error)
 
 	// DoHandshake does a handshake with the app and needs to be called
 	// before ApplyBlock
@@ -52,10 +53,101 @@ type Engine interface {
 	// which is necessary, if the genesis file is bigger than 100MB
 	ApplyFirstBlockOverP2P(runtime string, value, nextValue []byte) error
 
+	// GetAppHeight gets over ABCI the latest block height tracked by the app
+	GetAppHeight() (int64, error)
+
+	// GetSnapshots gets the available snapshots over ABCI from the app
+	GetSnapshots() ([]byte, error)
+
+	// IsSnapshotAvailable gets available snapshots over ABCI from the app
+	// and checks if the requested snapshot is available
+	IsSnapshotAvailable(height int64) (bool, error)
+
+	// GetSnapshotChunk gets the requested snapshot chunk over ABCI from the
+	// app
+	GetSnapshotChunk(height, format, chunk int64) ([]byte, error)
+
+	// OfferSnapshot offers a snapshot over ABCI to the app
+	OfferSnapshot(value []byte) (string, uint32, error)
+
+	// ApplySnapshotChunk applies a snapshot chunk over ABCI to the app
+	ApplySnapshotChunk(chunkIndex uint32, value []byte) (string, error)
+}
+
+type BlockCollector interface {
+	GetStartHeight() int64
+	GetEndHeight() int64
+
+	GetBlockPair(height int64) ([]byte, []byte, error)
+	StreamBlocks(itemCh chan<- BlockItem, errorCh chan<- error, continuationHeight, targetHeight int64, exitOnTargetHeight bool)
+}
+
+// Engine is an interface defining common behaviour for each consensus engine.
+// Currently, both tendermint-v34 and cometbft-v38 are supported
+type Engine interface {
+	// GetName gets the engine name
+	// TODO: remove
+	GetName() string
+
+	// LoadConfig loads and sets the config
+	// TODO: remove to NewEngine method
+	LoadConfig() error
+
+	// OpenDBs opens the relevant blockstore and state DBs
+	OpenDBs() error
+
+	// CloseDBs closes the relevant blockstore and state DBs
+	CloseDBs() error
+
+	// GetHomePath gets the home path of the config and data folder
+	// TODO: remove
+	GetHomePath() string
+
+	// GetRpcServerPort gets the rpc server port
+	// TODO: remove
+	GetRpcServerPort() int64
+
+	// GetPrevValue gets the previous block in raw form
+	// TODO: remove
+	GetPrevValue() []byte
+
+	// GetProxyAppAddress gets the proxy app address of the TSP connection
+	GetProxyAppAddress() string
+
+	// StartProxyApp starts the proxy app connections to the app
+	StartProxyApp() error
+
+	// StopProxyApp stops the proxy app connections to the app
+	StopProxyApp() error
+
+	// GetChainId gets the chain id of the app
+	// TODO: remove
+	GetChainId() (string, error)
+
+	// GetContinuationHeight gets the block height from the app at which
+	// KSYNC should proceed block-syncing
+	// TODO: remove
+	GetContinuationHeight() (int64, error)
+
+	// DoHandshake does a handshake with the app and needs to be called
+	// before ApplyBlock
+	DoHandshake() error
+
+	// ApplyBlock takes the block in the raw format and applies it against
+	// the app
+	// TODO: unpack value before apply block depending on runtime
+	ApplyBlock(runtime *string, value []byte) error
+
+	// ApplyFirstBlockOverP2P applies the first block over the P2P reactor
+	// which is necessary, if the genesis file is bigger than 100MB
+	ApplyFirstBlockOverP2P(runtime string, value, nextValue []byte) error
+
 	// GetGenesisPath gets the file path to the genesis file
+	// TODO: remove
 	GetGenesisPath() string
 
 	// GetGenesisHeight gets the initial height defined by the genesis file
+	// TODO: remove
 	GetGenesisHeight() (int64, error)
 
 	// GetHeight gets the latest height stored in the blockstore.db

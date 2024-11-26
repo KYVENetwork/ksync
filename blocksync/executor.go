@@ -3,13 +3,13 @@ package blocksync
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/backup"
+	"github.com/KYVENetwork/ksync/binary"
 	"github.com/KYVENetwork/ksync/collectors/blocks"
 	"github.com/KYVENetwork/ksync/collectors/pool"
 	"github.com/KYVENetwork/ksync/engines"
 	stateSyncHelpers "github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
-	"os/exec"
 	"strings"
 	"time"
 )
@@ -19,56 +19,42 @@ var (
 	errorCh = make(chan error)
 )
 
-func StartBlockSyncExecutor(cmd *exec.Cmd, binaryPath string, engine types.Engine, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, targetHeight int64, snapshotPoolId, snapshotInterval int64, pruning, skipWaiting bool, backupCfg *types.BackupConfig, debug bool, appFlags string) (err error) {
-	continuationHeight, err := engine.GetContinuationHeight()
-	if err != nil {
-		return fmt.Errorf("failed to get continuation height from engine: %w", err)
-	}
-
+func StartBlockSyncExecutor(app binary.CosmosApp, blockPoolId, continuationHeight int64) (err error) {
 	var poolResponse *types.PoolResponse
 	var runtime *string
-	if blockPoolId != nil {
-		poolResponse, err = pool.GetPoolInfo(chainRest, *blockPoolId)
-		if err != nil {
-			return fmt.Errorf("failed to get pool info: %w", err)
-		}
-		runtime = &poolResponse.Pool.Data.Runtime
+	poolResponse, err = pool.GetPoolInfo(app.GetFlags().ChainRest, blockPoolId)
+	if err != nil {
+		return fmt.Errorf("failed to get pool info: %w", err)
 	}
+	runtime = &poolResponse.Pool.Data.Runtime
 
 	// start block collector. we must exit if snapshot interval is zero
-	go blocks.StartBlockCollector(itemCh, errorCh, chainRest, storageRest, blockRpcConfig, poolResponse, continuationHeight, targetHeight, snapshotInterval == 0)
+	go blocks.StartBlockCollector(itemCh, errorCh, app.GetFlags().ChainRest, app.GetFlags().StorageRest, blockRpcConfig, poolResponse, continuationHeight, app.GetFlags().TargetHeight, snapshotInterval == 0)
 
 	for {
 		syncErr := sync(engine, chainRest, blockPoolId, continuationHeight, targetHeight, snapshotPoolId, snapshotInterval, pruning, skipWaiting, backupCfg)
 
-		if err := utils.StopBinaryProcess(cmd); err != nil {
-			return fmt.Errorf("failed to stop binary process: %w", err)
-		}
-
-		if err := engine.CloseDBs(); err != nil {
-			return fmt.Errorf("failed to close dbs in engine: %w", err)
+		if err := app.StopAll(); err != nil {
+			return err
 		}
 
 		if syncErr == nil {
 			break
 		}
 
-		if syncErr.Error() == "UPGRADE" && strings.HasSuffix(binaryPath, "cosmovisor") {
+		if syncErr.Error() == "UPGRADE" && strings.HasSuffix(app.GetBinaryPath(), "cosmovisor") {
 			logger.Info().Msg("detected chain upgrade, restarting application")
 
-			if err := engine.StopProxyApp(); err != nil {
-				return fmt.Errorf("failed to stop proxy app: %w", err)
-			}
+			prevValue := app.ConsensusEngine.GetPrevValue()
 
-			prevValue := engine.GetPrevValue()
-
-			engineName := utils.GetEnginePathFromBinary(binaryPath)
+			engineName := utils.GetEnginePathFromBinary(app.GetBinaryPath())
 			logger.Info().Msgf("loaded engine \"%s\" from binary path", engineName)
 
-			engine = engines.EngineFactory(engineName, engine.GetHomePath(), engine.GetRpcServerPort())
+			// TODO: reload engine method
+			engine = engines.EngineFactory(engineName, app.GetHomePath(), app.ConsensusEngine.GetRpcServerPort())
 
 			if blockPoolId != nil {
-				poolResponse, err = pool.GetPoolInfo(chainRest, *blockPoolId)
+				poolResponse, err = pool.GetPoolInfo(app.GetFlags().ChainRest, blockPoolId)
 				if err != nil {
 					return fmt.Errorf("failed to get pool info: %w", err)
 				}
@@ -77,18 +63,13 @@ func StartBlockSyncExecutor(cmd *exec.Cmd, binaryPath string, engine types.Engin
 			// here we got the prevValue (last raw block applied against the app) and insert
 			// it into the new engine so there is no gap in the blocks
 			if prevValue != nil {
-				if err := engine.ApplyBlock(runtime, prevValue); err != nil {
+				if err := app.ConsensusEngine.ApplyBlock(runtime, prevValue); err != nil {
 					return fmt.Errorf("failed to apply block: %w", err)
 				}
 			}
 
-			cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, strings.Split(appFlags, ","))
-			if err != nil {
-				return fmt.Errorf("failed to start binary process: %w", err)
-			}
-
-			if err := engine.OpenDBs(); err != nil {
-				return fmt.Errorf("failed to open dbs in engine: %w", err)
+			if err := app.StartAll(); err != nil {
+				return err
 			}
 
 			continue
@@ -104,10 +85,6 @@ func sync(engine types.Engine, chainRest string, blockPoolId *int64, continuatio
 	appHeight, err := engine.GetAppHeight()
 	if err != nil {
 		return fmt.Errorf("failed to get app height from engine: %w", err)
-	}
-
-	if err := engine.StartProxyApp(); err != nil {
-		return fmt.Errorf("failed to start proxy app: %w", err)
 	}
 
 	if err := engine.DoHandshake(); err != nil {

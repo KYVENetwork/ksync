@@ -3,12 +3,14 @@ package blocksync
 import (
 	"errors"
 	"fmt"
+	"github.com/KYVENetwork/ksync/backup"
+	"github.com/KYVENetwork/ksync/binary"
 	"github.com/KYVENetwork/ksync/blocksync/helpers"
 	"github.com/KYVENetwork/ksync/bootstrap"
+	"github.com/KYVENetwork/ksync/sources"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"strings"
-	"time"
 )
 
 var (
@@ -67,39 +69,79 @@ func PerformBlockSyncValidationChecks(chainRest string, blockRpcConfig *types.Bl
 	return nil
 }
 
-func StartBlockSyncWithBinary(engine types.Engine, binaryPath, homePath, chainId, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, blockPoolId *int64, targetHeight int64, backupCfg *types.BackupConfig, appFlags string, rpcServer, optOut, debug bool) error {
+func Start(flags types.KsyncFlags) error {
 	logger.Info().Msg("starting block-sync")
 
-	if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, blockRpcConfig, blockPoolId, appFlags, debug); err != nil {
+	// TODO: move to app constructor
+	chainRest := utils.GetChainRest(flags.ChainId, flags.ChainRest)
+	storageRest := strings.TrimSuffix(flags.StorageRest, "/")
+
+	app, err := binary.NewCosmosApp(flags)
+	if err != nil {
+		return fmt.Errorf("failed to init cosmos app: %w", err)
+	}
+
+	blockPoolId, err := app.Source.GetSourceBlockPoolId()
+	if err != nil {
+		return fmt.Errorf("failed to get block pool id: %w", err)
+	}
+
+	// TODO: remove backups?
+	backupCfg, err := backup.GetBackupConfig(homePath, backupInterval, backupKeepRecent, backupCompression, backupDest)
+	if err != nil {
+		return fmt.Errorf("could not get backup config: %w", err)
+	}
+
+	if flags.Reset {
+		if err := app.ConsensusEngine.ResetAll(true); err != nil {
+			return fmt.Errorf("failed to reset cosmos app: %w", err)
+		}
+	}
+
+	continuationHeight, err := app.GetContinuationHeight()
+	if err != nil {
+		return fmt.Errorf("failed to get continuation height: %w", err)
+	}
+
+	if err := PerformBlockSyncValidationChecks(flags.ChainRest, nil, &blockPoolId, continuationHeight, flags.TargetHeight, true, !flags.Y); err != nil {
+		return fmt.Errorf("block-sync validation checks failed: %w", err)
+	}
+
+	if err := app.AutoSelectBinaryVersion(continuationHeight); err != nil {
+		return fmt.Errorf("failed to auto select binary version: %w", err)
+	}
+
+	// TODO: remove?
+	if err := sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, continuationHeight, !y); err != nil {
+		return fmt.Errorf("failed to check if binary has the recommended version: %w", err)
+	}
+
+	if err := app.StartAll(); err != nil {
+		return fmt.Errorf("failed to start app: %w", err)
+	}
+
+	// TODO: handle error
+	defer app.StopAll()
+
+	if app.GetFlags().RpcServer {
+		go app.ConsensusEngine.StartRPCServer()
+	}
+
+	// TODO: move to cosmos app
+	utils.TrackSyncStartEvent(app.ConsensusEngine, utils.BLOCK_SYNC, app.GetFlags().ChainId, app.GetFlags().ChainRest, app.GetFlags().StorageRest, app.GetFlags().TargetHeight, app.GetFlags().OptOut)
+
+	if err := bootstrap.StartBootstrapWithBinary(app, continuationHeight); err != nil {
 		return fmt.Errorf("failed to bootstrap node: %w", err)
 	}
 
-	cmd, err := utils.StartBinaryProcessForDB(engine, binaryPath, debug, strings.Split(appFlags, ","))
-	if err != nil {
-		return fmt.Errorf("failed to start binary process: %w", err)
-	}
-
-	if err := engine.OpenDBs(); err != nil {
-		return fmt.Errorf("failed to open dbs in engine: %w", err)
-	}
-
-	if rpcServer {
-		go engine.StartRPCServer()
-	}
-
-	utils.TrackSyncStartEvent(engine, utils.BLOCK_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
-
-	start := time.Now()
-	currentHeight := engine.GetHeight()
-
+	// TODO: add contract that binary, dbs and proxy app must be open and running for this method
 	if err := StartBlockSyncExecutor(cmd, binaryPath, engine, chainRest, storageRest, blockRpcConfig, blockPoolId, targetHeight, 0, 0, false, false, backupCfg, debug, appFlags); err != nil {
 		return fmt.Errorf("failed to start block sync executor: %w", err)
 	}
 
-	elapsed := time.Since(start).Seconds()
-	utils.TrackSyncCompletedEvent(0, targetHeight-currentHeight, targetHeight, elapsed, optOut)
+	// TODO: move to cosmos app, keeping elapsed?
+	utils.TrackSyncCompletedEvent(0, app.GetFlags().TargetHeight-continuationHeight, app.GetFlags().TargetHeight, 0, app.GetFlags().OptOut)
 
-	logger.Info().Msg(fmt.Sprintf("block-synced from %d to %d (%d blocks) in %.2f seconds", currentHeight, targetHeight, targetHeight-currentHeight, elapsed))
 	logger.Info().Msg(fmt.Sprintf("successfully finished block-sync"))
 	return nil
 }

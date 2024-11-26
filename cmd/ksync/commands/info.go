@@ -12,8 +12,6 @@ import (
 	"sort"
 )
 
-var registryUrl string
-
 func init() {
 	infoCmd.Flags().StringVarP(&chainId, "chain-id", "c", utils.DefaultChainId, fmt.Sprintf("KYVE chain id [\"%s\",\"%s\"]", utils.ChainIdMainnet, utils.ChainIdKaon))
 

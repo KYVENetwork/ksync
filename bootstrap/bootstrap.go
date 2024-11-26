@@ -2,12 +2,10 @@ package bootstrap
 
 import (
 	"fmt"
-	blocksyncHelpers "github.com/KYVENetwork/ksync/blocksync/helpers"
+	"github.com/KYVENetwork/ksync/binary"
 	"github.com/KYVENetwork/ksync/bootstrap/helpers"
 	"github.com/KYVENetwork/ksync/collectors/blocks"
-	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
-	"strings"
 	"time"
 )
 
@@ -15,80 +13,51 @@ var (
 	logger = utils.KsyncLogger("bootstrap")
 )
 
-func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockRpcConfig *types.BlockRpcConfig, poolId *int64, appFlags string, debug bool) error {
-	logger.Info().Msg("starting bootstrap")
+// TODO: add description what this method is doing and link to PR
+// TODO: perform block-sync validation checks before and move this into block-sync executor
 
-	if err := engine.OpenDBs(); err != nil {
-		return fmt.Errorf("failed to open dbs in engine: %w", err)
-	}
-
-	defer func() {
-		err := engine.CloseDBs()
-		_ = err
-	}()
-
-	gt100, err := utils.IsFileGreaterThanOrEqualTo100MB(engine.GetGenesisPath())
-	if err != nil {
-		return err
-	}
-
-	// if genesis file is smaller than 100MB we can skip further bootstrapping
-	if !gt100 {
-		logger.Info().Msg("KSYNC is successfully bootstrapped!")
-		return nil
-	}
-
-	genesisHeight, err := engine.GetGenesisHeight()
-	if err != nil {
-		return err
-	}
-
+func StartBootstrapWithBinary(app *binary.CosmosApp, continuationHeight int64) error {
 	// if the app already has mined at least one block we can skip further bootstrapping
-	if engine.GetHeight() > genesisHeight {
-		logger.Info().Msg("KSYNC is successfully bootstrapped!")
+	if continuationHeight > app.Genesis.GetInitialHeight() {
 		return nil
 	}
 
-	// if we reached this point we have to sync over p2p
-	poolResponse, startHeight, endHeight, err := blocksyncHelpers.GetBlockBoundaries(chainRest, blockRpcConfig, poolId)
-	if err != nil {
-		return fmt.Errorf("failed to get block boundaries: %w", err)
+	// if the genesis file is smaller than 100MB we do not need
+	// to sync the first blocks over P2P
+	if app.Genesis.GetFileSize() < (100 * 1024 * 1024) {
+		return nil
 	}
 
-	if genesisHeight < startHeight {
-		return fmt.Errorf(fmt.Sprintf("genesis height %d smaller than pool start height %d", genesisHeight, startHeight))
-	}
+	logger.Info().Msg("genesis file is larger than 100MB, syncing first block over P2P network")
 
-	if genesisHeight+1 > endHeight {
-		return fmt.Errorf(fmt.Sprintf("genesis height %d bigger than latest pool height %d", genesisHeight+1, endHeight))
-	}
-
-	item, err := blocks.RetrieveBlock(chainRest, storageRest, blockRpcConfig, poolResponse, genesisHeight)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve block %d from pool", genesisHeight)
-	}
-
-	nextItem, err := blocks.RetrieveBlock(chainRest, storageRest, blockRpcConfig, poolResponse, genesisHeight+1)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve block %d from pool", genesisHeight+1)
-	}
-
-	if err := engine.CloseDBs(); err != nil {
-		return fmt.Errorf("failed to close dbs in engine: %w", err)
-	}
-
-	// start binary process thread
-	cmd, err := utils.StartBinaryProcessForP2P(engine, binaryPath, debug, strings.Split(appFlags, ","))
-	if err != nil {
+	if err := app.StopAll(); err != nil {
 		return err
 	}
 
-	logger.Info().Msg("bootstrapping node. Depending on the size of the genesis file, this step can take several minutes")
+	// TODO: how to handle requests?
+	item, err := blocks.RetrieveBlock(chainRest, storageRest, blockRpcConfig, poolResponse, app.Genesis.GetInitialHeight())
+	if err != nil {
+		return fmt.Errorf("failed to retrieve block %d from pool", app.Genesis.GetInitialHeight())
+	}
+
+	nextItem, err := blocks.RetrieveBlock(chainRest, storageRest, blockRpcConfig, poolResponse, app.Genesis.GetInitialHeight()+1)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve block %d from pool", app.Genesis.GetInitialHeight()+1)
+	}
+
+	if err := app.StartBinaryP2P(); err != nil {
+		return fmt.Errorf("failed to start cosmos app in p2p mode: %w", err)
+	}
+
+	// TODO: handle error
+	defer app.StopBinary()
+
+	logger.Info().Msg("bootstrapping node, depending on the size of the genesis file, this step can take several minutes")
 
 	// wait until binary has properly started by testing if the /abci
 	// endpoint is up
 	for {
-		if _, err := helpers.GetAppHeightFromRPC(homePath); err != nil {
+		if _, err := helpers.GetAppHeightFromRPC(app.GetHomePath()); err != nil {
 			time.Sleep(5 * time.Second)
 			continue
 		}
@@ -98,23 +67,19 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 	logger.Info().Msg("loaded genesis file and completed ABCI handshake between app and tendermint")
 
 	// start p2p executors and try to execute the first block on the app
-	if err := engine.ApplyFirstBlockOverP2P(poolResponse.Pool.Data.Runtime, item.Value, nextItem.Value); err != nil {
-		if err := utils.StopBinaryProcess(cmd); err != nil {
-			return fmt.Errorf("failed to stop binary process: %w", err)
-		}
-
+	if err := app.ConsensusEngine.ApplyFirstBlockOverP2P(poolResponse.Pool.Data.Runtime, item.Value, nextItem.Value); err != nil {
 		return fmt.Errorf("failed to start p2p executor: %w", err)
 	}
 
 	// wait until block was properly executed by testing if the /abci
 	// endpoint returns the correct block height
 	for {
-		height, err := helpers.GetAppHeightFromRPC(homePath)
+		height, err := helpers.GetAppHeightFromRPC(app.GetHomePath())
 		if err != nil {
 			return err
 		}
 
-		if height != genesisHeight {
+		if height != app.Genesis.GetInitialHeight() {
 			time.Sleep(5 * time.Second)
 			continue
 		}
@@ -122,10 +87,8 @@ func StartBootstrapWithBinary(engine types.Engine, binaryPath, homePath, chainRe
 		break
 	}
 
-	logger.Info().Msg("node was bootstrapped. Cleaning up")
-
-	if err := utils.StopBinaryProcess(cmd); err != nil {
-		return fmt.Errorf("failed to stop binary process: %w", err)
+	if err := app.StartAll(); err != nil {
+		return err
 	}
 
 	logger.Info().Msg("successfully bootstrapped node. Continuing with syncing blocks over DB")
