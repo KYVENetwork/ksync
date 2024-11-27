@@ -53,8 +53,6 @@ type Engine struct {
 	privValidatorKey crypto.PubKey
 
 	state         tmState.State
-	prevBlock     *Block
-	prevValue     []byte
 	proxyApp      proxy.AppConns
 	mempool       *mempool.Mempool
 	evidencePool  *evidence.Pool
@@ -163,10 +161,6 @@ func (engine *Engine) GetRpcServerPort() int64 {
 	return engine.RpcServerPort
 }
 
-func (engine *Engine) GetPrevValue() []byte {
-	return engine.prevValue
-}
-
 func (engine *Engine) GetProxyAppAddress() string {
 	return engine.config.ProxyApp
 }
@@ -272,102 +266,58 @@ func (engine *Engine) DoHandshake() error {
 	return nil
 }
 
-func (engine *Engine) ApplyBlock(runtime *string, value []byte) error {
-	var block *Block
+func (engine *Engine) ApplyBlock(rawBlock, nextRawBlock []byte) error {
+	var block, nextBlock *Block
 
-	if runtime == nil {
-		// if runtime is nil we sync from another cometbft node
-		var blockResponse BlockResponse
-		err := json.Unmarshal(value, &blockResponse)
-		if err != nil {
-			return fmt.Errorf("failed to unmarshal block response: %w", err)
-		}
-		block = &blockResponse.Result.Block
-	} else if *runtime == utils.KSyncRuntimeTendermint {
-		var parsed TendermintValue
-
-		if err := json.Unmarshal(value, &parsed); err != nil {
-			return fmt.Errorf("failed to unmarshal value: %w", err)
-		}
-
-		block = parsed.Block.Block
-	} else if *runtime == utils.KSyncRuntimeTendermintBsync {
-		if err := json.Unmarshal(value, &block); err != nil {
-			return fmt.Errorf("failed to unmarshal value: %w", err)
-		}
-	} else {
-		return fmt.Errorf("runtime %s unknown", runtime)
+	if err := json.Unmarshal(rawBlock, &block); err != nil {
+		return fmt.Errorf("failed to unmarshal block: %w", err)
 	}
 
-	// if the previous block is not defined we continue
-	if engine.prevBlock == nil {
-		engine.prevBlock = block
-		engine.prevValue = value
-		return nil
+	if err := json.Unmarshal(nextRawBlock, &nextBlock); err != nil {
+		return fmt.Errorf("failed to unmarshal next block: %w", err)
 	}
 
 	// get block data
-	blockParts, err := engine.prevBlock.MakePartSet(tmTypes.BlockPartSizeBytes)
+	blockParts, err := block.MakePartSet(tmTypes.BlockPartSizeBytes)
 	if err != nil {
 		return fmt.Errorf("failed make part set of block: %w", err)
 	}
 
-	blockId := tmTypes.BlockID{Hash: engine.prevBlock.Hash(), PartSetHeader: blockParts.Header()}
+	blockId := tmTypes.BlockID{Hash: block.Hash(), PartSetHeader: blockParts.Header()}
 
 	// verify block
-	if err := engine.blockExecutor.ValidateBlock(engine.state, engine.prevBlock); err != nil {
-		return fmt.Errorf("block validation failed at height %d: %w", engine.prevBlock.Height, err)
+	if err := engine.blockExecutor.ValidateBlock(engine.state, block); err != nil {
+		return fmt.Errorf("block validation failed at height %d: %w", block.Height, err)
 	}
 
 	// verify commits
-	if err := engine.state.Validators.VerifyCommitLight(engine.state.ChainID, blockId, engine.prevBlock.Height, block.LastCommit); err != nil {
-		return fmt.Errorf("light commit verification failed at height %d: %w", engine.prevBlock.Height, err)
+	if err := engine.state.Validators.VerifyCommitLight(engine.state.ChainID, blockId, block.Height, nextBlock.LastCommit); err != nil {
+		return fmt.Errorf("light commit verification failed at height %d: %w", block.Height, err)
 	}
 
 	// store block
-	engine.blockStore.SaveBlock(engine.prevBlock, blockParts, block.LastCommit)
+	engine.blockStore.SaveBlock(block, blockParts, nextBlock.LastCommit)
 
 	// execute block against app
-	state, _, err := engine.blockExecutor.ApplyBlock(engine.state, blockId, engine.prevBlock)
+	state, _, err := engine.blockExecutor.ApplyBlock(engine.state, blockId, block)
 	if err != nil {
-		engine.prevValue = value
-		return fmt.Errorf("failed to apply block at height %d: %w", engine.prevBlock.Height, err)
+		return fmt.Errorf("failed to apply block at height %d: %w", block.Height, err)
 	}
 
-	// update values for next round
+	// update state for next round
 	engine.state = state
-	engine.prevBlock = block
-	engine.prevValue = value
-
 	return nil
 }
 
-func (engine *Engine) ApplyFirstBlockOverP2P(runtime string, value, nextValue []byte) error {
+func (engine *Engine) ApplyFirstBlockOverP2P(rawBlock, nextRawBlock []byte) error {
 	var block, nextBlock *Block
 
-	if runtime == utils.KSyncRuntimeTendermint {
-		var parsed, nextParsed TendermintValue
+	if err := json.Unmarshal(rawBlock, &block); err != nil {
+		return fmt.Errorf("failed to unmarshal block: %w", err)
+	}
 
-		if err := json.Unmarshal(value, &parsed); err != nil {
-			return fmt.Errorf("failed to unmarshal value: %w", err)
-		}
-
-		if err := json.Unmarshal(nextValue, &nextParsed); err != nil {
-			return fmt.Errorf("failed to unmarshal next value: %w", err)
-		}
-
-		block = parsed.Block.Block
-		nextBlock = nextParsed.Block.Block
-	} else if runtime == utils.KSyncRuntimeTendermintBsync {
-		if err := json.Unmarshal(value, &block); err != nil {
-			return fmt.Errorf("failed to unmarshal value: %w", err)
-		}
-
-		if err := json.Unmarshal(nextValue, &nextBlock); err != nil {
-			return fmt.Errorf("failed to unmarshal next value: %w", err)
-		}
-	} else {
-		return fmt.Errorf("runtime %s unknown", runtime)
+	if err := json.Unmarshal(nextRawBlock, &nextBlock); err != nil {
+		return fmt.Errorf("failed to unmarshal next block: %w", err)
 	}
 
 	peerAddress := engine.config.P2P.ListenAddress

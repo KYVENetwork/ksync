@@ -92,7 +92,7 @@ type BlockCollector interface {
 	// all blocks in order into a given block channel. This method exits once
 	// the target height is reached or runs indefinitely depending on the
 	// exitOnTargetHeight value
-	StreamBlocks(blockCh chan<- BlockItem, errorCh chan<- error, continuationHeight, targetHeight int64)
+	StreamBlocks(blockCh chan<- *BlockItem, errorCh chan<- error, continuationHeight, targetHeight int64)
 }
 
 // Engine is an interface defining common behaviour for each consensus engine.
@@ -120,10 +120,6 @@ type Engine interface {
 	// TODO: remove
 	GetRpcServerPort() int64
 
-	// GetPrevValue gets the previous block in raw form
-	// TODO: remove
-	GetPrevValue() []byte
-
 	// GetProxyAppAddress gets the proxy app address of the TSP connection
 	GetProxyAppAddress() string
 
@@ -146,15 +142,13 @@ type Engine interface {
 	// before ApplyBlock
 	DoHandshake() error
 
-	// ApplyBlock takes the block in the raw format and applies it against
-	// the app
-	// TODO: remove runtime
-	ApplyBlock(runtime *string, value []byte) error
+	// ApplyBlock takes a block at height n and n+1 and applies it against
+	// the cosmos app
+	ApplyBlock(rawBlock, nextRawBlock []byte) error
 
 	// ApplyFirstBlockOverP2P applies the first block over the P2P reactor
 	// which is necessary, if the genesis file is bigger than 100MB
-	// TODO: remove runtime
-	ApplyFirstBlockOverP2P(runtime string, value, nextValue []byte) error
+	ApplyFirstBlockOverP2P(rawBlock, nextRawBlock []byte) error
 
 	// GetGenesisPath gets the file path to the genesis file
 	// TODO: remove

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/KYVENetwork/ksync/binary"
-	"github.com/KYVENetwork/ksync/bootstrap"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"strings"
@@ -118,18 +117,7 @@ func Start(flags types.KsyncFlags) error {
 	utils.TrackSyncStartEvent(app.ConsensusEngine, utils.BLOCK_SYNC, app.GetFlags().ChainId, app.GetFlags().ChainRest, app.GetFlags().StorageRest, app.GetFlags().TargetHeight, app.GetFlags().OptOut)
 
 	// TODO: add contract that binary, dbs and proxy app must be open and running for this method
-	if err := bootstrap.StartBootstrapWithBinary(app, continuationHeight); err != nil {
-		return fmt.Errorf("failed to bootstrap node: %w", err)
-	}
-
-	// TODO: is it required to reload here?
-	continuationHeight, err = app.GetContinuationHeight()
-	if err != nil {
-		return fmt.Errorf("failed to get continuation height: %w", err)
-	}
-
-	// TODO: add contract that binary, dbs and proxy app must be open and running for this method
-	if err := StartBlockSyncExecutor(app, continuationHeight); err != nil {
+	if err := StartBlockSyncExecutor(app); err != nil {
 		return fmt.Errorf("failed to start block sync executor: %w", err)
 	}
 

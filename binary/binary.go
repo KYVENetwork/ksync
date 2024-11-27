@@ -45,13 +45,14 @@ func NewCosmosApp(flags types.KsyncFlags) (*CosmosApp, error) {
 	app := &CosmosApp{binaryPath: fullBinaryPath, flags: flags}
 	app.isCosmovisor = strings.HasSuffix(app.binaryPath, "cosmovisor")
 
+	// TODO: what if home path is given?
 	if flags.HomePath == "" {
 		if err = app.loadHomePath(); err != nil {
 			return nil, fmt.Errorf("failed to load home path from binary: %w", err)
 		}
 	}
 
-	if err = app.loadConsensusEngine(); err != nil {
+	if err = app.LoadConsensusEngine(); err != nil {
 		return nil, fmt.Errorf("failed to load engine type from binary: %w", err)
 	}
 
@@ -95,6 +96,10 @@ func (app *CosmosApp) GetBinaryPath() string {
 
 func (app *CosmosApp) GetHomePath() string {
 	return app.homePath
+}
+
+func (app *CosmosApp) IsCosmovisor() bool {
+	return app.isCosmovisor
 }
 
 func (app *CosmosApp) GetFlags() types.KsyncFlags {
@@ -325,7 +330,7 @@ func (app *CosmosApp) loadHomePath() error {
 	return fmt.Errorf("failed to find home path in binary output")
 }
 
-func (app *CosmosApp) loadConsensusEngine() error {
+func (app *CosmosApp) LoadConsensusEngine() error {
 	cmd := exec.Command(app.binaryPath)
 
 	if strings.HasSuffix(app.binaryPath, "cosmovisor") {

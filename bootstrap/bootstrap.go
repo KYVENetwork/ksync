@@ -13,11 +13,10 @@ var (
 )
 
 // TODO: add description what this method is doing and link to PR
-// TODO: perform block-sync validation checks before and move this into block-sync executor
 
-func StartBootstrapWithBinary(app *binary.CosmosApp, continuationHeight int64) error {
+func StartBootstrapWithBinary(app *binary.CosmosApp) error {
 	// if the app already has mined at least one block we can skip further bootstrapping
-	if continuationHeight > app.Genesis.GetInitialHeight() {
+	if app.ConsensusEngine.GetHeight() > app.Genesis.GetInitialHeight() {
 		return nil
 	}
 

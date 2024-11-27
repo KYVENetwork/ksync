@@ -3,69 +3,30 @@ package blocksync
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/binary"
-	"github.com/KYVENetwork/ksync/engines"
+	"github.com/KYVENetwork/ksync/bootstrap"
 	stateSyncHelpers "github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
-	"strings"
 	"time"
 )
 
 var (
-	blockCh = make(chan types.BlockItem, utils.BlockBuffer)
+	blockCh = make(chan *types.BlockItem, utils.BlockBuffer)
 	errorCh = make(chan error)
 )
 
-func StartBlockSyncExecutor(app *binary.CosmosApp, continuationHeight int64) (err error) {
-	// start block collector, we always exit when we reach the target height except when this method
-	// was started from the serve-snapshots command, indicated by the snapshot interval being > 0
-	// TODO: where to get snapshotInterval == 0?
-	app.BlockCollector.StreamBlocks(blockCh, errorCh, continuationHeight, app.GetFlags().TargetHeight, true)
-
-	for {
-		syncErr := sync(app, continuationHeight)
-
-		if err := app.StopAll(); err != nil {
-			return err
-		}
-
-		if syncErr == nil {
-			break
-		}
-
-		if syncErr.Error() == "UPGRADE" && strings.HasSuffix(app.GetBinaryPath(), "cosmovisor") {
-			logger.Info().Msg("detected chain upgrade, restarting application")
-
-			prevValue := app.ConsensusEngine.GetPrevValue()
-
-			engineName := utils.GetEnginePathFromBinary(app.GetBinaryPath())
-			logger.Info().Msgf("loaded engine \"%s\" from binary path", engineName)
-
-			// TODO: reload engine method
-			engine = engines.EngineFactory(engineName, app.GetHomePath(), app.ConsensusEngine.GetRpcServerPort())
-
-			// here we got the prevValue (last raw block applied against the app) and insert
-			// it into the new engine so there is no gap in the blocks
-			if prevValue != nil {
-				if err := app.ConsensusEngine.ApplyBlock(nil, prevValue); err != nil {
-					return fmt.Errorf("failed to apply block: %w", err)
-				}
-			}
-
-			if err := app.StartAll(); err != nil {
-				return err
-			}
-
-			continue
-		}
-
-		return fmt.Errorf("failed to start block-sync executor: %w", syncErr)
+func StartBlockSyncExecutor(app *binary.CosmosApp) (err error) {
+	if err := bootstrap.StartBootstrapWithBinary(app); err != nil {
+		return fmt.Errorf("failed to bootstrap cosmos app: %w", err)
 	}
 
-	return nil
-}
+	continuationHeight, err := app.GetContinuationHeight()
+	if err != nil {
+		return fmt.Errorf("failed to get continuation height: %w", err)
+	}
 
-func sync(app *binary.CosmosApp, continuationHeight int64) error {
+	go app.BlockCollector.StreamBlocks(blockCh, errorCh, continuationHeight, app.GetFlags().TargetHeight)
+
 	appHeight, err := app.ConsensusEngine.GetAppHeight()
 	if err != nil {
 		return fmt.Errorf("failed to get app height from engine: %w", err)
@@ -100,26 +61,41 @@ func sync(app *binary.CosmosApp, continuationHeight int64) error {
 		}
 	}
 
+	// already get first block since
+	block := <-blockCh
+
 	for {
 		select {
 		case err := <-errorCh:
 			return fmt.Errorf("error in block collector: %w", err)
-		case block := <-blockCh:
-			prevHeight := block.Height - 1
-
-			if err := app.ConsensusEngine.ApplyBlock(nil, block.Block); err != nil {
-				// before we return we check if this is due to an upgrade, in this
-				// case we return a special error code to handle this
-				isUpgrade, upgradeErr := utils.IsUpgradeHeight(app.GetHomePath(), block.Height)
+		case nextBlock := <-blockCh:
+			if err := app.ConsensusEngine.ApplyBlock(block.Block, nextBlock.Block); err != nil {
+				// before we return we check if this is due to an upgrade, if we are running
+				// with cosmovisor, and it is indeed due to an upgrade we restart the binary
+				// and the cosmos app to apply it
+				isUpgrade, upgradeErr := utils.IsUpgradeHeight(app.GetHomePath(), nextBlock.Height)
 				if upgradeErr != nil {
 					return fmt.Errorf("failed to apply block in engine and to check upgrade height: %w %w", err, upgradeErr)
 				}
 
-				if isUpgrade {
-					return fmt.Errorf("UPGRADE")
+				if !isUpgrade || !app.IsCosmovisor() {
+					return fmt.Errorf("failed to apply block in engine: %w", err)
 				}
 
-				return fmt.Errorf("failed to apply block in engine: %w", err)
+				if err := app.StopAll(); err != nil {
+					return err
+				}
+
+				if err := app.LoadConsensusEngine(); err != nil {
+					return fmt.Errorf("failed to reload engine: %w", err)
+				}
+
+				if err := app.StartAll(); err != nil {
+					return err
+				}
+
+				block = nextBlock
+				continue
 			}
 
 			// if we have reached a height where a snapshot should be created by the app
@@ -127,24 +103,24 @@ func sync(app *binary.CosmosApp, continuationHeight int64) error {
 			// not be properly written to disk. We check if the initial app height is smaller
 			// than the current applied height since in this case the app has not created the
 			// snapshot yet.
-			if snapshotInterval > 0 && prevHeight%snapshotInterval == 0 && appHeight < prevHeight {
+			if snapshotInterval > 0 && block.Height%snapshotInterval == 0 && appHeight < block.Height {
 				for {
-					logger.Info().Msg(fmt.Sprintf("waiting until snapshot at height %d is created by app", prevHeight))
+					logger.Info().Msg(fmt.Sprintf("waiting until snapshot at height %d is created by app", block.Height))
 
-					found, err := app.ConsensusEngine.IsSnapshotAvailable(prevHeight)
+					found, err := app.ConsensusEngine.IsSnapshotAvailable(block.Height)
 					if err != nil {
-						logger.Error().Msg(fmt.Sprintf("check snapshot availability failed at height %d", prevHeight))
+						logger.Error().Msg(fmt.Sprintf("check snapshot availability failed at height %d", block.Height))
 						time.Sleep(10 * time.Second)
 						continue
 					}
 
 					if !found {
-						logger.Info().Msg(fmt.Sprintf("snapshot at height %d was not created yet. Waiting ...", prevHeight))
+						logger.Info().Msg(fmt.Sprintf("snapshot at height %d was not created yet. Waiting ...", block.Height))
 						time.Sleep(10 * time.Second)
 						continue
 					}
 
-					logger.Info().Msg(fmt.Sprintf("snapshot at height %d was created. Continuing ...", prevHeight))
+					logger.Info().Msg(fmt.Sprintf("snapshot at height %d was created. Continuing ...", block.Height))
 					break
 				}
 
@@ -152,13 +128,7 @@ func sync(app *binary.CosmosApp, continuationHeight int64) error {
 				snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(chainRest, snapshotPoolId)
 			}
 
-			// skip below operations because we don't want to execute them already
-			// on the first block
-			if block.Height == continuationHeight {
-				continue
-			}
-
-			if app.GetFlags().Pruning && prevHeight%utils.PruningInterval == 0 {
+			if app.GetFlags().Pruning && block.Height%utils.PruningInterval == 0 {
 				// Because we sync 3 * snapshot_interval ahead we keep the latest
 				// 6 * snapshot_interval blocks and prune everything before that
 				height := app.ConsensusEngine.GetHeight() - (utils.SnapshotPruningWindowFactor * snapshotInterval)
@@ -197,13 +167,13 @@ func sync(app *binary.CosmosApp, continuationHeight int64) error {
 			// in order to not bloat the KSYNC process. If skipWaiting is true we sync as far as possible
 			if snapshotInterval > 0 && !app.GetFlags().SkipWaiting {
 				// only log this message once
-				if block.Height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
+				if nextBlock.Height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
 					logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to produce new bundles")
 				}
 
 				for {
 					// if we are in that range we wait until the snapshot pool moved on
-					if block.Height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
+					if nextBlock.Height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
 						time.Sleep(10 * time.Second)
 
 						// refresh snapshot pool height
@@ -216,9 +186,11 @@ func sync(app *binary.CosmosApp, continuationHeight int64) error {
 			}
 
 			// stop with block execution if we have reached our target height
-			if app.GetFlags().TargetHeight > 0 && block.Height >= app.GetFlags().TargetHeight+1 {
+			if app.GetFlags().TargetHeight > 0 && nextBlock.Height >= app.GetFlags().TargetHeight+1 {
 				return nil
 			}
+
+			block = nextBlock
 		}
 	}
 }

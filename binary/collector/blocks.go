@@ -63,7 +63,7 @@ func (collector *RpcBlockCollector) GetBlock(height int64) ([]byte, error) {
 	return block, nil
 }
 
-func (collector *RpcBlockCollector) StreamBlocks(blockCh chan<- types.BlockItem, errorCh chan<- error, continuationHeight, targetHeight int64) {
+func (collector *RpcBlockCollector) StreamBlocks(blockCh chan<- *types.BlockItem, errorCh chan<- error, continuationHeight, targetHeight int64) {
 	for {
 		// TODO: log here?
 		// logger.Info().Msg(fmt.Sprintf("downloading block with height %d", continuationHeight))
@@ -82,7 +82,7 @@ func (collector *RpcBlockCollector) StreamBlocks(blockCh chan<- types.BlockItem,
 			return
 		}
 
-		blockCh <- types.BlockItem{
+		blockCh <- &types.BlockItem{
 			Height: continuationHeight,
 			Block:  block,
 		}
@@ -201,7 +201,7 @@ func (collector *KyveBlockCollector) GetBlock(height int64) ([]byte, error) {
 	return nil, fmt.Errorf("failed to find block %d in finalized bundle %s", height, finalizedBundle.StorageId)
 }
 
-func (collector *KyveBlockCollector) StreamBlocks(blockCh chan<- types.BlockItem, errorCh chan<- error, continuationHeight, targetHeight int64) {
+func (collector *KyveBlockCollector) StreamBlocks(blockCh chan<- *types.BlockItem, errorCh chan<- error, continuationHeight, targetHeight int64) {
 	// from the height where the collector should start downloading blocks we derive the pagination
 	// key of the bundles page so we can start from there
 	paginationKey, err := collector.getPaginationKeyForBlockHeight(continuationHeight)
@@ -268,7 +268,7 @@ BundleCollector:
 				}
 
 				// send block to block executor
-				blockCh <- types.BlockItem{
+				blockCh <- &types.BlockItem{
 					Height: height,
 					Block:  block,
 				}
