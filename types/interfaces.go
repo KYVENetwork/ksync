@@ -74,12 +74,25 @@ type ProxyApp interface {
 	ApplySnapshotChunk(chunkIndex uint32, value []byte) (string, error)
 }
 
+// BlockCollector is an interface defining common behaviour for each
+// type of collecting blocks, since blocks can be either obtained
+// with requesting the rpc endpoint of the source chain or with
+// downloading archived bundles from KYVE
 type BlockCollector interface {
+	// GetStartHeight gets the first available block in a block pool
 	GetStartHeight() int64
+
+	// GetEndHeight gets the last available block in a block pool
 	GetEndHeight() int64
 
-	GetBlockPair(height int64) ([]byte, []byte, error)
-	StreamBlocks(itemCh chan<- BlockItem, errorCh chan<- error, continuationHeight, targetHeight int64, exitOnTargetHeight bool)
+	// GetBlock gets the block for the given height
+	GetBlock(height int64) ([]byte, error)
+
+	// StreamBlocks takes a continuationHeight and a targetHeight and streams
+	// all blocks in order into a given block channel. This method exits once
+	// the target height is reached or runs indefinitely depending on the
+	// exitOnTargetHeight value
+	StreamBlocks(blockCh chan<- BlockItem, errorCh chan<- error, continuationHeight, targetHeight int64)
 }
 
 // Engine is an interface defining common behaviour for each consensus engine.
@@ -135,11 +148,12 @@ type Engine interface {
 
 	// ApplyBlock takes the block in the raw format and applies it against
 	// the app
-	// TODO: unpack value before apply block depending on runtime
+	// TODO: remove runtime
 	ApplyBlock(runtime *string, value []byte) error
 
 	// ApplyFirstBlockOverP2P applies the first block over the P2P reactor
 	// which is necessary, if the genesis file is bigger than 100MB
+	// TODO: remove runtime
 	ApplyFirstBlockOverP2P(runtime string, value, nextValue []byte) error
 
 	// GetGenesisPath gets the file path to the genesis file

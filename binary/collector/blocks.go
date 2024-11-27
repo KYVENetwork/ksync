@@ -47,35 +47,23 @@ func (collector *RpcBlockCollector) GetEndHeight() int64 {
 	return collector.endHeight
 }
 
-func (collector *RpcBlockCollector) GetBlockPair(height int64) ([]byte, []byte, error) {
-	firstResponse, err := utils.GetFromUrlWithOptions(fmt.Sprintf("%s/block?height=%d", collector.rpc, height),
+func (collector *RpcBlockCollector) GetBlock(height int64) ([]byte, error) {
+	blockResponse, err := utils.GetFromUrlWithOptions(fmt.Sprintf("%s/block?height=%d", collector.rpc, height),
 		utils.GetFromUrlOptions{SkipTLSVerification: true, WithBackoff: true},
 	)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get block %d from rpc: %w", height, err)
+		return nil, fmt.Errorf("failed to get block %d from rpc: %w", height, err)
 	}
 
-	first, err := collector.extractRawBlockFromDataItemValue(firstResponse)
+	block, err := collector.extractRawBlockFromDataItemValue(blockResponse)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to extract block %d: %w", height, err)
+		return nil, fmt.Errorf("failed to extract block %d: %w", height, err)
 	}
 
-	secondResponse, err := utils.GetFromUrlWithOptions(fmt.Sprintf("%s/block?height=%d", collector.rpc, height+1),
-		utils.GetFromUrlOptions{SkipTLSVerification: true, WithBackoff: true},
-	)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get block %d from rpc: %w", height+1, err)
-	}
-
-	second, err := collector.extractRawBlockFromDataItemValue(secondResponse)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to extract block %d: %w", height+1, err)
-	}
-
-	return first, second, nil
+	return block, nil
 }
 
-func (collector *RpcBlockCollector) StreamBlocks(itemCh chan<- types.BlockItem, errorCh chan<- error, continuationHeight, targetHeight int64, exitOnTargetHeight bool) {
+func (collector *RpcBlockCollector) StreamBlocks(blockCh chan<- types.BlockItem, errorCh chan<- error, continuationHeight, targetHeight int64) {
 	for {
 		// TODO: log here?
 		// logger.Info().Msg(fmt.Sprintf("downloading block with height %d", continuationHeight))
@@ -94,12 +82,12 @@ func (collector *RpcBlockCollector) StreamBlocks(itemCh chan<- types.BlockItem, 
 			return
 		}
 
-		itemCh <- types.BlockItem{
+		blockCh <- types.BlockItem{
 			Height: continuationHeight,
 			Block:  block,
 		}
 
-		if exitOnTargetHeight && targetHeight > 0 && continuationHeight >= targetHeight+1 {
+		if targetHeight > 0 && continuationHeight >= targetHeight+1 {
 			break
 		}
 
@@ -171,12 +159,52 @@ func (collector *KyveBlockCollector) GetEndHeight() int64 {
 	return collector.endHeight
 }
 
-func (collector *KyveBlockCollector) GetBlockPair(height int64) ([]byte, []byte, error) {
-	return nil, nil, nil
+func (collector *KyveBlockCollector) GetBlock(height int64) ([]byte, error) {
+	finalizedBundle, err := collector.getFinalizedBundleForBlockHeight(height)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get finalized bundle for block height %d: %w", height, err)
+	}
+
+	deflated, err := bundles.GetDataFromFinalizedBundle(*finalizedBundle, collector.storageRest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get data from finalized bundle with storage id %s: %w", finalizedBundle.StorageId, err)
+	}
+
+	// parse bundle
+	var bundle types.Bundle
+
+	if err := json.Unmarshal(deflated, &bundle); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal bundle: %w", err)
+	}
+
+	for _, dataItem := range bundle {
+		itemHeight, err := utils.ParseBlockHeightFromKey(dataItem.Key)
+		if err != nil {
+			return nil, fmt.Errorf("failed parse block height from key %s: %w", dataItem.Key, err)
+		}
+
+		// skip blocks until we reach start height
+		if itemHeight < height {
+			continue
+		}
+
+		// depending on the runtime the actual block can be nested in the value, before
+		// passing the value to the block executor we extract it
+		block, err := collector.extractRawBlockFromDataItemValue(dataItem.Value)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract block %d from data item value: %w", height, err)
+		}
+
+		return block, nil
+	}
+
+	return nil, fmt.Errorf("failed to find block %d in finalized bundle %s", height, finalizedBundle.StorageId)
 }
 
-func (collector *KyveBlockCollector) StreamBlocks(itemCh chan<- types.BlockItem, errorCh chan<- error, continuationHeight, targetHeight int64, exitOnTargetHeight bool) {
-	paginationKey, err := getPaginationKeyForBlockHeight(collector.chainRest, blockPool, continuationHeight)
+func (collector *KyveBlockCollector) StreamBlocks(blockCh chan<- types.BlockItem, errorCh chan<- error, continuationHeight, targetHeight int64) {
+	// from the height where the collector should start downloading blocks we derive the pagination
+	// key of the bundles page so we can start from there
+	paginationKey, err := collector.getPaginationKeyForBlockHeight(continuationHeight)
 	if err != nil {
 		errorCh <- fmt.Errorf("failed to get pagination key for continuation height %d: %w", continuationHeight, err)
 		return
@@ -191,14 +219,15 @@ BundleCollector:
 		}
 
 		for _, finalizedBundle := range bundlesPage {
-			// TODO: rename this height to maxPageHeight or something
-			height, err := strconv.ParseInt(finalizedBundle.ToKey, 10, 64)
+			maxBundleHeight, err := strconv.ParseInt(finalizedBundle.ToKey, 10, 64)
 			if err != nil {
 				errorCh <- fmt.Errorf("failed to parse bundle to key to int64: %w", err)
 				return
 			}
 
-			if height < continuationHeight {
+			// if the highest height in the bundle is still smaller than our continuation height
+			// we can skip this bundle
+			if maxBundleHeight < continuationHeight {
 				continue
 			}
 
@@ -207,7 +236,7 @@ BundleCollector:
 
 			deflated, err := bundles.GetDataFromFinalizedBundle(finalizedBundle, collector.storageRest)
 			if err != nil {
-				errorCh <- fmt.Errorf("failed to get data from finalized bundle: %w", err)
+				errorCh <- fmt.Errorf("failed to get data from finalized bundle with storage id %s: %w", finalizedBundle.StorageId, err)
 				return
 			}
 
@@ -215,49 +244,43 @@ BundleCollector:
 			var bundle types.Bundle
 
 			if err := json.Unmarshal(deflated, &bundle); err != nil {
-				errorCh <- fmt.Errorf("failed to unmarshal tendermint bundle: %w", err)
+				errorCh <- fmt.Errorf("failed to unmarshal bundle: %w", err)
 				return
 			}
 
 			for _, dataItem := range bundle {
-				itemHeight, err := utils.ParseBlockHeightFromKey(dataItem.Key)
+				height, err := utils.ParseBlockHeightFromKey(dataItem.Key)
 				if err != nil {
 					errorCh <- fmt.Errorf("failed parse block height from key %s: %w", dataItem.Key, err)
 					return
 				}
 
 				// skip blocks until we reach start height
-				if itemHeight < continuationHeight {
+				if height < continuationHeight {
 					continue
 				}
 
+				// depending on the runtime the actual block can be nested in the value, before
+				// passing the value to the block executor we extract it
 				block, err := collector.extractRawBlockFromDataItemValue(dataItem.Value)
 				if err != nil {
-					errorCh <- fmt.Errorf("failed to extract block %d from data item value: %w", itemHeight, err)
+					errorCh <- fmt.Errorf("failed to extract block %d from data item value: %w", height, err)
 				}
 
-				// send raw data item executor
-				itemCh <- types.BlockItem{
-					Height: continuationHeight,
+				// send block to block executor
+				blockCh <- types.BlockItem{
+					Height: height,
 					Block:  block,
 				}
 
-				// keep track of latest retrieved height
-				continuationHeight = itemHeight + 1
-
 				// exit if mustExit is true and target height is reached
-				if exitOnTargetHeight && targetHeight > 0 && itemHeight >= targetHeight+1 {
+				if targetHeight > 0 && height >= targetHeight+1 {
 					break BundleCollector
 				}
 			}
 		}
 
 		if nextKey == "" {
-			// if there is no new page we do not continue
-			if exitOnTargetHeight {
-				break
-			}
-
 			// if we are at the end of the page we continue and wait for
 			// new finalized bundles
 			time.Sleep(30 * time.Second)
@@ -291,11 +314,41 @@ func (collector *KyveBlockCollector) extractRawBlockFromDataItemValue(value []by
 	return nil, fmt.Errorf("unknown runtime %s", collector.runtime)
 }
 
+// getFinalizedBundleForBlockHeight gets the bundle which contains the block for the given height
+func (collector *KyveBlockCollector) getFinalizedBundleForBlockHeight(height int64) (*types.FinalizedBundle, error) {
+	// the index is an incremental id for each data item. Since the index starts from zero
+	// and the start key is usually 1 we subtract it from the specified height so we get
+	// the correct index
+	index := height - collector.startHeight
+
+	raw, err := utils.GetFromUrlWithBackoff(fmt.Sprintf(
+		"%s/kyve/v1/bundles/%d?index=%d",
+		collector.chainRest,
+		collector.poolId,
+		index,
+	))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get finalized bundle for index %d: %w", index, err)
+	}
+
+	var bundlesResponse types.FinalizedBundlesResponse
+
+	if err := json.Unmarshal(raw, &bundlesResponse); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal finalized bundles response: %w", err)
+	}
+
+	if len(bundlesResponse.FinalizedBundles) == 1 {
+		return &bundlesResponse.FinalizedBundles[0], nil
+	}
+
+	return nil, fmt.Errorf("failed to find finalized bundle for block height %d: %w", height, err)
+}
+
 // getPaginationKeyForBlockHeight gets the pagination key right for the bundle so the StartBlockCollector can
 // directly start at the correct bundle. Therefore, it does not need to search through all the bundles until
 // it finds the correct one
-func getPaginationKeyForBlockHeight(chainRest string, blockPool types.PoolResponse, height int64) (string, error) {
-	finalizedBundle, err := bundles.GetFinalizedBundleForBlockHeight(chainRest, blockPool, height)
+func (collector *KyveBlockCollector) getPaginationKeyForBlockHeight(height int64) (string, error) {
+	finalizedBundle, err := collector.getFinalizedBundleForBlockHeight(height)
 	if err != nil {
 		return "", fmt.Errorf("failed to get finalized bundle for block height %d: %w", height, err)
 	}
@@ -310,7 +363,7 @@ func getPaginationKeyForBlockHeight(chainRest string, blockPool types.PoolRespon
 		return "", nil
 	}
 
-	_, paginationKey, err := bundles.GetFinalizedBundlesPageWithOffset(chainRest, blockPool.Pool.Id, 1, bundleId-1, "", false)
+	_, paginationKey, err := bundles.GetFinalizedBundlesPageWithOffset(collector.chainRest, collector.poolId, 1, bundleId-1, "", false)
 	if err != nil {
 		return "", fmt.Errorf("failed to get finalized bundles: %w", err)
 	}

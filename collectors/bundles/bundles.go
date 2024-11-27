@@ -92,6 +92,8 @@ func GetFinalizedBundleForBlockHeight(chainRest string, blockPool types.PoolResp
 	return GetFinalizedBundleByIndex(chainRest, blockPool.Pool.Id, height-startKey)
 }
 
+// GetDataFromFinalizedBundle downloads the data from the provided bundle, verify if the checksum on the KYVE
+// chain matches and finally decompresses it before returning
 func GetDataFromFinalizedBundle(bundle types.FinalizedBundle, storageRest string) ([]byte, error) {
 	// retrieve bundle from storage provider
 	data, err := RetrieveDataFromStorageProvider(bundle, storageRest)

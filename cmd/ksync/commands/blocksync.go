@@ -49,6 +49,7 @@ var blockSyncCmd = &cobra.Command{
 	Use:   "block-sync",
 	Short: "Start fast syncing blocks with KSYNC",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// TODO: if target-height is not given, do not stop syncing?
 		return blocksync.Start(flags)
 	},
 }

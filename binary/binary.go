@@ -10,6 +10,7 @@ import (
 	"github.com/KYVENetwork/ksync/engines/cometbft-v38"
 	"github.com/KYVENetwork/ksync/engines/tendermint-v34"
 	"github.com/KYVENetwork/ksync/types"
+	"github.com/KYVENetwork/ksync/utils"
 	"os"
 	"os/exec"
 	"strings"
@@ -79,7 +80,7 @@ func NewCosmosApp(flags types.KsyncFlags) (*CosmosApp, error) {
 			return nil, fmt.Errorf("failed to get block pool id: %w", err)
 		}
 
-		app.BlockCollector, err = collector.NewKyveBlockCollector(blockPoolId, flags.ChainRest, flags.StorageRest)
+		app.BlockCollector, err = collector.NewKyveBlockCollector(blockPoolId, utils.GetChainRest(flags.ChainId, flags.ChainRest), strings.TrimSuffix(flags.StorageRest, "/"))
 		if err != nil {
 			return nil, fmt.Errorf("failed to init kyve block collector: %w", err)
 		}

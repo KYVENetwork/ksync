@@ -2,10 +2,7 @@ package blocksync
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/backup"
 	"github.com/KYVENetwork/ksync/binary"
-	"github.com/KYVENetwork/ksync/collectors/blocks"
-	"github.com/KYVENetwork/ksync/collectors/pool"
 	"github.com/KYVENetwork/ksync/engines"
 	stateSyncHelpers "github.com/KYVENetwork/ksync/statesync/helpers"
 	"github.com/KYVENetwork/ksync/types"
@@ -15,24 +12,18 @@ import (
 )
 
 var (
-	itemCh  = make(chan types.DataItem, utils.BlockBuffer)
+	blockCh = make(chan types.BlockItem, utils.BlockBuffer)
 	errorCh = make(chan error)
 )
 
-func StartBlockSyncExecutor(app binary.CosmosApp, blockPoolId, continuationHeight int64) (err error) {
-	var poolResponse *types.PoolResponse
-	var runtime *string
-	poolResponse, err = pool.GetPoolInfo(app.GetFlags().ChainRest, blockPoolId)
-	if err != nil {
-		return fmt.Errorf("failed to get pool info: %w", err)
-	}
-	runtime = &poolResponse.Pool.Data.Runtime
-
-	// start block collector. we must exit if snapshot interval is zero
-	go blocks.StartBlockCollector(itemCh, errorCh, app.GetFlags().ChainRest, app.GetFlags().StorageRest, blockRpcConfig, poolResponse, continuationHeight, app.GetFlags().TargetHeight, snapshotInterval == 0)
+func StartBlockSyncExecutor(app *binary.CosmosApp, continuationHeight int64) (err error) {
+	// start block collector, we always exit when we reach the target height except when this method
+	// was started from the serve-snapshots command, indicated by the snapshot interval being > 0
+	// TODO: where to get snapshotInterval == 0?
+	app.BlockCollector.StreamBlocks(blockCh, errorCh, continuationHeight, app.GetFlags().TargetHeight, true)
 
 	for {
-		syncErr := sync(engine, chainRest, blockPoolId, continuationHeight, targetHeight, snapshotPoolId, snapshotInterval, pruning, skipWaiting, backupCfg)
+		syncErr := sync(app, continuationHeight)
 
 		if err := app.StopAll(); err != nil {
 			return err
@@ -53,17 +44,10 @@ func StartBlockSyncExecutor(app binary.CosmosApp, blockPoolId, continuationHeigh
 			// TODO: reload engine method
 			engine = engines.EngineFactory(engineName, app.GetHomePath(), app.ConsensusEngine.GetRpcServerPort())
 
-			if blockPoolId != nil {
-				poolResponse, err = pool.GetPoolInfo(app.GetFlags().ChainRest, blockPoolId)
-				if err != nil {
-					return fmt.Errorf("failed to get pool info: %w", err)
-				}
-			}
-
 			// here we got the prevValue (last raw block applied against the app) and insert
 			// it into the new engine so there is no gap in the blocks
 			if prevValue != nil {
-				if err := app.ConsensusEngine.ApplyBlock(runtime, prevValue); err != nil {
+				if err := app.ConsensusEngine.ApplyBlock(nil, prevValue); err != nil {
 					return fmt.Errorf("failed to apply block: %w", err)
 				}
 			}
@@ -81,31 +65,21 @@ func StartBlockSyncExecutor(app binary.CosmosApp, blockPoolId, continuationHeigh
 	return nil
 }
 
-func sync(engine types.Engine, chainRest string, blockPoolId *int64, continuationHeight, targetHeight int64, snapshotPoolId, snapshotInterval int64, pruning, skipWaiting bool, backupCfg *types.BackupConfig) error {
-	appHeight, err := engine.GetAppHeight()
+func sync(app *binary.CosmosApp, continuationHeight int64) error {
+	appHeight, err := app.ConsensusEngine.GetAppHeight()
 	if err != nil {
 		return fmt.Errorf("failed to get app height from engine: %w", err)
 	}
 
-	if err := engine.DoHandshake(); err != nil {
+	if err := app.ConsensusEngine.DoHandshake(); err != nil {
 		return fmt.Errorf("failed to do handshake: %w", err)
-	}
-
-	var poolResponse *types.PoolResponse
-	var runtime *string
-	if blockPoolId != nil {
-		poolResponse, err = pool.GetPoolInfo(chainRest, *blockPoolId)
-		if err != nil {
-			return fmt.Errorf("failed to get pool info: %w", err)
-		}
-		runtime = &poolResponse.Pool.Data.Runtime
 	}
 
 	snapshotPoolHeight := int64(0)
 
 	// if KSYNC has already fetched 3 * snapshot_interval ahead of the snapshot pool we wait
 	// in order to not bloat the KSYNC process
-	if snapshotInterval > 0 && !skipWaiting {
+	if snapshotInterval > 0 && !app.GetFlags().SkipWaiting {
 		snapshotPoolHeight = stateSyncHelpers.GetSnapshotPoolHeight(chainRest, snapshotPoolId)
 
 		if continuationHeight > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
@@ -130,19 +104,13 @@ func sync(engine types.Engine, chainRest string, blockPoolId *int64, continuatio
 		select {
 		case err := <-errorCh:
 			return fmt.Errorf("error in block collector: %w", err)
-		case item := <-itemCh:
-			// parse block height from item key
-			height, err := utils.ParseBlockHeightFromKey(item.Key)
-			if err != nil {
-				return fmt.Errorf("failed parse block height from key %s: %w", item.Key, err)
-			}
+		case block := <-blockCh:
+			prevHeight := block.Height - 1
 
-			prevHeight := height - 1
-
-			if err := engine.ApplyBlock(runtime, item.Value); err != nil {
+			if err := app.ConsensusEngine.ApplyBlock(nil, block.Block); err != nil {
 				// before we return we check if this is due to an upgrade, in this
 				// case we return a special error code to handle this
-				isUpgrade, upgradeErr := utils.IsUpgradeHeight(engine.GetHomePath(), height)
+				isUpgrade, upgradeErr := utils.IsUpgradeHeight(app.GetHomePath(), block.Height)
 				if upgradeErr != nil {
 					return fmt.Errorf("failed to apply block in engine and to check upgrade height: %w %w", err, upgradeErr)
 				}
@@ -163,7 +131,7 @@ func sync(engine types.Engine, chainRest string, blockPoolId *int64, continuatio
 				for {
 					logger.Info().Msg(fmt.Sprintf("waiting until snapshot at height %d is created by app", prevHeight))
 
-					found, err := engine.IsSnapshotAvailable(prevHeight)
+					found, err := app.ConsensusEngine.IsSnapshotAvailable(prevHeight)
 					if err != nil {
 						logger.Error().Msg(fmt.Sprintf("check snapshot availability failed at height %d", prevHeight))
 						time.Sleep(10 * time.Second)
@@ -186,55 +154,56 @@ func sync(engine types.Engine, chainRest string, blockPoolId *int64, continuatio
 
 			// skip below operations because we don't want to execute them already
 			// on the first block
-			if height == continuationHeight {
+			if block.Height == continuationHeight {
 				continue
 			}
 
-			if pruning && prevHeight%utils.PruningInterval == 0 {
+			if app.GetFlags().Pruning && prevHeight%utils.PruningInterval == 0 {
 				// Because we sync 3 * snapshot_interval ahead we keep the latest
 				// 6 * snapshot_interval blocks and prune everything before that
-				height := engine.GetHeight() - (utils.SnapshotPruningWindowFactor * snapshotInterval)
+				height := app.ConsensusEngine.GetHeight() - (utils.SnapshotPruningWindowFactor * snapshotInterval)
 
-				if height < engine.GetBaseHeight() {
-					height = engine.GetBaseHeight()
+				if height < app.ConsensusEngine.GetBaseHeight() {
+					height = app.ConsensusEngine.GetBaseHeight()
 				}
 
-				if err := engine.PruneBlocks(height); err != nil {
+				if err := app.ConsensusEngine.PruneBlocks(height); err != nil {
 					logger.Error().Msg(fmt.Sprintf("failed to prune blocks up to %d: %s", height, err))
 				}
 
 				logger.Info().Msg(fmt.Sprintf("pruned blocks to height %d", height))
 			}
 
+			// TODO: remove?
 			// create backup of entire data directory if backup interval is reached
-			if backupCfg != nil && backupCfg.Interval > 0 && prevHeight%backupCfg.Interval == 0 {
-				logger.Info().Msg("reached backup interval height, starting to create backup")
-
-				time.Sleep(time.Second * 15)
-
-				chainId, err := engine.GetChainId()
-				if err != nil {
-					return fmt.Errorf("failed to get chain id from genesis: %w")
-				}
-
-				if err = backup.CreateBackup(backupCfg, chainId, prevHeight, false); err != nil {
-					logger.Error().Msg(fmt.Sprintf("failed to create backup: %v", err))
-				}
-
-				logger.Info().Msg(fmt.Sprintf("finished backup at block height: %d", prevHeight))
-			}
+			//if backupCfg != nil && backupCfg.Interval > 0 && prevHeight%backupCfg.Interval == 0 {
+			//	logger.Info().Msg("reached backup interval height, starting to create backup")
+			//
+			//	time.Sleep(time.Second * 15)
+			//
+			//	chainId, err := engine.GetChainId()
+			//	if err != nil {
+			//		return fmt.Errorf("failed to get chain id from genesis: %w")
+			//	}
+			//
+			//	if err = backup.CreateBackup(backupCfg, chainId, prevHeight, false); err != nil {
+			//		logger.Error().Msg(fmt.Sprintf("failed to create backup: %v", err))
+			//	}
+			//
+			//	logger.Info().Msg(fmt.Sprintf("finished backup at block height: %d", prevHeight))
+			//}
 
 			// if KSYNC has already fetched 3 * snapshot_interval ahead of the snapshot pool we wait
 			// in order to not bloat the KSYNC process. If skipWaiting is true we sync as far as possible
-			if snapshotInterval > 0 && !skipWaiting {
+			if snapshotInterval > 0 && !app.GetFlags().SkipWaiting {
 				// only log this message once
-				if height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
+				if block.Height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
 					logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to produce new bundles")
 				}
 
 				for {
 					// if we are in that range we wait until the snapshot pool moved on
-					if height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
+					if block.Height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotInterval) {
 						time.Sleep(10 * time.Second)
 
 						// refresh snapshot pool height
@@ -247,11 +216,7 @@ func sync(engine types.Engine, chainRest string, blockPoolId *int64, continuatio
 			}
 
 			// stop with block execution if we have reached our target height
-			if targetHeight > 0 && height >= targetHeight+1 {
-				if err := engine.StopProxyApp(); err != nil {
-					return fmt.Errorf("failed to stop proxy app: %w", err)
-				}
-
+			if app.GetFlags().TargetHeight > 0 && block.Height >= app.GetFlags().TargetHeight+1 {
 				return nil
 			}
 		}
