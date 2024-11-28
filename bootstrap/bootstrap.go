@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/binary"
 	"github.com/KYVENetwork/ksync/bootstrap/helpers"
+	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"time"
 )
@@ -14,7 +15,7 @@ var (
 
 // TODO: add description what this method is doing and link to PR
 
-func StartBootstrapWithBinary(app *binary.CosmosApp) error {
+func StartBootstrapWithBinary(app *binary.CosmosApp, blockCollector types.BlockCollector) error {
 	// if the app already has mined at least one block we can skip further bootstrapping
 	if app.ConsensusEngine.GetHeight() > app.Genesis.GetInitialHeight() {
 		return nil
@@ -32,12 +33,12 @@ func StartBootstrapWithBinary(app *binary.CosmosApp) error {
 		return err
 	}
 
-	first, err := app.BlockCollector.GetBlock(app.Genesis.GetInitialHeight())
+	block, err := blockCollector.GetBlock(app.Genesis.GetInitialHeight())
 	if err != nil {
 		return fmt.Errorf("failed to get block %d: %w", app.Genesis.GetInitialHeight(), err)
 	}
 
-	second, err := app.BlockCollector.GetBlock(app.Genesis.GetInitialHeight() + 1)
+	nextBlock, err := blockCollector.GetBlock(app.Genesis.GetInitialHeight() + 1)
 	if err != nil {
 		return fmt.Errorf("failed to get block %d: %w", app.Genesis.GetInitialHeight()+1, err)
 	}
@@ -64,7 +65,7 @@ func StartBootstrapWithBinary(app *binary.CosmosApp) error {
 	logger.Info().Msg("loaded genesis file and completed ABCI handshake between app and tendermint")
 
 	// start p2p executors and try to execute the first block on the app
-	if err := app.ConsensusEngine.ApplyFirstBlockOverP2P("", first, second); err != nil {
+	if err := app.ConsensusEngine.ApplyFirstBlockOverP2P(block, nextBlock); err != nil {
 		return fmt.Errorf("failed to start p2p executor: %w", err)
 	}
 

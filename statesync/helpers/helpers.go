@@ -13,7 +13,7 @@ import (
 // Note that this snapshot can be not complete since for the state-sync to work all chunks have
 // to be available.
 func GetSnapshotPoolHeight(restEndpoint string, poolId int64) int64 {
-	snapshotPool, err := pool.GetPoolInfo(restEndpoint, poolId)
+	snapshotPool, err := pool.GetPool(restEndpoint, poolId)
 	if err != nil {
 		panic(fmt.Errorf("could not get snapshot pool: %w", err))
 	}
@@ -40,7 +40,7 @@ func GetSnapshotPoolHeight(restEndpoint string, poolId int64) int64 {
 // still being archived can have the latest chunks missing, therefore being not usable.
 func GetSnapshotBoundaries(restEndpoint string, poolId int64) (startHeight int64, endHeight int64, err error) {
 	// load start and latest height
-	poolResponse, err := pool.GetPoolInfo(restEndpoint, poolId)
+	poolResponse, err := pool.GetPool(restEndpoint, poolId)
 	if err != nil {
 		return startHeight, endHeight, fmt.Errorf("failed to get pool info: %w", err)
 	}

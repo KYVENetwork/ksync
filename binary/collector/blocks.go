@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/KYVENetwork/ksync/collectors/bundles"
+	"github.com/KYVENetwork/ksync/collectors/pool"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	tmJson "github.com/tendermint/tendermint/libs/json"
@@ -12,10 +13,10 @@ import (
 )
 
 type RpcBlockCollector struct {
-	rpc                string
-	blockRpcReqTimeout time.Duration
-	startHeight        int64
-	endHeight          int64
+	rpc                     string
+	blockRpcReqTimeout      time.Duration
+	earliestAvailableHeight int64
+	latestAvailableHeight   int64
 }
 
 func NewRpcBlockCollector(rpc string, blockRpcReqTimeout int64) (*RpcBlockCollector, error) {
@@ -31,20 +32,24 @@ func NewRpcBlockCollector(rpc string, blockRpcReqTimeout int64) (*RpcBlockCollec
 		return nil, fmt.Errorf("failed to unmarshal rpc endpoint response: %w", err)
 	}
 
+	if statusResponse.Result.SyncInfo.LatestBlockHeight == 0 {
+		return nil, fmt.Errorf("rpc node is empty and has not yet indexed any data")
+	}
+
 	return &RpcBlockCollector{
-		rpc:                rpc,
-		blockRpcReqTimeout: time.Duration(blockRpcReqTimeout * int64(time.Millisecond)),
-		startHeight:        statusResponse.Result.SyncInfo.EarliestBlockHeight,
-		endHeight:          statusResponse.Result.SyncInfo.LatestBlockHeight,
+		rpc:                     rpc,
+		blockRpcReqTimeout:      time.Duration(blockRpcReqTimeout * int64(time.Millisecond)),
+		earliestAvailableHeight: statusResponse.Result.SyncInfo.EarliestBlockHeight,
+		latestAvailableHeight:   statusResponse.Result.SyncInfo.LatestBlockHeight,
 	}, nil
 }
 
-func (collector *RpcBlockCollector) GetStartHeight() int64 {
-	return collector.startHeight
+func (collector *RpcBlockCollector) GetEarliestAvailableHeight() int64 {
+	return collector.earliestAvailableHeight
 }
 
-func (collector *RpcBlockCollector) GetEndHeight() int64 {
-	return collector.endHeight
+func (collector *RpcBlockCollector) GetLatestAvailableHeight() int64 {
+	return collector.latestAvailableHeight
 }
 
 func (collector *RpcBlockCollector) GetBlock(height int64) ([]byte, error) {
@@ -111,24 +116,26 @@ func (collector *RpcBlockCollector) extractRawBlockFromDataItemValue(value []byt
 }
 
 type KyveBlockCollector struct {
-	poolId      int64
-	runtime     string
-	chainRest   string
-	storageRest string
-	startHeight int64
-	endHeight   int64
+	poolId                  int64
+	runtime                 string
+	chainRest               string
+	storageRest             string
+	earliestAvailableHeight int64
+	latestAvailableHeight   int64
 }
 
 func NewKyveBlockCollector(poolId int64, chainRest, storageRest string) (*KyveBlockCollector, error) {
-	data, err := utils.GetFromUrlWithBackoff(fmt.Sprintf("%s/kyve/query/v1beta1/pool/%d", chainRest, poolId))
+	poolResponse, err := pool.GetPool(chainRest, poolId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query pool %d", poolId)
+		return nil, fmt.Errorf("fail to get pool with id %d: %w", poolId, err)
 	}
 
-	var poolResponse types.PoolResponse
+	if poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermint && poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermintBsync {
+		return nil, fmt.Errorf("found invalid runtime on block pool %d: Expected = %s or %s Found = %s", poolId, utils.KSyncRuntimeTendermint, utils.KSyncRuntimeTendermintBsync, poolResponse.Pool.Data.Runtime)
+	}
 
-	if err = json.Unmarshal(data, &poolResponse); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal pool response: %w", err)
+	if poolResponse.Pool.Data.CurrentKey == "" {
+		return nil, fmt.Errorf("pool %d is empty and has not yet archived any data", poolId)
 	}
 
 	startHeight, err := strconv.ParseInt(poolResponse.Pool.Data.StartKey, 10, 64)
@@ -136,27 +143,27 @@ func NewKyveBlockCollector(poolId int64, chainRest, storageRest string) (*KyveBl
 		return nil, fmt.Errorf("failed to parse start height %s from pool: %w", poolResponse.Pool.Data.StartKey, err)
 	}
 
-	endHeight, err := strconv.ParseInt(poolResponse.Pool.Data.CurrentKey, 10, 64)
+	currentHeight, err := strconv.ParseInt(poolResponse.Pool.Data.CurrentKey, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse end height %s from pool: %w", poolResponse.Pool.Data.CurrentKey, err)
 	}
 
 	return &KyveBlockCollector{
-		poolId:      poolId,
-		runtime:     poolResponse.Pool.Data.Runtime,
-		chainRest:   chainRest,
-		storageRest: storageRest,
-		startHeight: startHeight,
-		endHeight:   endHeight,
+		poolId:                  poolId,
+		runtime:                 poolResponse.Pool.Data.Runtime,
+		chainRest:               chainRest,
+		storageRest:             storageRest,
+		earliestAvailableHeight: startHeight,
+		latestAvailableHeight:   currentHeight,
 	}, nil
 }
 
-func (collector *KyveBlockCollector) GetStartHeight() int64 {
-	return collector.startHeight
+func (collector *KyveBlockCollector) GetEarliestAvailableHeight() int64 {
+	return collector.earliestAvailableHeight
 }
 
-func (collector *KyveBlockCollector) GetEndHeight() int64 {
-	return collector.endHeight
+func (collector *KyveBlockCollector) GetLatestAvailableHeight() int64 {
+	return collector.latestAvailableHeight
 }
 
 func (collector *KyveBlockCollector) GetBlock(height int64) ([]byte, error) {
@@ -319,7 +326,7 @@ func (collector *KyveBlockCollector) getFinalizedBundleForBlockHeight(height int
 	// the index is an incremental id for each data item. Since the index starts from zero
 	// and the start key is usually 1 we subtract it from the specified height so we get
 	// the correct index
-	index := height - collector.startHeight
+	index := height - collector.earliestAvailableHeight
 
 	raw, err := utils.GetFromUrlWithBackoff(fmt.Sprintf(
 		"%s/kyve/v1/bundles/%d?index=%d",

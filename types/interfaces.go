@@ -79,11 +79,11 @@ type ProxyApp interface {
 // with requesting the rpc endpoint of the source chain or with
 // downloading archived bundles from KYVE
 type BlockCollector interface {
-	// GetStartHeight gets the first available block in a block pool
-	GetStartHeight() int64
+	// GetEarliestAvailableHeight gets the earliest available block in a block pool
+	GetEarliestAvailableHeight() int64
 
-	// GetEndHeight gets the last available block in a block pool
-	GetEndHeight() int64
+	// GetLatestAvailableHeight gets the latest available block in a block pool
+	GetLatestAvailableHeight() int64
 
 	// GetBlock gets the block for the given height
 	GetBlock(height int64) ([]byte, error)
@@ -93,6 +93,38 @@ type BlockCollector interface {
 	// the target height is reached or runs indefinitely depending on the
 	// exitOnTargetHeight value
 	StreamBlocks(blockCh chan<- *BlockItem, errorCh chan<- error, continuationHeight, targetHeight int64)
+}
+
+// SnapshotCollector is an interface defining behaviour for
+// collecting snapshots
+type SnapshotCollector interface {
+	// GetEarliestAvailableHeight gets the earliest available snapshot height in
+	// a snapshot pool
+	GetEarliestAvailableHeight() int64
+
+	// GetLatestAvailableHeight gets the latest available snapshot height in
+	// a snapshot pool
+	GetLatestAvailableHeight() int64
+
+	// GetInterval gets the snapshot interval
+	GetInterval() int64
+
+	// GetCurrentHeight gets the current height of the latest snapshot. This snapshot
+	// is not guaranteed to be fully available and chunks can still be missing
+	GetCurrentHeight() (int64, error)
+
+	// GetSnapshotFromBundleId gets the snapshot from the given bundle
+	GetSnapshotFromBundleId(bundleId int64) (*SnapshotDataItem, error)
+
+	// DownloadChunkFromBundleId downloads the snapshot chunk from the given bundle
+	DownloadChunkFromBundleId(bundleId int64) ([]byte, error)
+
+	// FindSnapshotBundleIdForTargetHeight searches and returns the bundle id which contains the first
+	// snapshot chunk for the given target height.
+	// Since we do not know how many chunks a bundle has but expect that the snapshots are ordered by height
+	// we can apply a binary search to minimize the amount of requests we have to make. This method fails
+	// if there is no bundle which contains the snapshot at the target height
+	FindSnapshotBundleIdForTargetHeight(targetHeight int64) (int64, error)
 }
 
 // Engine is an interface defining common behaviour for each consensus engine.
@@ -192,13 +224,14 @@ type Engine interface {
 	GetSeenCommit(height int64) ([]byte, error)
 
 	// OfferSnapshot offers a snapshot over ABCI to the app
-	OfferSnapshot(value []byte) (string, uint32, error)
+	OfferSnapshot(rawSnapshot, rawState []byte) (int64, int64, error)
 
 	// ApplySnapshotChunk applies a snapshot chunk over ABCI to the app
-	ApplySnapshotChunk(chunkIndex uint32, value []byte) (string, error)
+	ApplySnapshotChunk(chunkIndex int64, chunk []byte) error
 
 	// BootstrapState initializes the tendermint state
-	BootstrapState(value []byte) error
+	// TODO: do we need to store the first block here?
+	BootstrapState(rawState, rawSeenCommit, rawBlock []byte) error
 
 	// PruneBlocks prunes blocks from the block store and state store
 	// from the earliest found base height to the specified height

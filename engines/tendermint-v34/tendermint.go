@@ -3,7 +3,6 @@ package tendermint_v34
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/utils"
-	abciClient "github.com/tendermint/tendermint/abci/client"
 	abciTypes "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
 	cs "github.com/tendermint/tendermint/consensus"
@@ -404,38 +403,18 @@ func (engine *Engine) GetBaseHeight() int64 {
 }
 
 func (engine *Engine) GetAppHeight() (int64, error) {
-	socketClient := abciClient.NewSocketClient(engine.config.ProxyApp, false)
-
-	if err := socketClient.Start(); err != nil {
-		return 0, fmt.Errorf("failed to start socket client: %w", err)
-	}
-
-	info, err := socketClient.InfoSync(abciTypes.RequestInfo{})
+	info, err := engine.proxyApp.Query().InfoSync(abciTypes.RequestInfo{})
 	if err != nil {
 		return 0, fmt.Errorf("failed to query info: %w", err)
-	}
-
-	if err := socketClient.Stop(); err != nil {
-		return 0, fmt.Errorf("failed to stop socket client: %w", err)
 	}
 
 	return info.LastBlockHeight, nil
 }
 
 func (engine *Engine) GetSnapshots() ([]byte, error) {
-	socketClient := abciClient.NewSocketClient(engine.config.ProxyApp, false)
-
-	if err := socketClient.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start socket client: %w", err)
-	}
-
-	res, err := socketClient.ListSnapshotsSync(abciTypes.RequestListSnapshots{})
+	res, err := engine.proxyApp.Snapshot().ListSnapshotsSync(abciTypes.RequestListSnapshots{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list snapshots: %w", err)
-	}
-
-	if err := socketClient.Stop(); err != nil {
-		return nil, fmt.Errorf("failed to stop socket client: %w", err)
 	}
 
 	if len(res.Snapshots) == 0 {
@@ -446,19 +425,9 @@ func (engine *Engine) GetSnapshots() ([]byte, error) {
 }
 
 func (engine *Engine) IsSnapshotAvailable(height int64) (bool, error) {
-	socketClient := abciClient.NewSocketClient(engine.config.ProxyApp, false)
-
-	if err := socketClient.Start(); err != nil {
-		return false, fmt.Errorf("failed to start socket client: %w", err)
-	}
-
-	res, err := socketClient.ListSnapshotsSync(abciTypes.RequestListSnapshots{})
+	res, err := engine.proxyApp.Snapshot().ListSnapshotsSync(abciTypes.RequestListSnapshots{})
 	if err != nil {
 		return false, fmt.Errorf("failed to list snapshots: %w", err)
-	}
-
-	if err := socketClient.Stop(); err != nil {
-		return false, fmt.Errorf("failed to stop socket client: %w", err)
 	}
 
 	for _, snapshot := range res.Snapshots {
@@ -471,13 +440,7 @@ func (engine *Engine) IsSnapshotAvailable(height int64) (bool, error) {
 }
 
 func (engine *Engine) GetSnapshotChunk(height, format, chunk int64) ([]byte, error) {
-	socketClient := abciClient.NewSocketClient(engine.config.ProxyApp, false)
-
-	if err := socketClient.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start socket client: %w", err)
-	}
-
-	res, err := socketClient.LoadSnapshotChunkSync(abciTypes.RequestLoadSnapshotChunk{
+	res, err := engine.proxyApp.Snapshot().LoadSnapshotChunkSync(abciTypes.RequestLoadSnapshotChunk{
 		Height: uint64(height),
 		Format: uint32(format),
 		Chunk:  uint32(chunk),
@@ -486,11 +449,7 @@ func (engine *Engine) GetSnapshotChunk(height, format, chunk int64) ([]byte, err
 		return nil, fmt.Errorf("failed to load snapshot chunk: %w", err)
 	}
 
-	if err := socketClient.Stop(); err != nil {
-		return nil, fmt.Errorf("failed to stop socket client: %w", err)
-	}
-
-	return json.Marshal(res.Chunk)
+	return res.Chunk, nil
 }
 
 func (engine *Engine) GetBlock(height int64) ([]byte, error) {
@@ -625,97 +584,96 @@ func (engine *Engine) GetSeenCommit(height int64) ([]byte, error) {
 	return json.Marshal(block.LastCommit)
 }
 
-func (engine *Engine) OfferSnapshot(value []byte) (string, uint32, error) {
-	var bundle TendermintSsyncBundle
+func (engine *Engine) OfferSnapshot(rawSnapshot, rawState []byte) (int64, int64, error) {
+	var snapshot *abciTypes.Snapshot
 
-	if err := json.Unmarshal(value, &bundle); err != nil {
-		return abciTypes.ResponseOfferSnapshot_UNKNOWN.String(), 0, fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
+	if err := json.Unmarshal(rawSnapshot, &snapshot); err != nil {
+		return 0, 0, fmt.Errorf("failed to unmarshal snapshot: %w", err)
 	}
 
-	socketClient := abciClient.NewSocketClient(engine.config.ProxyApp, false)
+	var state *tmState.State
 
-	if err := socketClient.Start(); err != nil {
-		return abciTypes.ResponseOfferSnapshot_UNKNOWN.String(), 0, fmt.Errorf("failed to start socket client: %w", err)
+	if err := json.Unmarshal(rawState, &state); err != nil {
+		return 0, 0, fmt.Errorf("failed to unmarshal state: %w", err)
 	}
 
-	res, err := socketClient.OfferSnapshotSync(abciTypes.RequestOfferSnapshot{
-		Snapshot: bundle[0].Value.Snapshot,
-		AppHash:  bundle[0].Value.State.AppHash,
+	res, err := engine.proxyApp.Snapshot().OfferSnapshotSync(abciTypes.RequestOfferSnapshot{
+		Snapshot: snapshot,
+		AppHash:  state.AppHash,
 	})
-
 	if err != nil {
-		return abciTypes.ResponseOfferSnapshot_UNKNOWN.String(), 0, err
+		return 0, 0, err
 	}
 
-	if err := socketClient.Stop(); err != nil {
-		return abciTypes.ResponseOfferSnapshot_UNKNOWN.String(), 0, fmt.Errorf("failed to stop socket client: %w", err)
+	if res.Result.String() != abciTypes.ResponseOfferSnapshot_ACCEPT.String() {
+		return 0, 0, fmt.Errorf(res.Result.String())
 	}
 
-	return res.Result.String(), bundle[0].Value.Snapshot.Chunks, nil
+	return int64(snapshot.Height), int64(snapshot.Chunks), nil
 }
 
-func (engine *Engine) ApplySnapshotChunk(chunkIndex uint32, value []byte) (string, error) {
-	var bundle TendermintSsyncBundle
-
-	if err := json.Unmarshal(value, &bundle); err != nil {
-		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
-	}
-
+func (engine *Engine) ApplySnapshotChunk(chunkIndex int64, chunk []byte) error {
+	// TODO: load node key before?
 	nodeKey, err := tmP2P.LoadNodeKey(engine.config.NodeKeyFile())
 	if err != nil {
-		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("loading node key file failed: %w", err)
+		return fmt.Errorf("loading node key file failed: %w", err)
 	}
 
-	socketClient := abciClient.NewSocketClient(engine.config.ProxyApp, false)
-
-	if err := socketClient.Start(); err != nil {
-		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("failed to start socket client: %w", err)
-	}
-
-	res, err := socketClient.ApplySnapshotChunkSync(abciTypes.RequestApplySnapshotChunk{
-		Index:  chunkIndex,
-		Chunk:  bundle[0].Value.Chunk,
+	res, err := engine.proxyApp.Snapshot().ApplySnapshotChunkSync(abciTypes.RequestApplySnapshotChunk{
+		Index:  uint32(chunkIndex),
+		Chunk:  chunk,
 		Sender: string(nodeKey.ID()),
 	})
-
 	if err != nil {
-		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), err
+		return err
 	}
 
-	if err := socketClient.Stop(); err != nil {
-		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("failed to stop socket client: %w", err)
+	if res.Result.String() != abciTypes.ResponseApplySnapshotChunk_ACCEPT.String() {
+		return fmt.Errorf(res.Result.String())
 	}
 
-	return res.Result.String(), nil
+	return nil
 }
 
-func (engine *Engine) BootstrapState(value []byte) error {
-	var bundle TendermintSsyncBundle
+func (engine *Engine) BootstrapState(rawState, rawSeenCommit, rawBlock []byte) error {
+	var state *tmState.State
 
-	if err := json.Unmarshal(value, &bundle); err != nil {
-		return fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
+	if err := json.Unmarshal(rawState, &state); err != nil {
+		return fmt.Errorf("failed to unmarshal state: %w", err)
+	}
+
+	var seenCommit *tmTypes.Commit
+
+	if err := json.Unmarshal(rawSeenCommit, &seenCommit); err != nil {
+		return fmt.Errorf("failed to unmarshal seen commit: %w", err)
+	}
+
+	var block *tmTypes.Block
+
+	if err := json.Unmarshal(rawBlock, &block); err != nil {
+		return fmt.Errorf("failed to unmarshal block: %w", err)
 	}
 
 	// if TimeIotaMs is zero we set it to 1 else the app would panic.
 	// in rare circumstances this can be zero if the snapshot got
 	// created with the engine cometbft-v0.37 or cometbft-v0.38 but the
 	// height is still for tendermint-v0.34
-	if bundle[0].Value.State.ConsensusParams.Block.TimeIotaMs == 0 {
-		bundle[0].Value.State.ConsensusParams.Block.TimeIotaMs = 1
+	if state.ConsensusParams.Block.TimeIotaMs == 0 {
+		state.ConsensusParams.Block.TimeIotaMs = 1
 	}
 
-	err := engine.stateStore.Bootstrap(*bundle[0].Value.State)
+	err := engine.stateStore.Bootstrap(*state)
 	if err != nil {
-		return fmt.Errorf("failed to bootstrap state: %s\"", err)
+		return fmt.Errorf("failed to bootstrap state: %w", err)
 	}
 
-	err = engine.blockStore.SaveSeenCommit(bundle[0].Value.State.LastBlockHeight, bundle[0].Value.SeenCommit)
+	err = engine.blockStore.SaveSeenCommit(state.LastBlockHeight, seenCommit)
 	if err != nil {
 		return fmt.Errorf("failed to save seen commit: %s\"", err)
 	}
 
-	blockParts := bundle[0].Value.Block.MakePartSet(tmTypes.BlockPartSizeBytes)
-	engine.blockStore.SaveBlock(bundle[0].Value.Block, blockParts, bundle[0].Value.SeenCommit)
+	blockParts := block.MakePartSet(tmTypes.BlockPartSizeBytes)
+	engine.blockStore.SaveBlock(block, blockParts, seenCommit)
 
 	return nil
 }

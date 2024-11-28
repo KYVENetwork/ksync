@@ -17,6 +17,7 @@ const (
 	SegmentKey = "quSEhAvH5fqlHyop9r9mDGxgd97ro3vQ"
 )
 
+// TODO: remove KSync prefix
 const (
 	KSyncRuntimeTendermint      = "@kyvejs/tendermint"
 	KSyncRuntimeTendermintBsync = "@kyvejs/tendermint-bsync"
@@ -54,7 +55,7 @@ const (
 	SnapshotPruningAheadFactor  = 3
 	SnapshotPruningWindowFactor = 6
 	BackoffMaxRetries           = 10
-	RequestTimeoutMS            = 250
+	RequestTimeoutMS            = 100
 	RequestBlocksTimeoutMS      = 250
 )
 

@@ -2,80 +2,60 @@ package statesync
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/collectors/bundles"
+	"github.com/KYVENetwork/ksync/binary"
 	"github.com/KYVENetwork/ksync/types"
-	"github.com/KYVENetwork/ksync/utils"
 )
 
 // StartStateSyncExecutor takes the bundle id of the first snapshot chunk and applies the snapshot from there
-func StartStateSyncExecutor(engine types.Engine, chainRest, storageRest string, snapshotPoolId, snapshotBundleId int64) error {
-	logger.Info().Msg(fmt.Sprintf("applying state-sync snapshot"))
+func StartStateSyncExecutor(app *binary.CosmosApp, snapshotCollector types.SnapshotCollector, bundleId int64) error {
+	if snapshotCollector == nil {
+		return fmt.Errorf("snapshot collector can't be nil")
+	}
 
-	appHeight, err := engine.GetAppHeight()
+	appHeight, err := app.ConsensusEngine.GetAppHeight()
 	if err != nil {
-		return fmt.Errorf("requesting height from app failed: %w", err)
+		return fmt.Errorf("failed to get height from cosmos app: %w", err)
 	}
 
 	if appHeight > 0 {
 		return fmt.Errorf("app height %d is not zero, please reset with \"ksync reset-all\" or run the command with \"--reset-all\"", appHeight)
 	}
 
-	finalizedBundle, err := bundles.GetFinalizedBundleById(chainRest, snapshotPoolId, snapshotBundleId)
+	snapshot, err := snapshotCollector.GetSnapshotFromBundleId(bundleId)
 	if err != nil {
-		return fmt.Errorf("failed getting finalized bundle: %w", err)
+		return fmt.Errorf("failed to get snapshot from bundle id %d: %w", bundleId, err)
 	}
 
-	snapshotHeight, _, err := utils.ParseSnapshotFromKey(finalizedBundle.ToKey)
+	snapshotHeight, chunks, err := app.ConsensusEngine.OfferSnapshot(snapshot.Value.Snapshot, snapshot.Value.State)
 	if err != nil {
-		return fmt.Errorf("failed getting snapshot height from to_key %s: %w", finalizedBundle.ToKey, err)
+		return fmt.Errorf("failed to offer snapshot: %w", err)
 	}
 
-	deflated, err := bundles.GetDataFromFinalizedBundle(*finalizedBundle, storageRest)
-	if err != nil {
-		return fmt.Errorf("failed getting data from finalized bundle: %w", err)
+	logger.Info().Msgf("offering snapshot for height %d: ACCEPT", snapshotHeight)
+
+	if err := app.ConsensusEngine.ApplySnapshotChunk(0, snapshot.Value.Chunk); err != nil {
+		return fmt.Errorf("applying snapshot chunk %d/%d failed: %w", 0, chunks, err)
 	}
 
-	res, chunks, err := engine.OfferSnapshot(deflated)
-	if err != nil {
-		return fmt.Errorf("offering snapshot failed: %w", err)
-	}
+	logger.Info().Msg(fmt.Sprintf("applied snapshot chunk %d/%d: ACCEPT", 0, chunks))
 
-	if res == "ACCEPT" {
-		logger.Info().Msg(fmt.Sprintf("offering snapshot for height %d: %s", snapshotHeight, res))
-	} else {
-		logger.Error().Msg(fmt.Sprintf("offering snapshot for height %d failed: %s", snapshotHeight, res))
-		return fmt.Errorf("offering snapshot result: %s", res)
-	}
-
-	for chunkIndex := uint32(0); chunkIndex < chunks; chunkIndex++ {
-		chunkBundleFinalized, err := bundles.GetFinalizedBundleById(chainRest, snapshotPoolId, snapshotBundleId+int64(chunkIndex))
+	for chunkIndex := int64(1); chunkIndex < chunks; chunkIndex++ {
+		chunk, err := snapshotCollector.DownloadChunkFromBundleId(bundleId + chunkIndex)
 		if err != nil {
-			return fmt.Errorf("failed getting finalized bundle: %w", err)
+			return fmt.Errorf("failed downloading snapshot chunk from bundle id %d: %w", bundleId+chunkIndex, err)
 		}
 
-		chunkBundleDeflated, err := bundles.GetDataFromFinalizedBundle(*chunkBundleFinalized, storageRest)
-		if err != nil {
-			return fmt.Errorf("failed getting data from finalized bundle: %w", err)
+		logger.Info().Msgf("downloaded snapshot chunk %d/%d", chunkIndex+1, chunks)
+
+		if err := app.ConsensusEngine.ApplySnapshotChunk(chunkIndex, chunk); err != nil {
+			return fmt.Errorf("applying snapshot chunk %d/%d failed: %w", chunkIndex+1, chunks, err)
 		}
 
-		logger.Info().Msg(fmt.Sprintf("downloaded snapshot chunk %d/%d", chunkIndex+1, chunks))
-
-		res, err := engine.ApplySnapshotChunk(chunkIndex, chunkBundleDeflated)
-		if err != nil {
-			logger.Error().Msg(fmt.Sprintf("applying snapshot chunk %d/%d failed: %s", chunkIndex+1, chunks, err))
-			return err
-		}
-
-		if res == "ACCEPT" {
-			logger.Info().Msg(fmt.Sprintf("applying snapshot chunk %d/%d: %s", chunkIndex+1, chunks, res))
-		} else {
-			logger.Error().Msg(fmt.Sprintf("applying snapshot chunk %d/%d failed: %s", chunkIndex+1, chunks, res))
-			return fmt.Errorf("applying snapshot chunk: %s", res)
-		}
+		logger.Info().Msg(fmt.Sprintf("applied snapshot chunk %d/%d: ACCEPT", chunkIndex+1, chunks))
 	}
 
-	if err := engine.BootstrapState(deflated); err != nil {
-		return fmt.Errorf("failed to bootstrap state: %s\"", err)
+	if err := app.ConsensusEngine.BootstrapState(snapshot.Value.State, snapshot.Value.SeenCommit, snapshot.Value.Block); err != nil {
+		return fmt.Errorf("failed to bootstrap state after state-sync: %w", err)
 	}
 
 	return nil

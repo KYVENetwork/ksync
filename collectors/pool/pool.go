@@ -7,7 +7,7 @@ import (
 	"github.com/tendermint/tendermint/libs/json"
 )
 
-func GetPoolInfo(restEndpoint string, poolId int64) (*types.PoolResponse, error) {
+func GetPool(restEndpoint string, poolId int64) (*types.PoolResponse, error) {
 	data, err := utils.GetFromUrlWithBackoff(fmt.Sprintf("%s/kyve/query/v1beta1/pool/%d", restEndpoint, poolId))
 	if err != nil {
 		return nil, fmt.Errorf("failed to query pool %d", poolId)

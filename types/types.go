@@ -48,9 +48,28 @@ type DataItem struct {
 
 type Bundle = []DataItem
 
+type SnapshotDataItem struct {
+	Key   string `json:"key"`
+	Value struct {
+		Snapshot   json.RawMessage `json:"snapshot"`
+		Block      json.RawMessage `json:"block"`
+		SeenCommit json.RawMessage `json:"seenCommit"`
+		State      json.RawMessage `json:"state"`
+		ChunkIndex uint32          `json:"chunkIndex"`
+		Chunk      []byte          `json:"chunk"`
+	} `json:"value"`
+}
+
+type SnapshotBundle = []SnapshotDataItem
+
 type BlockItem struct {
 	Height int64
 	Block  json.RawMessage
+}
+
+type Snapshot struct {
+	BundleId int64
+	Height   int64
 }
 
 type Pagination struct {

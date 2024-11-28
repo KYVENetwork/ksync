@@ -2,7 +2,6 @@ package binary
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/binary/collector"
 	"github.com/KYVENetwork/ksync/binary/genesis"
 	"github.com/KYVENetwork/ksync/binary/source"
 	"github.com/KYVENetwork/ksync/engines/celestia-core-v34"
@@ -10,7 +9,6 @@ import (
 	"github.com/KYVENetwork/ksync/engines/cometbft-v38"
 	"github.com/KYVENetwork/ksync/engines/tendermint-v34"
 	"github.com/KYVENetwork/ksync/types"
-	"github.com/KYVENetwork/ksync/utils"
 	"os"
 	"os/exec"
 	"strings"
@@ -29,9 +27,6 @@ type CosmosApp struct {
 	Genesis         *genesis.Genesis
 	Source          *source.Source
 	ConsensusEngine types.Engine
-	BlockCollector  types.BlockCollector
-	// TODO: build collector for snapshots
-	SnapshotCollector types.BlockCollector
 }
 
 // TODO: add logs
@@ -42,11 +37,13 @@ func NewCosmosApp(flags types.KsyncFlags) (*CosmosApp, error) {
 		return nil, fmt.Errorf("failed to lookup binary path %s: %w", flags.BinaryPath, err)
 	}
 
-	app := &CosmosApp{binaryPath: fullBinaryPath, flags: flags}
-	app.isCosmovisor = strings.HasSuffix(app.binaryPath, "cosmovisor")
+	app := &CosmosApp{
+		binaryPath:   fullBinaryPath,
+		homePath:     flags.HomePath,
+		flags:        flags,
+		isCosmovisor: strings.HasSuffix(flags.BinaryPath, "cosmovisor")}
 
-	// TODO: what if home path is given?
-	if flags.HomePath == "" {
+	if app.GetHomePath() == "" {
 		if err = app.loadHomePath(); err != nil {
 			return nil, fmt.Errorf("failed to load home path from binary: %w", err)
 		}
@@ -64,27 +61,6 @@ func NewCosmosApp(flags types.KsyncFlags) (*CosmosApp, error) {
 	app.Source, err = source.NewSource(app.Genesis.GetChainId(), flags)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init source: %w", err)
-	}
-
-	// we always get info about the block pool here since for every
-	// source there is an existing block pool
-	if flags.BlockRpc != "" {
-		app.BlockCollector, err = collector.NewRpcBlockCollector(flags.BlockRpc, flags.BlockRpcReqTimeout)
-		if err != nil {
-			return nil, fmt.Errorf("failed to init rpc block collector: %w", err)
-		}
-	} else {
-		// if there is no entry in the source registry for the source
-		// and if no block pool id was provided with the flags it would fail here
-		blockPoolId, err := app.Source.GetSourceBlockPoolId()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get block pool id: %w", err)
-		}
-
-		app.BlockCollector, err = collector.NewKyveBlockCollector(blockPoolId, utils.GetChainRest(flags.ChainId, flags.ChainRest), strings.TrimSuffix(flags.StorageRest, "/"))
-		if err != nil {
-			return nil, fmt.Errorf("failed to init kyve block collector: %w", err)
-		}
 	}
 
 	return app, nil
@@ -333,7 +309,7 @@ func (app *CosmosApp) loadHomePath() error {
 func (app *CosmosApp) LoadConsensusEngine() error {
 	cmd := exec.Command(app.binaryPath)
 
-	if strings.HasSuffix(app.binaryPath, "cosmovisor") {
+	if app.IsCosmovisor() {
 		cmd.Args = append(cmd.Args, "run")
 		cmd.Env = append(os.Environ(), "COSMOVISOR_DISABLE_LOGS=true")
 	}
