@@ -1,14 +1,10 @@
 package commands
 
 import (
-	"errors"
 	"fmt"
-	"github.com/KYVENetwork/ksync/engines"
-	"github.com/KYVENetwork/ksync/sources"
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
-	"strings"
 )
 
 func init() {
@@ -41,73 +37,8 @@ func init() {
 
 var stateSyncCmd = &cobra.Command{
 	Use:   "state-sync",
-	Short: "Apply a state-sync snapshot",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		chainRest = utils.GetChainRest(chainId, chainRest)
-		storageRest = strings.TrimSuffix(storageRest, "/")
-
-		// if no binary was provided at least the home path needs to be defined
-		if binaryPath == "" && homePath == "" {
-			return errors.New("flag 'home' is required")
-		}
-
-		if binaryPath == "" {
-			logger.Info().Msg("To start the syncing process, start your chain binary with --with-tendermint=false")
-		}
-
-		// if no home path was given get the default one
-		if homePath == "" {
-			homePath = utils.GetHomePathFromBinary(binaryPath)
-		}
-
-		defaultEngine := engines.EngineFactory(engine, homePath, rpcServerPort)
-
-		if source == "" && snapshotPoolId == "" {
-			s, err := defaultEngine.GetChainId()
-			if err != nil {
-				return fmt.Errorf("failed to load chain-id from engine: %w", err)
-			}
-			source = s
-			logger.Info().Msgf("Loaded source \"%s\" from genesis file", source)
-		}
-
-		_, sId, err := sources.GetPoolIds(chainId, source, "", snapshotPoolId, registryUrl, false, true)
-		if err != nil {
-			return fmt.Errorf("failed to load pool-ids: %w", err)
-		}
-
-		if reset {
-			if err := defaultEngine.ResetAll(true); err != nil {
-				return fmt.Errorf("could not reset tendermint application: %w", err)
-			}
-		}
-
-		// perform validation checks before booting state-sync process
-		snapshotBundleId, snapshotHeight, err := statesync.PerformStateSyncValidationChecks(chainRest, sId, targetHeight, !y)
-		if err != nil {
-			return fmt.Errorf("state-sync validation checks failed: %w", err)
-		}
-
-		if autoselectBinaryVersion {
-			if err := sources.SelectCosmovisorVersion(binaryPath, homePath, registryUrl, source, snapshotHeight); err != nil {
-				return fmt.Errorf("failed to autoselect binary version: %w", err)
-			}
-		}
-
-		if err := sources.IsBinaryRecommendedVersion(binaryPath, registryUrl, source, snapshotHeight, !y); err != nil {
-			return fmt.Errorf("failed to check if binary has the recommended version: %w", err)
-		}
-
-		if engine == "" && binaryPath != "" {
-			engine = utils.GetEnginePathFromBinary(binaryPath)
-			logger.Info().Msgf("Loaded engine \"%s\" from binary path", engine)
-		}
-
-		consensusEngine, err := engines.EngineSourceFactory(engine, homePath, registryUrl, source, rpcServerPort, snapshotHeight)
-		if err != nil {
-			return fmt.Errorf("failed to create consensus engine for source: %w", err)
-		}
-
-		return statesync.StartStateSyncWithBinary(consensusEngine, binaryPath, chainId, chainRest, storageRest, sId, targetHeight, snapshotBundleId, snapshotHeight, appFlags, optOut, debug)
+	Short: "Apply state-sync snapshots",
+	RunE: func(_ *cobra.Command, _ []string) error {
+		return statesync.Start(flags)
 	},
 }

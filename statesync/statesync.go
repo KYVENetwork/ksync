@@ -3,111 +3,125 @@ package statesync
 import (
 	"errors"
 	"fmt"
-	"github.com/KYVENetwork/ksync/collectors/snapshots"
-	"github.com/KYVENetwork/ksync/statesync/helpers"
+	"github.com/KYVENetwork/ksync/binary"
+	"github.com/KYVENetwork/ksync/binary/collector"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"strings"
-	"time"
 )
 
 var (
 	logger = utils.KsyncLogger("state-sync")
 )
 
-// PerformStateSyncValidationChecks checks if a snapshot is available for the targetHeight and if not returns
-// the nearest available snapshot below the targetHeight. It also returns the bundle id for the snapshot
-func PerformStateSyncValidationChecks(chainRest string, snapshotPoolId, targetHeight int64, userInput bool) (snapshotBundleId, snapshotHeight int64, err error) {
+func PerformStateSyncValidationChecks(app *binary.CosmosApp, snapshotCollector types.SnapshotCollector, targetHeight int64) error {
 	// get lowest and highest complete snapshot
-	startHeight, endHeight, err := helpers.GetSnapshotBoundaries(chainRest, snapshotPoolId)
-	if err != nil {
-		return snapshotBundleId, snapshotHeight, fmt.Errorf("failed get snapshot boundaries: %w", err)
+	earliest := snapshotCollector.GetEarliestAvailableHeight()
+	latest := snapshotCollector.GetLatestAvailableHeight()
+
+	logger.Info().Msgf("retrieved snapshot boundaries, earliest complete snapshot height = %d, latest complete snapshot height %d", earliest, latest)
+
+	if targetHeight < earliest {
+		return fmt.Errorf("requested target height is %d but first available snapshot on pool is %d", targetHeight, earliest)
 	}
 
-	logger.Info().Msg(fmt.Sprintf("retrieved snapshot boundaries, earliest complete snapshot height = %d, latest complete snapshot height %d", startHeight, endHeight))
-
-	// if no snapshot height was specified we use the latest available snapshot from the pool as targetHeight
-	if targetHeight == 0 {
-		targetHeight = endHeight
-		logger.Info().Msg(fmt.Sprintf("no target height specified, syncing to latest available snapshot %d", targetHeight))
+	if targetHeight > latest {
+		return fmt.Errorf("requested target height is %d but latest available snapshot on pool is %d", targetHeight, latest)
 	}
 
-	if targetHeight < startHeight {
-		return snapshotBundleId, snapshotHeight, fmt.Errorf("requested snapshot height %d but first available snapshot on pool is %d", targetHeight, startHeight)
-	}
-
-	// limit snapshot search height by latest available snapshot height
-	snapshotSearchHeight := targetHeight
-	if targetHeight > endHeight {
-		snapshotSearchHeight = endHeight
-	}
-
-	snapshotBundleId, snapshotHeight, err = snapshots.FindNearestSnapshotBundleIdByHeight(chainRest, snapshotPoolId, snapshotSearchHeight)
-	if err != nil {
-		return
-	}
-
-	if userInput {
+	if !app.GetFlags().Y {
 		answer := ""
 
 		// if we found a different snapshotHeight as the requested targetHeight it means the targetHeight was not
 		// available, and we have to sync to the nearest height below
-		if targetHeight != snapshotHeight {
-			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m could not find snapshot with requested height %d, state-sync to nearest available snapshot with height %d instead? [y/N]: ", targetHeight, snapshotHeight)
+		if targetHeight != app.GetFlags().TargetHeight {
+			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m could not find snapshot with requested height %d, state-sync to nearest available snapshot with height %d instead? [y/N]: ", app.GetFlags().TargetHeight, targetHeight)
 		} else {
-			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should snapshot with height %d be applied with state-sync [y/N]: ", snapshotHeight)
+			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should snapshot with height %d be applied with state-sync [y/N]: ", targetHeight)
 		}
 
 		if _, err := fmt.Scan(&answer); err != nil {
-			return snapshotBundleId, snapshotHeight, fmt.Errorf("failed to read in user input: %w", err)
+			return fmt.Errorf("failed to read in user input: %w", err)
 		}
 
 		if strings.ToLower(answer) != "y" {
-			return snapshotBundleId, snapshotHeight, errors.New("aborted state-sync")
+			return errors.New("aborted state-sync")
 		}
 	}
 
-	return snapshotBundleId, snapshotHeight, nil
+	return nil
 }
 
-func StartStateSyncWithBinary(engine types.Engine, binaryPath, chainId, chainRest, storageRest string, snapshotPoolId, targetHeight, snapshotBundleId, snapshotHeight int64, appFlags string, optOut, debug bool) error {
+func Start(flags types.KsyncFlags) error {
 	logger.Info().Msg("starting state-sync")
 
-	cmd, err := utils.StartBinaryProcessForDB(engine, binaryPath, debug, strings.Split(appFlags, ","))
+	app, err := binary.NewCosmosApp(flags)
 	if err != nil {
-		return fmt.Errorf("failed to start binary process: %w", err)
+		return fmt.Errorf("failed to init cosmos app: %w", err)
 	}
 
-	if err := engine.OpenDBs(); err != nil {
-		return fmt.Errorf("failed to open dbs in engine: %w", err)
-	}
-
-	utils.TrackSyncStartEvent(engine, utils.STATE_SYNC, chainId, chainRest, storageRest, targetHeight, optOut)
-
-	start := time.Now()
-
-	if err := StartStateSyncExecutor(engine, chainRest, storageRest, snapshotPoolId, snapshotBundleId); err != nil {
-		logger.Error().Msg(fmt.Sprintf("failed to start state-sync: %s", err))
-
-		if err := utils.StopBinaryProcess(cmd); err != nil {
-			return fmt.Errorf("failed to stop binary process: %w", err)
+	if flags.Reset {
+		if err := app.ConsensusEngine.ResetAll(true); err != nil {
+			return fmt.Errorf("failed to reset cosmos app: %w", err)
 		}
+	}
 
+	snapshotPoolId, err := app.Source.GetSourceBlockPoolId()
+	if err != nil {
+		return fmt.Errorf("failed to get snapshot pool id: %w", err)
+	}
+
+	chainRest := utils.GetChainRest(flags.ChainId, flags.ChainRest)
+	storageRest := strings.TrimSuffix(flags.StorageRest, "/")
+
+	snapshotCollector, err := collector.NewKyveSnapshotCollector(snapshotPoolId, chainRest, storageRest)
+	if err != nil {
+		return fmt.Errorf("failed to init kyve snapshot collector: %w", err)
+	}
+
+	// if the height is not on the snapshot interval we get closest height below it which does
+	targetHeight := flags.TargetHeight
+	// TODO: what if target height is not given?
+	// logger.Info().Msg(fmt.Sprintf("no target height specified, syncing to latest available snapshot %d", targetHeight))
+	if remainder := targetHeight % snapshotCollector.GetInterval(); remainder > 0 {
+		targetHeight -= remainder
+	}
+
+	if targetHeight == 0 {
+		return fmt.Errorf("no snapshot could be found, target height %d too low", targetHeight)
+	}
+
+	if err := PerformStateSyncValidationChecks(app, snapshotCollector, targetHeight); err != nil {
+		return fmt.Errorf("state-sync validation checks failed: %w", err)
+	}
+
+	bundleId, err := snapshotCollector.FindSnapshotBundleIdForTargetHeight(targetHeight)
+	if err != nil {
+		return fmt.Errorf("failed to find snapshot bundle id for target height: %w", err)
+	}
+
+	if err := app.AutoSelectBinaryVersion(targetHeight); err != nil {
+		return fmt.Errorf("failed to auto select binary version: %w", err)
+	}
+
+	if err := app.StartAll(); err != nil {
+		return fmt.Errorf("failed to start app: %w", err)
+	}
+
+	// TODO: handle error
+	defer app.StopAll()
+
+	// TODO: move to cosmos app
+	utils.TrackSyncStartEvent(app.ConsensusEngine, utils.STATE_SYNC, app.GetFlags().ChainId, app.GetFlags().ChainRest, app.GetFlags().StorageRest, app.GetFlags().TargetHeight, app.GetFlags().OptOut)
+
+	// TODO: add contract that binary, dbs and proxy app must be open and running for this method
+	if err := StartStateSyncExecutor(app, snapshotCollector, bundleId); err != nil {
 		return fmt.Errorf("failed to start state-sync executor: %w", err)
 	}
 
-	if err := utils.StopBinaryProcess(cmd); err != nil {
-		return fmt.Errorf("failed to stop binary process: %w", err)
-	}
+	// TODO: move to cosmos app, keeping elapsed?
+	utils.TrackSyncCompletedEvent(0, targetHeight, app.GetFlags().TargetHeight, 0, app.GetFlags().OptOut)
 
-	elapsed := time.Since(start).Seconds()
-	utils.TrackSyncCompletedEvent(snapshotHeight, 0, targetHeight, elapsed, optOut)
-
-	if err := engine.CloseDBs(); err != nil {
-		return fmt.Errorf("failed to close dbs in engine: %w", err)
-	}
-
-	logger.Info().Msg(fmt.Sprintf("state-synced at height %d in %.2f seconds", snapshotHeight, elapsed))
-	logger.Info().Msg(fmt.Sprintf("successfully applied state-sync snapshot"))
+	logger.Info().Msg(fmt.Sprintf("successfully finished state-sync"))
 	return nil
 }

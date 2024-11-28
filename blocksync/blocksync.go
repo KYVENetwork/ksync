@@ -136,7 +136,7 @@ func Start(flags types.KsyncFlags) error {
 
 	// TODO: add contract that binary, dbs and proxy app must be open and running for this method
 	if err := StartBlockSyncExecutor(app, blockCollector, nil); err != nil {
-		return fmt.Errorf("failed to start block sync executor: %w", err)
+		return fmt.Errorf("failed to start block-sync executor: %w", err)
 	}
 
 	// TODO: move to cosmos app, keeping elapsed?

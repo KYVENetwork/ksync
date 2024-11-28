@@ -152,13 +152,6 @@ func (collector *KyveSnapshotCollector) DownloadChunkFromBundleId(bundleId int64
 }
 
 func (collector *KyveSnapshotCollector) FindSnapshotBundleIdForTargetHeight(targetHeight int64) (int64, error) {
-	// TODO: move somewhere else? log something
-	// if the height is not on the snapshot interval we get closest height below it which does
-	//targetHeight := height
-	//if remainder := targetHeight % collector.interval; remainder > 0 {
-	//	targetHeight -= remainder
-	//}
-
 	low := int64(0)
 	high := collector.totalBundles - 1
 
