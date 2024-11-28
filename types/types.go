@@ -203,10 +203,6 @@ type KsyncFlags struct {
 	Pruning                 bool
 	KeepSnapshots           bool
 	SkipWaiting             bool
-	BackupInterval          int64
-	BackupKeepRecent        int64
-	BackupCompression       string
-	BackupDest              string
 	AppFlags                string
 	AutoSelectBinaryVersion bool
 	Reset                   bool

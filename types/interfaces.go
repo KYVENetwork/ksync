@@ -113,18 +113,22 @@ type SnapshotCollector interface {
 	// is not guaranteed to be fully available and chunks can still be missing
 	GetCurrentHeight() (int64, error)
 
+	// GetSnapshotHeight gets the exact height of the nearest snapshot before the target
+	// height
+	GetSnapshotHeight(targetHeight int64) int64
+
 	// GetSnapshotFromBundleId gets the snapshot from the given bundle
 	GetSnapshotFromBundleId(bundleId int64) (*SnapshotDataItem, error)
 
 	// DownloadChunkFromBundleId downloads the snapshot chunk from the given bundle
 	DownloadChunkFromBundleId(bundleId int64) ([]byte, error)
 
-	// FindSnapshotBundleIdForTargetHeight searches and returns the bundle id which contains the first
-	// snapshot chunk for the given target height.
+	// FindSnapshotBundleIdForHeight searches and returns the bundle id which contains the first
+	// snapshot chunk for the given height.
 	// Since we do not know how many chunks a bundle has but expect that the snapshots are ordered by height
 	// we can apply a binary search to minimize the amount of requests we have to make. This method fails
 	// if there is no bundle which contains the snapshot at the target height
-	FindSnapshotBundleIdForTargetHeight(targetHeight int64) (int64, error)
+	FindSnapshotBundleIdForHeight(height int64) (int64, error)
 }
 
 // Engine is an interface defining common behaviour for each consensus engine.

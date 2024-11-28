@@ -44,7 +44,7 @@ func init() {
 
 	servesnapshotsCmd.Flags().StringVarP(&appFlags, "app-flags", "f", "", "custom flags which are applied to the app binary start command. Example: --app-flags=\"--x-crisis-skip-assert-invariants,--iavl-disable-fastnode\"")
 
-	servesnapshotsCmd.Flags().BoolVarP(&autoselectBinaryVersion, "autoselect-binary-version", "a", false, "if provided binary is cosmovisor KSYNC will automatically change the \"current\" symlink to the correct upgrade version")
+	servesnapshotsCmd.Flags().BoolVarP(&autoselectBinaryVersion, "auto-select-binary-version", "a", false, "if provided binary is cosmovisor KSYNC will automatically change the \"current\" symlink to the correct upgrade version")
 	servesnapshotsCmd.Flags().BoolVarP(&reset, "reset-all", "r", false, "reset this node's validator to genesis state")
 	servesnapshotsCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
 	servesnapshotsCmd.Flags().BoolVarP(&debug, "debug", "d", false, "show logs from tendermint app")

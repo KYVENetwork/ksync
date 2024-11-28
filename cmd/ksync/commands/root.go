@@ -16,7 +16,6 @@ var (
 	chainId                 string
 	chainRest               string
 	storageRest             string
-	blockRpc                string
 	snapshotPoolId          string
 	blockPoolId             string
 	startHeight             int64
@@ -24,16 +23,11 @@ var (
 	rpcServer               bool
 	rpcServerPort           int64
 	snapshotPort            int64
-	blockRpcReqTimeout      int64
 	source                  string
 	registryUrl             string
 	pruning                 bool
 	keepSnapshots           bool
 	skipWaiting             bool
-	backupInterval          int64
-	backupKeepRecent        int64
-	backupCompression       string
-	backupDest              string
 	appFlags                string
 	autoselectBinaryVersion bool
 	reset                   bool
@@ -54,10 +48,8 @@ var RootCmd = &cobra.Command{
 }
 
 func Execute() {
-	backupCmd.Flags().SortFlags = false
 	blockSyncCmd.Flags().SortFlags = false
 	heightSyncCmd.Flags().SortFlags = false
-	pruneCmd.Flags().SortFlags = false
 	resetCmd.Flags().SortFlags = false
 	servesnapshotsCmd.Flags().SortFlags = false
 	serveBlocksCmd.Flags().SortFlags = false
@@ -68,6 +60,7 @@ func Execute() {
 	RootCmd.PersistentFlags().BoolP("help", "", false, "help for this command")
 
 	if err := RootCmd.Execute(); err != nil {
+		// TODO: log error here
 		os.Exit(1)
 	}
 }

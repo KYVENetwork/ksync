@@ -91,6 +91,17 @@ func (collector *KyveSnapshotCollector) GetInterval() int64 {
 	return collector.interval
 }
 
+func (collector *KyveSnapshotCollector) GetSnapshotHeight(targetHeight int64) int64 {
+	// if no target height was given the snapshot height is the latest available
+	if targetHeight == 0 {
+		return collector.latestAvailableHeight
+	}
+
+	// get the nearest snapshot height on the interval below the given target height
+	// by subtracting the modulo remainder
+	return targetHeight - (targetHeight % collector.interval)
+}
+
 func (collector *KyveSnapshotCollector) GetCurrentHeight() (int64, error) {
 	poolResponse, err := pool.GetPool(collector.chainRest, collector.poolId)
 	if err != nil {
@@ -151,7 +162,7 @@ func (collector *KyveSnapshotCollector) DownloadChunkFromBundleId(bundleId int64
 	return bundle[0].Value.Chunk, nil
 }
 
-func (collector *KyveSnapshotCollector) FindSnapshotBundleIdForTargetHeight(targetHeight int64) (int64, error) {
+func (collector *KyveSnapshotCollector) FindSnapshotBundleIdForHeight(height int64) (int64, error) {
 	low := int64(0)
 	high := collector.totalBundles - 1
 
@@ -165,15 +176,15 @@ func (collector *KyveSnapshotCollector) FindSnapshotBundleIdForTargetHeight(targ
 			return 0, fmt.Errorf("failed to get finalized bundle with id %d: %w", mid, err)
 		}
 
-		height, chunkIndex, err := utils.ParseSnapshotFromKey(finalizedBundle.ToKey)
+		h, chunkIndex, err := utils.ParseSnapshotFromKey(finalizedBundle.ToKey)
 		if err != nil {
 			return 0, fmt.Errorf("failed to parse snapshot key %s: %w", finalizedBundle.ToKey, err)
 		}
 
-		if height < targetHeight {
+		if h < height {
 			// target height is in the right half
 			low = mid + 1
-		} else if height > targetHeight {
+		} else if h > height {
 			// target height is in the left half
 			high = mid - 1
 		} else {
@@ -185,5 +196,5 @@ func (collector *KyveSnapshotCollector) FindSnapshotBundleIdForTargetHeight(targ
 		time.Sleep(utils.RequestTimeoutMS)
 	}
 
-	return 0, fmt.Errorf("failed to find snapshot bundle id for target height %d", targetHeight)
+	return 0, fmt.Errorf("failed to find snapshot bundle id for height %d", height)
 }

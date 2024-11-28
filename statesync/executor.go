@@ -7,7 +7,7 @@ import (
 )
 
 // StartStateSyncExecutor takes the bundle id of the first snapshot chunk and applies the snapshot from there
-func StartStateSyncExecutor(app *binary.CosmosApp, snapshotCollector types.SnapshotCollector, bundleId int64) error {
+func StartStateSyncExecutor(app *binary.CosmosApp, snapshotCollector types.SnapshotCollector, snapshotHeight int64) error {
 	if snapshotCollector == nil {
 		return fmt.Errorf("snapshot collector can't be nil")
 	}
@@ -19,6 +19,11 @@ func StartStateSyncExecutor(app *binary.CosmosApp, snapshotCollector types.Snaps
 
 	if appHeight > 0 {
 		return fmt.Errorf("app height %d is not zero, please reset with \"ksync reset-all\" or run the command with \"--reset-all\"", appHeight)
+	}
+
+	bundleId, err := snapshotCollector.FindSnapshotBundleIdForHeight(snapshotHeight)
+	if err != nil {
+		return fmt.Errorf("failed to find snapshot bundle id for height %d: %w", snapshotHeight, err)
 	}
 
 	snapshot, err := snapshotCollector.GetSnapshotFromBundleId(bundleId)
