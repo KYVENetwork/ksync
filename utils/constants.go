@@ -17,11 +17,17 @@ const (
 	SegmentKey = "quSEhAvH5fqlHyop9r9mDGxgd97ro3vQ"
 )
 
-// TODO: remove KSync prefix
 const (
-	KSyncRuntimeTendermint      = "@kyvejs/tendermint"
-	KSyncRuntimeTendermintBsync = "@kyvejs/tendermint-bsync"
-	KSyncRuntimeTendermintSsync = "@kyvejs/tendermint-ssync"
+	RuntimeTendermint      = "@kyvejs/tendermint"
+	RuntimeTendermintBsync = "@kyvejs/tendermint-bsync"
+	RuntimeTendermintSsync = "@kyvejs/tendermint-ssync"
+)
+
+const (
+	EngineTendermintV34   = "TENDERMINT-V34"
+	EngineCelestiaCoreV34 = "CELESTIA-CORE-V34"
+	EngineCometBFTV37     = "COMETBFT-V37"
+	EngineCometBFTV38     = "COMETBFT-V38"
 )
 
 const (
@@ -41,6 +47,7 @@ const (
 	RequestBlocksTimeoutMS      = 250
 )
 
+// TODO: implement metrics
 const (
 	SYNC_STARTED    = "SYNC_STARTED"
 	SYNC_COMPLETED  = "SYNC_COMPLETED"

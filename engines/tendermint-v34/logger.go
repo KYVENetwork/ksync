@@ -2,13 +2,14 @@ package tendermint_v34
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/utils"
 	klogger "github.com/KYVENetwork/ksync/utils"
 	"github.com/rs/zerolog"
 	"github.com/tendermint/tendermint/libs/log"
 )
 
 func TmLogger() (logger log.Logger) {
-	logger = KsyncTmLogger{logger: klogger.LogFormatter("")}
+	logger = KsyncTmLogger{logger: klogger.LogFormatter(utils.EngineTendermintV34)}
 	return
 }
 
@@ -43,6 +44,6 @@ func (l KsyncTmLogger) Error(msg string, keyvals ...interface{}) {
 }
 
 func (l KsyncTmLogger) With(keyvals ...interface{}) (logger log.Logger) {
-	logger = KsyncTmLogger{logger: klogger.LogFormatter(keyvals)}
+	logger = KsyncTmLogger{logger: klogger.LogFormatter(utils.EngineTendermintV34, keyvals)}
 	return
 }

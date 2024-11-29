@@ -3,12 +3,13 @@ package cometbft_v38
 import (
 	"fmt"
 	"github.com/KYVENetwork/cometbft/v38/libs/log"
+	"github.com/KYVENetwork/ksync/utils"
 	klogger "github.com/KYVENetwork/ksync/utils"
 	"github.com/rs/zerolog"
 )
 
 func CometLogger() (logger log.Logger) {
-	logger = KsyncCometLogger{logger: klogger.LogFormatter("")}
+	logger = KsyncCometLogger{logger: klogger.LogFormatter(utils.EngineCometBFTV38)}
 	return
 }
 
@@ -43,6 +44,6 @@ func (l KsyncCometLogger) Error(msg string, keyvals ...interface{}) {
 }
 
 func (l KsyncCometLogger) With(keyvals ...interface{}) (logger log.Logger) {
-	logger = KsyncCometLogger{logger: klogger.LogFormatter(keyvals)}
+	logger = KsyncCometLogger{logger: klogger.LogFormatter(utils.EngineCometBFTV38, keyvals)}
 	return
 }

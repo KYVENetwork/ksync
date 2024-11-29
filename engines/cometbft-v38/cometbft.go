@@ -22,6 +22,7 @@ import (
 	tmState "github.com/KYVENetwork/cometbft/v38/state"
 	tmStore "github.com/KYVENetwork/cometbft/v38/store"
 	tmTypes "github.com/KYVENetwork/cometbft/v38/types"
+	"github.com/KYVENetwork/ksync/utils"
 	db "github.com/cometbft/cometbft-db"
 	"net/http"
 	"net/url"
@@ -72,6 +73,10 @@ func NewEngine(homePath string) (*Engine, error) {
 	}
 
 	return engine, nil
+}
+
+func (engine *Engine) GetName() string {
+	return utils.EngineCometBFTV38
 }
 
 func (engine *Engine) LoadConfig() error {

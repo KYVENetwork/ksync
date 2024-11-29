@@ -104,7 +104,7 @@ func (collector *RpcBlockCollector) StreamBlocks(blockCh chan<- *types.BlockItem
 func (collector *RpcBlockCollector) extractRawBlockFromDataItemValue(value []byte) ([]byte, error) {
 	var block struct {
 		Result struct {
-			Block json.RawMessage `json:"value"`
+			Block json.RawMessage `json:"block"`
 		} `json:"result"`
 	}
 
@@ -130,8 +130,8 @@ func NewKyveBlockCollector(poolId int64, chainRest, storageRest string) (*KyveBl
 		return nil, fmt.Errorf("fail to get pool with id %d: %w", poolId, err)
 	}
 
-	if poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermint && poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermintBsync {
-		return nil, fmt.Errorf("found invalid runtime on block pool %d: Expected = %s or %s Found = %s", poolId, utils.KSyncRuntimeTendermint, utils.KSyncRuntimeTendermintBsync, poolResponse.Pool.Data.Runtime)
+	if poolResponse.Pool.Data.Runtime != utils.RuntimeTendermint && poolResponse.Pool.Data.Runtime != utils.RuntimeTendermintBsync {
+		return nil, fmt.Errorf("found invalid runtime on block pool %d: Expected = %s or %s Found = %s", poolId, utils.RuntimeTendermint, utils.RuntimeTendermintBsync, poolResponse.Pool.Data.Runtime)
 	}
 
 	if poolResponse.Pool.Data.CurrentKey == "" {
@@ -185,13 +185,13 @@ func (collector *KyveBlockCollector) GetBlock(height int64) ([]byte, error) {
 	}
 
 	for _, dataItem := range bundle {
-		itemHeight, err := utils.ParseBlockHeightFromKey(dataItem.Key)
+		h, err := utils.ParseBlockHeightFromKey(dataItem.Key)
 		if err != nil {
 			return nil, fmt.Errorf("failed parse block height from key %s: %w", dataItem.Key, err)
 		}
 
 		// skip blocks until we reach start height
-		if itemHeight < height {
+		if h < height {
 			continue
 		}
 
@@ -300,7 +300,7 @@ BundleCollector:
 }
 
 func (collector *KyveBlockCollector) extractRawBlockFromDataItemValue(value []byte) ([]byte, error) {
-	if collector.runtime == utils.KSyncRuntimeTendermint {
+	if collector.runtime == utils.RuntimeTendermint {
 		var block struct {
 			Block struct {
 				Block json.RawMessage `json:"block"`
@@ -314,7 +314,7 @@ func (collector *KyveBlockCollector) extractRawBlockFromDataItemValue(value []by
 		return block.Block.Block, nil
 	}
 
-	if collector.runtime == utils.KSyncRuntimeTendermintBsync {
+	if collector.runtime == utils.RuntimeTendermintBsync {
 		return value, nil
 	}
 

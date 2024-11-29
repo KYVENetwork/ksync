@@ -2,6 +2,7 @@ package tendermint_v34
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/utils"
 	abciTypes "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
 	cs "github.com/tendermint/tendermint/consensus"
@@ -72,6 +73,10 @@ func NewEngine(homePath string) (*Engine, error) {
 	}
 
 	return engine, nil
+}
+
+func (engine *Engine) GetName() string {
+	return utils.EngineTendermintV34
 }
 
 func (engine *Engine) LoadConfig() error {

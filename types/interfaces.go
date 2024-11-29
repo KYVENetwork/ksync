@@ -1,79 +1,5 @@
 package types
 
-type Store interface {
-	// OpenDBs opens the relevant blockstore and state DBs
-	OpenDBs() error
-
-	// CloseDBs closes the relevant blockstore and state DBs
-	CloseDBs() error
-
-	// GetHeight gets the latest height stored in the blockstore.db
-	GetHeight() int64
-
-	// GetBaseHeight gets the earliest height stored in the blockstore.db
-	GetBaseHeight() int64
-
-	// GetBlock loads the requested block from the blockstore.db
-	GetBlock(height int64) ([]byte, error)
-
-	// GetState rebuilds the requested state from the blockstore and state.db
-	GetState(height int64) ([]byte, error)
-
-	// GetSeenCommit loads the seen commit from the blockstore.db
-	GetSeenCommit(height int64) ([]byte, error)
-
-	// BootstrapState initializes the tendermint state
-	BootstrapState(value []byte) error
-
-	// PruneBlocks prunes blocks from the block store and state store
-	// from the earliest found base height to the specified height
-	PruneBlocks(toHeight int64) error
-
-	// ResetAll removes all the data and WAL, reset this node's validator
-	// to genesis state
-	ResetAll(keepAddrBook bool) error
-}
-
-type ProxyApp interface {
-	// StartProxyApp starts the proxy app connections to the app
-	StartProxyApp() error
-
-	// StopProxyApp stops the proxy app connections to the app
-	StopProxyApp() error
-
-	// DoHandshake does a handshake with the app and needs to be called
-	// before ApplyBlock
-	DoHandshake() error
-
-	// ApplyBlock takes the block in the raw format and applies it against
-	// the app
-	ApplyBlock(runtime *string, value []byte) error
-
-	// ApplyFirstBlockOverP2P applies the first block over the P2P reactor
-	// which is necessary, if the genesis file is bigger than 100MB
-	ApplyFirstBlockOverP2P(runtime string, value, nextValue []byte) error
-
-	// GetAppHeight gets over ABCI the latest block height tracked by the app
-	GetAppHeight() (int64, error)
-
-	// GetSnapshots gets the available snapshots over ABCI from the app
-	GetSnapshots() ([]byte, error)
-
-	// IsSnapshotAvailable gets available snapshots over ABCI from the app
-	// and checks if the requested snapshot is available
-	IsSnapshotAvailable(height int64) (bool, error)
-
-	// GetSnapshotChunk gets the requested snapshot chunk over ABCI from the
-	// app
-	GetSnapshotChunk(height, format, chunk int64) ([]byte, error)
-
-	// OfferSnapshot offers a snapshot over ABCI to the app
-	OfferSnapshot(value []byte) (string, uint32, error)
-
-	// ApplySnapshotChunk applies a snapshot chunk over ABCI to the app
-	ApplySnapshotChunk(chunkIndex uint32, value []byte) (string, error)
-}
-
 // BlockCollector is an interface defining common behaviour for each
 // type of collecting blocks, since blocks can be either obtained
 // with requesting the rpc endpoint of the source chain or with
@@ -134,8 +60,10 @@ type SnapshotCollector interface {
 // Engine is an interface defining common behaviour for each consensus engine.
 // Currently, both tendermint-v34 and cometbft-v38 are supported
 type Engine interface {
+	// GetName gets the name of the engine
+	GetName() string
+
 	// LoadConfig loads and sets the config
-	// TODO: remove to NewEngine method
 	LoadConfig() error
 
 	// OpenDBs opens the relevant blockstore and state DBs

@@ -22,6 +22,7 @@ import (
 	tmState "github.com/KYVENetwork/celestia-core/state"
 	tmStore "github.com/KYVENetwork/celestia-core/store"
 	tmTypes "github.com/KYVENetwork/celestia-core/types"
+	"github.com/KYVENetwork/ksync/utils"
 	db "github.com/cometbft/cometbft-db"
 	"net/http"
 	"net/url"
@@ -72,6 +73,10 @@ func NewEngine(homePath string) (*Engine, error) {
 	}
 
 	return engine, nil
+}
+
+func (engine *Engine) GetName() string {
+	return utils.EngineCelestiaCoreV34
 }
 
 func (engine *Engine) LoadConfig() error {

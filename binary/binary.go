@@ -263,6 +263,10 @@ func (app *CosmosApp) StopBinary() error {
 		return nil
 	}
 
+	// ensure that we don't stop any other process in the goroutine below
+	// after this method returns
+	pId := app.cmd.Process.Pid
+
 	defer func() {
 		app.cmd = nil
 	}()
@@ -271,7 +275,7 @@ func (app *CosmosApp) StopBinary() error {
 	// not every time the app properly receives it, therefore we try until the
 	// app actually exits
 	go func() {
-		for app.cmd != nil {
+		for app.cmd != nil && pId == app.cmd.Process.Pid {
 			_ = app.cmd.Process.Signal(syscall.SIGTERM)
 			time.Sleep(5 * time.Second)
 		}
@@ -351,28 +355,28 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 					if err != nil {
 						return fmt.Errorf("failed to create consensus engine: %w", err)
 					}
-					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", "celestia-core-v0.34")
+					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", app.ConsensusEngine.GetName())
 					return nil
 				} else if strings.Contains(dependency[1], "0.34.") {
 					app.ConsensusEngine, err = tendermint_v34.NewEngine(app.homePath)
 					if err != nil {
 						return fmt.Errorf("failed to create consensus engine: %w", err)
 					}
-					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", "tendermint-v0.34")
+					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", app.ConsensusEngine.GetName())
 					return nil
 				} else if strings.Contains(dependency[1], "0.37.") {
 					app.ConsensusEngine, err = cometbft_v37.NewEngine(app.homePath)
 					if err != nil {
 						return fmt.Errorf("failed to create consensus engine: %w", err)
 					}
-					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", "cometbft-v0.37")
+					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", app.ConsensusEngine.GetName())
 					return nil
 				} else if strings.Contains(dependency[1], "0.38.") {
 					app.ConsensusEngine, err = cometbft_v38.NewEngine(app.homePath)
 					if err != nil {
 						return fmt.Errorf("failed to create consensus engine: %w", err)
 					}
-					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", "cometbft-v0.38")
+					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", app.ConsensusEngine.GetName())
 					return nil
 				} else {
 					return fmt.Errorf("failed to find engine in binary dependencies")

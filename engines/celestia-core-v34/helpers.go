@@ -74,7 +74,6 @@ func GetBlockstoreDBs(config *Config) (dbm.DB, *store.BlockStore, error) {
 
 func CreateAndStartProxyAppConns(config *Config) (proxy.AppConns, error) {
 	proxyApp := proxy.NewAppConns(proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()))
-	proxyApp.SetLogger(tmLogger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
 	}

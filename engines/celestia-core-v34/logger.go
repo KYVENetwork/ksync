@@ -3,12 +3,13 @@ package celestia_core_v34
 import (
 	"fmt"
 	"github.com/KYVENetwork/celestia-core/libs/log"
+	"github.com/KYVENetwork/ksync/utils"
 	klogger "github.com/KYVENetwork/ksync/utils"
 	"github.com/rs/zerolog"
 )
 
 func TmLogger() (logger log.Logger) {
-	logger = KsyncTmLogger{logger: klogger.LogFormatter("")}
+	logger = KsyncTmLogger{logger: klogger.LogFormatter(utils.EngineCelestiaCoreV34)}
 	return
 }
 
@@ -43,6 +44,6 @@ func (l KsyncTmLogger) Error(msg string, keyvals ...interface{}) {
 }
 
 func (l KsyncTmLogger) With(keyvals ...interface{}) (logger log.Logger) {
-	logger = KsyncTmLogger{logger: klogger.LogFormatter(keyvals)}
+	logger = KsyncTmLogger{logger: klogger.LogFormatter(utils.EngineCelestiaCoreV34, keyvals)}
 	return
 }

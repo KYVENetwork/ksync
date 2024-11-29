@@ -18,11 +18,11 @@ func KsyncLogger(moduleName string) zerolog.Logger {
 	return logger
 }
 
-func LogFormatter(keyvals ...interface{}) zerolog.Logger {
+func LogFormatter(name string, keyvals ...interface{}) zerolog.Logger {
 	writer := io.MultiWriter(os.Stdout)
 	customConsoleWriter := zerolog.ConsoleWriter{Out: writer}
 	customConsoleWriter.FormatCaller = func(i interface{}) string {
-		return "\x1b[36m[ENGINE]\x1b[0m"
+		return fmt.Sprintf("\x1b[36m[%s]\x1b[0m", name)
 	}
 
 	logger := zerolog.New(customConsoleWriter).With()

@@ -29,8 +29,8 @@ func NewKyveSnapshotCollector(poolId int64, chainRest, storageRest string) (*Kyv
 		return nil, fmt.Errorf("fail to get pool with id %d: %w", poolId, err)
 	}
 
-	if poolResponse.Pool.Data.Runtime != utils.KSyncRuntimeTendermintSsync {
-		return nil, fmt.Errorf("found invalid runtime on snapshot pool %d: Expected = %s Found = %s", poolId, utils.KSyncRuntimeTendermintSsync, poolResponse.Pool.Data.Runtime)
+	if poolResponse.Pool.Data.Runtime != utils.RuntimeTendermintSsync {
+		return nil, fmt.Errorf("found invalid runtime on snapshot pool %d: Expected = %s Found = %s", poolId, utils.RuntimeTendermintSsync, poolResponse.Pool.Data.Runtime)
 	}
 
 	if poolResponse.Pool.Data.CurrentKey == "" {
