@@ -22,7 +22,6 @@ import (
 	tmState "github.com/KYVENetwork/celestia-core/state"
 	tmStore "github.com/KYVENetwork/celestia-core/store"
 	tmTypes "github.com/KYVENetwork/celestia-core/types"
-	"github.com/KYVENetwork/ksync/utils"
 	db "github.com/cometbft/cometbft-db"
 	"net/http"
 	"net/url"
@@ -79,10 +78,6 @@ func (engine *Engine) OpenDBs() error {
 
 	if err := engine.LoadConfig(); err != nil {
 		return err
-	}
-
-	if err := utils.FormatGenesisFile(engine.config.GenesisFile()); err != nil {
-		return fmt.Errorf("failed to format genesis file: %w", err)
 	}
 
 	genDoc, err := nm.DefaultGenesisDocProviderFunc(engine.config)()

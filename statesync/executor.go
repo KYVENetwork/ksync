@@ -39,10 +39,10 @@ func StartStateSyncExecutor(app *binary.CosmosApp, snapshotCollector types.Snaps
 	logger.Info().Msgf("offering snapshot for height %d: ACCEPT", snapshotHeight)
 
 	if err := app.ConsensusEngine.ApplySnapshotChunk(0, snapshot.Value.Chunk); err != nil {
-		return fmt.Errorf("applying snapshot chunk %d/%d failed: %w", 0, chunks, err)
+		return fmt.Errorf("applying snapshot chunk %d/%d failed: %w", 1, chunks, err)
 	}
 
-	logger.Info().Msgf("applied snapshot chunk %d/%d: ACCEPT", 0, chunks)
+	logger.Info().Msgf("applied snapshot chunk %d/%d: ACCEPT", 1, chunks)
 
 	for chunkIndex := int64(1); chunkIndex < chunks; chunkIndex++ {
 		chunk, err := snapshotCollector.DownloadChunkFromBundleId(bundleId + chunkIndex)

@@ -81,7 +81,7 @@ func Start(flags types.KsyncFlags) error {
 		return fmt.Errorf("app has to be reset for state-sync")
 	}
 
-	snapshotPoolId, err := app.Source.GetSourceBlockPoolId()
+	snapshotPoolId, err := app.Source.GetSourceSnapshotPoolId()
 	if err != nil {
 		return fmt.Errorf("failed to get snapshot pool id: %w", err)
 	}

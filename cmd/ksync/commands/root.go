@@ -4,7 +4,6 @@ import (
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 var flags types.KsyncFlags
@@ -32,7 +31,6 @@ func Execute() {
 	RootCmd.PersistentFlags().BoolP("help", "", false, "help for this command")
 
 	if err := RootCmd.Execute(); err != nil {
-		// TODO: log error here
-		os.Exit(1)
+		logger.Error().Msg(err.Error())
 	}
 }

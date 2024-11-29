@@ -2,7 +2,6 @@ package tendermint_v34
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/utils"
 	abciTypes "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
 	cs "github.com/tendermint/tendermint/consensus"
@@ -79,10 +78,6 @@ func (engine *Engine) OpenDBs() error {
 
 	if err := engine.LoadConfig(); err != nil {
 		return err
-	}
-
-	if err := utils.FormatGenesisFile(engine.config.GenesisFile()); err != nil {
-		return fmt.Errorf("failed to format genesis file: %w", err)
 	}
 
 	genDoc, err := nm.DefaultGenesisDocProviderFunc(engine.config)()

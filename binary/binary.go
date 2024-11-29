@@ -9,11 +9,16 @@ import (
 	"github.com/KYVENetwork/ksync/engines/cometbft-v38"
 	"github.com/KYVENetwork/ksync/engines/tendermint-v34"
 	"github.com/KYVENetwork/ksync/types"
+	"github.com/KYVENetwork/ksync/utils"
 	"os"
 	"os/exec"
 	"strings"
 	"syscall"
 	"time"
+)
+
+var (
+	logger = utils.KsyncLogger("app")
 )
 
 type CosmosApp struct {
@@ -29,13 +34,13 @@ type CosmosApp struct {
 	ConsensusEngine types.Engine
 }
 
-// TODO: add logs
-
 func NewCosmosApp(flags types.KsyncFlags) (*CosmosApp, error) {
 	fullBinaryPath, err := exec.LookPath(flags.BinaryPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup binary path %s: %w", flags.BinaryPath, err)
 	}
+
+	logger.Info().Msgf("loaded cosmos app at path \"%s\" from app binary", fullBinaryPath)
 
 	app := &CosmosApp{
 		binaryPath:   fullBinaryPath,
@@ -146,7 +151,8 @@ func (app *CosmosApp) AutoSelectBinaryVersion(height int64) error {
 		return fmt.Errorf("failed to create symlink to upgrade directory: %w", err)
 	}
 
-	return nil
+	logger.Info().Msgf("selected binary version \"%s\" from height %d for cosmovisor", upgradeName, height)
+	return app.LoadConsensusEngine()
 }
 
 func (app *CosmosApp) StartAll() error {
@@ -166,16 +172,16 @@ func (app *CosmosApp) StartAll() error {
 }
 
 func (app *CosmosApp) StopAll() error {
+	if err := app.ConsensusEngine.StopProxyApp(); err != nil {
+		return fmt.Errorf("failed to stop proxy app: %w", err)
+	}
+
 	if err := app.StopBinary(); err != nil {
 		return fmt.Errorf("failed to stop cosmos app: %w", err)
 	}
 
 	if err := app.ConsensusEngine.CloseDBs(); err != nil {
 		return fmt.Errorf("failed to close dbs in engine: %w", err)
-	}
-
-	if err := app.ConsensusEngine.StopProxyApp(); err != nil {
-		return fmt.Errorf("failed to stop proxy app: %w", err)
 	}
 
 	return nil
@@ -219,6 +225,8 @@ func (app *CosmosApp) StartBinary() error {
 		return fmt.Errorf("failed to start cosmos app: %w", err)
 	}
 
+	logger.Info().Msg("started app binary")
+
 	app.cmd = cmd
 	return nil
 }
@@ -258,6 +266,8 @@ func (app *CosmosApp) StartBinaryP2P() error {
 		return fmt.Errorf("failed to start cosmos app: %w", err)
 	}
 
+	logger.Info().Msg("started app binary in p2p mode")
+
 	app.cmd = cmd
 	return nil
 }
@@ -285,13 +295,15 @@ func (app *CosmosApp) StopBinary() error {
 		return fmt.Errorf("failed to wait for process with id %d to be terminated: %w", app.cmd.Process.Pid, err)
 	}
 
+	logger.Info().Msg("stopped app binary")
+
 	return nil
 }
 
 func (app *CosmosApp) loadHomePath() error {
 	cmd := exec.Command(app.binaryPath)
 
-	if strings.HasSuffix(app.binaryPath, "cosmovisor") {
+	if app.isCosmovisor {
 		cmd.Args = append(cmd.Args, "run")
 		cmd.Env = append(os.Environ(), "COSMOVISOR_DISABLE_LOGS=true")
 	}
@@ -311,6 +323,7 @@ func (app *CosmosApp) loadHomePath() error {
 			}
 
 			app.homePath = strings.Split(line, "\"")[1]
+			logger.Info().Msgf("loaded home path \"%s\" from app binary", app.homePath)
 			return nil
 		}
 	}
@@ -321,7 +334,7 @@ func (app *CosmosApp) loadHomePath() error {
 func (app *CosmosApp) LoadConsensusEngine() error {
 	cmd := exec.Command(app.binaryPath)
 
-	if app.IsCosmovisor() {
+	if app.isCosmovisor {
 		cmd.Args = append(cmd.Args, "run")
 		cmd.Env = append(os.Environ(), "COSMOVISOR_DISABLE_LOGS=true")
 	}
@@ -340,15 +353,19 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 
 				if strings.Contains(dependency[1], "0.34.") && strings.Contains(dependency[0], "celestia-core") {
 					app.ConsensusEngine = &celestia_core_v34.Engine{HomePath: app.homePath}
+					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", "celestia-core-v0.34")
 					return nil
 				} else if strings.Contains(dependency[1], "0.34.") {
 					app.ConsensusEngine = &tendermint_v34.Engine{HomePath: app.homePath}
+					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", "tendermint-v0.34")
 					return nil
 				} else if strings.Contains(dependency[1], "0.37.") {
 					app.ConsensusEngine = &cometbft_v37.Engine{HomePath: app.homePath}
+					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", "cometbft-v0.37")
 					return nil
 				} else if strings.Contains(dependency[1], "0.38.") {
 					app.ConsensusEngine = &cometbft_v38.Engine{HomePath: app.homePath}
+					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", "cometbft-v0.38")
 					return nil
 				} else {
 					return fmt.Errorf("failed to find engine in binary dependencies")
