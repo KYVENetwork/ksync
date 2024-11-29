@@ -20,8 +20,8 @@ type Source struct {
 	sourceRegistry types.SourceRegistry
 }
 
-func NewSource(sourceId string, flags types.KsyncFlags) (*Source, error) {
-	response, err := http.Get(flags.RegistryUrl)
+func NewSource(sourceId, chainId string) (*Source, error) {
+	response, err := http.Get(utils.DefaultRegistryURL)
 	if err != nil {
 		return nil, err
 	}
@@ -44,8 +44,7 @@ func NewSource(sourceId string, flags types.KsyncFlags) (*Source, error) {
 
 	return &Source{
 		sourceId:       sourceId,
-		chainId:        flags.ChainId,
-		registryUrl:    flags.RegistryUrl,
+		chainId:        chainId,
 		sourceRegistry: sourceRegistry,
 	}, nil
 }

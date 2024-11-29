@@ -199,7 +199,6 @@ type KsyncFlags struct {
 	SnapshotPort            int64
 	BlockRpcReqTimeout      int64
 	Source                  string
-	RegistryUrl             string
 	Pruning                 bool
 	KeepSnapshots           bool
 	SkipWaiting             bool

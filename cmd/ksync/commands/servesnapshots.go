@@ -20,8 +20,6 @@ func init() {
 	servesnapshotsCmd.Flags().StringVar(&flags.ChainRest, "chain-rest", "", "rest endpoint for KYVE chain")
 	servesnapshotsCmd.Flags().StringVar(&flags.StorageRest, "storage-rest", "", "storage endpoint for requesting bundle data")
 
-	servesnapshotsCmd.Flags().StringVar(&flags.RegistryUrl, "registry-url", utils.DefaultRegistryURL, "URL to fetch latest KYVE Source-Registry")
-
 	servesnapshotsCmd.Flags().StringVar(&flags.SnapshotPoolId, "snapshot-pool-id", "", "pool-id of the state-sync pool")
 	servesnapshotsCmd.Flags().StringVar(&flags.BlockPoolId, "block-pool-id", "", "pool-id of the block-sync pool")
 

@@ -15,8 +15,6 @@ import (
 func init() {
 	infoCmd.Flags().StringVarP(&flags.ChainId, "chain-id", "c", utils.DefaultChainId, fmt.Sprintf("KYVE chain id [\"%s\",\"%s\"]", utils.ChainIdMainnet, utils.ChainIdKaon))
 
-	infoCmd.Flags().StringVar(&flags.RegistryUrl, "registry-url", utils.DefaultRegistryURL, "URL to fetch latest KYVE Source-Registry")
-
 	infoCmd.Flags().BoolVar(&flags.OptOut, "opt-out", false, "disable the collection of anonymous usage data")
 
 	RootCmd.AddCommand(infoCmd)
@@ -32,7 +30,7 @@ var infoCmd = &cobra.Command{
 			return fmt.Errorf("chain-id %s not supported", flags.ChainId)
 		}
 
-		sourceRegistry, err := helpers.GetSourceRegistry(flags.RegistryUrl)
+		sourceRegistry, err := helpers.GetSourceRegistry(utils.DefaultRegistryURL)
 		if err != nil {
 			return fmt.Errorf("failed to get source registry: %w", err)
 		}

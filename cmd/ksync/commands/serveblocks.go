@@ -29,8 +29,6 @@ func init() {
 	serveBlocksCmd.Flags().BoolVar(&flags.RpcServer, "rpc-server", true, "rpc server serving /status, /block and /block_results")
 	serveBlocksCmd.Flags().Int64Var(&flags.RpcServerPort, "rpc-server-port", utils.DefaultRpcServerPort, "port where the rpc server will be started")
 
-	serveBlocksCmd.Flags().StringVar(&flags.RegistryUrl, "registry-url", utils.DefaultRegistryURL, "URL to fetch latest KYVE Source-Registry")
-
 	serveBlocksCmd.Flags().BoolVarP(&flags.AutoSelectBinaryVersion, "auto-select-binary-version", "a", false, "if provided binary is cosmovisor KSYNC will automatically change the \"current\" symlink to the correct upgrade version")
 	serveBlocksCmd.Flags().BoolVarP(&flags.Reset, "reset-all", "r", false, "reset this node's validator to genesis state")
 	serveBlocksCmd.Flags().BoolVar(&flags.OptOut, "opt-out", false, "disable the collection of anonymous usage data")

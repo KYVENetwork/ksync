@@ -3,8 +3,6 @@ package collector
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/KYVENetwork/ksync/collectors/bundles"
-	"github.com/KYVENetwork/ksync/collectors/pool"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"strconv"
@@ -24,7 +22,7 @@ type KyveSnapshotCollector struct {
 }
 
 func NewKyveSnapshotCollector(poolId int64, chainRest, storageRest string) (*KyveSnapshotCollector, error) {
-	poolResponse, err := pool.GetPool(chainRest, poolId)
+	poolResponse, err := utils.GetPool(chainRest, poolId)
 	if err != nil {
 		return nil, fmt.Errorf("fail to get pool with id %d: %w", poolId, err)
 	}
@@ -103,7 +101,7 @@ func (collector *KyveSnapshotCollector) GetSnapshotHeight(targetHeight int64) in
 }
 
 func (collector *KyveSnapshotCollector) GetCurrentHeight() (int64, error) {
-	poolResponse, err := pool.GetPool(collector.chainRest, collector.poolId)
+	poolResponse, err := utils.GetPool(collector.chainRest, collector.poolId)
 	if err != nil {
 		return 0, fmt.Errorf("fail to get pool with id %d: %w", collector.poolId, err)
 	}
@@ -117,12 +115,12 @@ func (collector *KyveSnapshotCollector) GetCurrentHeight() (int64, error) {
 }
 
 func (collector *KyveSnapshotCollector) GetSnapshotFromBundleId(bundleId int64) (*types.SnapshotDataItem, error) {
-	chunkBundleFinalized, err := bundles.GetFinalizedBundleById(collector.chainRest, collector.poolId, bundleId)
+	chunkBundleFinalized, err := utils.GetFinalizedBundleById(collector.chainRest, collector.poolId, bundleId)
 	if err != nil {
 		return nil, fmt.Errorf("failed getting finalized bundle by id %d: %w", bundleId, err)
 	}
 
-	data, err := bundles.GetDataFromFinalizedBundle(*chunkBundleFinalized, collector.storageRest)
+	data, err := utils.GetDataFromFinalizedBundle(*chunkBundleFinalized, collector.storageRest)
 	if err != nil {
 		return nil, fmt.Errorf("failed getting data from finalized bundle: %w", err)
 	}
@@ -140,12 +138,12 @@ func (collector *KyveSnapshotCollector) GetSnapshotFromBundleId(bundleId int64) 
 }
 
 func (collector *KyveSnapshotCollector) DownloadChunkFromBundleId(bundleId int64) ([]byte, error) {
-	chunkBundleFinalized, err := bundles.GetFinalizedBundleById(collector.chainRest, collector.poolId, bundleId)
+	chunkBundleFinalized, err := utils.GetFinalizedBundleById(collector.chainRest, collector.poolId, bundleId)
 	if err != nil {
 		return nil, fmt.Errorf("failed getting finalized bundle by id %d: %w", bundleId, err)
 	}
 
-	data, err := bundles.GetDataFromFinalizedBundle(*chunkBundleFinalized, collector.storageRest)
+	data, err := utils.GetDataFromFinalizedBundle(*chunkBundleFinalized, collector.storageRest)
 	if err != nil {
 		return nil, fmt.Errorf("failed getting data from finalized bundle: %w", err)
 	}
@@ -171,7 +169,7 @@ func (collector *KyveSnapshotCollector) FindSnapshotBundleIdForHeight(height int
 		// check in the middle
 		mid := (low + high) / 2
 
-		finalizedBundle, err := bundles.GetFinalizedBundleById(collector.chainRest, collector.poolId, mid)
+		finalizedBundle, err := utils.GetFinalizedBundleById(collector.chainRest, collector.poolId, mid)
 		if err != nil {
 			return 0, fmt.Errorf("failed to get finalized bundle with id %d: %w", mid, err)
 		}

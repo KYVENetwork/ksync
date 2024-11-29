@@ -3,8 +3,6 @@ package collector
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/KYVENetwork/ksync/collectors/bundles"
-	"github.com/KYVENetwork/ksync/collectors/pool"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	tmJson "github.com/tendermint/tendermint/libs/json"
@@ -125,7 +123,7 @@ type KyveBlockCollector struct {
 }
 
 func NewKyveBlockCollector(poolId int64, chainRest, storageRest string) (*KyveBlockCollector, error) {
-	poolResponse, err := pool.GetPool(chainRest, poolId)
+	poolResponse, err := utils.GetPool(chainRest, poolId)
 	if err != nil {
 		return nil, fmt.Errorf("fail to get pool with id %d: %w", poolId, err)
 	}
@@ -172,7 +170,7 @@ func (collector *KyveBlockCollector) GetBlock(height int64) ([]byte, error) {
 		return nil, fmt.Errorf("failed to get finalized bundle for block height %d: %w", height, err)
 	}
 
-	deflated, err := bundles.GetDataFromFinalizedBundle(*finalizedBundle, collector.storageRest)
+	deflated, err := utils.GetDataFromFinalizedBundle(*finalizedBundle, collector.storageRest)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get data from finalized bundle with storage id %s: %w", finalizedBundle.StorageId, err)
 	}
@@ -219,7 +217,7 @@ func (collector *KyveBlockCollector) StreamBlocks(blockCh chan<- *types.BlockIte
 
 BundleCollector:
 	for {
-		bundlesPage, nextKey, err := bundles.GetFinalizedBundlesPage(collector.chainRest, collector.poolId, utils.BundlesPageLimit, paginationKey, false)
+		bundlesPage, nextKey, err := utils.GetFinalizedBundlesPage(collector.chainRest, collector.poolId, utils.BundlesPageLimit, paginationKey, false)
 		if err != nil {
 			errorCh <- fmt.Errorf("failed to get finalized bundles page: %w", err)
 			return
@@ -241,7 +239,7 @@ BundleCollector:
 			// TODO: log here?
 			// logger.Info().Msg(fmt.Sprintf("downloading bundle with storage id %s", finalizedBundle.StorageId))
 
-			deflated, err := bundles.GetDataFromFinalizedBundle(finalizedBundle, collector.storageRest)
+			deflated, err := utils.GetDataFromFinalizedBundle(finalizedBundle, collector.storageRest)
 			if err != nil {
 				errorCh <- fmt.Errorf("failed to get data from finalized bundle with storage id %s: %w", finalizedBundle.StorageId, err)
 				return
@@ -370,7 +368,7 @@ func (collector *KyveBlockCollector) getPaginationKeyForBlockHeight(height int64
 		return "", nil
 	}
 
-	_, paginationKey, err := bundles.GetFinalizedBundlesPageWithOffset(collector.chainRest, collector.poolId, 1, bundleId-1, "", false)
+	_, paginationKey, err := utils.GetFinalizedBundlesPageWithOffset(collector.chainRest, collector.poolId, 1, bundleId-1, "", false)
 	if err != nil {
 		return "", fmt.Errorf("failed to get finalized bundles: %w", err)
 	}

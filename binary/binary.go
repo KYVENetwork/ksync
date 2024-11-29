@@ -63,7 +63,7 @@ func NewCosmosApp(flags types.KsyncFlags) (*CosmosApp, error) {
 		return nil, fmt.Errorf("failed to init genesis: %w", err)
 	}
 
-	app.Source, err = source.NewSource(app.Genesis.GetChainId(), flags)
+	app.Source, err = source.NewSource(app.Genesis.GetChainId(), flags.ChainId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init source: %w", err)
 	}

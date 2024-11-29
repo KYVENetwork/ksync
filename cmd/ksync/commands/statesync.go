@@ -20,8 +20,6 @@ func init() {
 	stateSyncCmd.Flags().StringVar(&flags.ChainRest, "chain-rest", "", "rest endpoint for KYVE chain")
 	stateSyncCmd.Flags().StringVar(&flags.StorageRest, "storage-rest", "", "storage endpoint for requesting bundle data")
 
-	stateSyncCmd.Flags().StringVar(&flags.RegistryUrl, "registry-url", utils.DefaultRegistryURL, "URL to fetch latest KYVE Source-Registry")
-
 	stateSyncCmd.Flags().StringVar(&flags.SnapshotPoolId, "snapshot-pool-id", "", "pool-id of the state-sync pool")
 
 	stateSyncCmd.Flags().StringVarP(&flags.AppFlags, "app-flags", "f", "", "custom flags which are applied to the app binary start command. Example: --app-flags=\"--x-crisis-skip-assert-invariants,--iavl-disable-fastnode\"")
