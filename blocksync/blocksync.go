@@ -131,13 +131,12 @@ func Start(flags types.KsyncFlags) error {
 		return fmt.Errorf("failed to auto select binary version: %w", err)
 	}
 
-	if err := app.StartAll(); err != nil {
+	if err := app.StartAll(0); err != nil {
 		return fmt.Errorf("failed to start app: %w", err)
 	}
 
 	defer app.StopAll()
 
-	// TODO: catch panics
 	// we only pass the snapshot collector to the block executor if we are creating
 	// state-sync snapshots with serve-snapshots
 	if err := StartBlockSyncExecutor(app, blockCollector, nil); err != nil {

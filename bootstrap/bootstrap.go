@@ -82,7 +82,7 @@ func StartBootstrapWithBinary(app *binary.CosmosApp, blockCollector types.BlockC
 		break
 	}
 
-	if err := app.StartAll(); err != nil {
+	if err := app.StartAll(0); err != nil {
 		return err
 	}
 

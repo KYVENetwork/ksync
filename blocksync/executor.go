@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/binary"
 	"github.com/KYVENetwork/ksync/bootstrap"
+	"github.com/KYVENetwork/ksync/server"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"time"
@@ -38,6 +39,10 @@ func StartBlockSyncExecutor(app *binary.CosmosApp, blockCollector types.BlockCol
 
 	if app.GetFlags().RpcServer {
 		go app.ConsensusEngine.StartRPCServer(app.GetFlags().RpcServerPort)
+	}
+
+	if snapshotCollector != nil {
+		go server.StartSnapshotApiServer(app)
 	}
 
 	snapshotPoolHeight := int64(0)
@@ -86,8 +91,14 @@ func StartBlockSyncExecutor(app *binary.CosmosApp, blockCollector types.BlockCol
 					return fmt.Errorf("failed to reload engine: %w", err)
 				}
 
-				if err := app.StartAll(); err != nil {
-					return err
+				if snapshotCollector != nil {
+					if err := app.StartAll(snapshotCollector.GetInterval()); err != nil {
+						return err
+					}
+				} else {
+					if err := app.StartAll(0); err != nil {
+						return err
+					}
 				}
 
 				if err := app.ConsensusEngine.DoHandshake(); err != nil {

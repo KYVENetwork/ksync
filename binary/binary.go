@@ -6,12 +6,13 @@ import (
 	"github.com/KYVENetwork/ksync/binary/source"
 	"github.com/KYVENetwork/ksync/engines/celestia-core-v34"
 	"github.com/KYVENetwork/ksync/engines/cometbft-v37"
-	cometbft_v38 "github.com/KYVENetwork/ksync/engines/cometbft-v38"
+	"github.com/KYVENetwork/ksync/engines/cometbft-v38"
 	"github.com/KYVENetwork/ksync/engines/tendermint-v34"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -139,8 +140,8 @@ func (app *CosmosApp) AutoSelectBinaryVersion(height int64) error {
 	return app.LoadConsensusEngine()
 }
 
-func (app *CosmosApp) StartAll() error {
-	if err := app.StartBinary(); err != nil {
+func (app *CosmosApp) StartAll(snapshotInterval int64) error {
+	if err := app.StartBinary(snapshotInterval); err != nil {
 		return fmt.Errorf("failed to start app: %w", err)
 	}
 
@@ -170,7 +171,7 @@ func (app *CosmosApp) StopAll() {
 	app.StopBinary()
 }
 
-func (app *CosmosApp) StartBinary() error {
+func (app *CosmosApp) StartBinary(snapshotInterval int64) error {
 	if app.cmd != nil {
 		return nil
 	}
@@ -182,11 +183,6 @@ func (app *CosmosApp) StartBinary() error {
 		cmd.Env = append(os.Environ(), "COSMOVISOR_DISABLE_LOGS=true", "UNSAFE_SKIP_BACKUP=true")
 	}
 
-	// TODO: add NewEngine method for each engine type and do initialization there
-	if err := app.ConsensusEngine.LoadConfig(); err != nil {
-		return fmt.Errorf("failed to load engine config: %w", err)
-	}
-
 	cmd.Args = append(cmd.Args, "start",
 		"--home",
 		app.homePath,
@@ -195,7 +191,47 @@ func (app *CosmosApp) StartBinary() error {
 		app.ConsensusEngine.GetProxyAppAddress(),
 	)
 
-	// TODO: add snapshot args here
+	if snapshotInterval > 0 {
+		cmd.Args = append(
+			cmd.Args,
+			"--state-sync.snapshot-interval",
+			strconv.FormatInt(snapshotInterval, 10),
+		)
+
+		if app.flags.Pruning {
+			cmd.Args = append(
+				cmd.Args,
+				"--pruning",
+				"custom",
+				"--pruning-keep-recent",
+				strconv.FormatInt(utils.SnapshotPruningWindowFactor*snapshotInterval, 10),
+				"--pruning-interval",
+				"10",
+			)
+
+			if app.flags.KeepSnapshots {
+				cmd.Args = append(
+					cmd.Args,
+					"--state-sync.snapshot-keep-recent",
+					"0",
+				)
+			} else {
+				cmd.Args = append(
+					cmd.Args,
+					"--state-sync.snapshot-keep-recent",
+					strconv.FormatInt(utils.SnapshotPruningWindowFactor, 10),
+				)
+			}
+		} else {
+			cmd.Args = append(
+				cmd.Args,
+				"--state-sync.snapshot-keep-recent",
+				"0",
+				"--pruning",
+				"nothing",
+			)
+		}
+	}
 
 	cmd.Args = append(cmd.Args, strings.Split(app.flags.AppFlags, ",")...)
 

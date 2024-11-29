@@ -2,21 +2,19 @@ package server
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/types"
+	"github.com/KYVENetwork/ksync/binary"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
 )
 
 type ApiServer struct {
-	engine types.Engine
-	port   int64
+	app *binary.CosmosApp
 }
 
-func StartSnapshotApiServer(engine types.Engine, port int64) *ApiServer {
+func StartSnapshotApiServer(app *binary.CosmosApp) *ApiServer {
 	apiServer := &ApiServer{
-		engine: engine,
-		port:   port,
+		app: app,
 	}
 
 	gin.SetMode(gin.ReleaseMode)
@@ -28,7 +26,7 @@ func StartSnapshotApiServer(engine types.Engine, port int64) *ApiServer {
 	r.GET("/get_state/:height", apiServer.GetStateHandler)
 	r.GET("/get_seen_commit/:height", apiServer.GetSeenCommitHandler)
 
-	if err := r.Run(fmt.Sprintf(":%d", port)); err != nil {
+	if err := r.Run(fmt.Sprintf(":%d", app.GetFlags().SnapshotPort)); err != nil {
 		panic(err)
 	}
 
@@ -36,7 +34,7 @@ func StartSnapshotApiServer(engine types.Engine, port int64) *ApiServer {
 }
 
 func (apiServer *ApiServer) ListSnapshotsHandler(c *gin.Context) {
-	resp, err := apiServer.engine.GetSnapshots()
+	resp, err := apiServer.app.ConsensusEngine.GetSnapshots()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -72,7 +70,7 @@ func (apiServer *ApiServer) LoadSnapshotChunkHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := apiServer.engine.GetSnapshotChunk(height, format, chunk)
+	resp, err := apiServer.app.ConsensusEngine.GetSnapshotChunk(height, format, chunk)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -92,7 +90,7 @@ func (apiServer *ApiServer) GetBlockHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := apiServer.engine.GetBlock(height)
+	resp, err := apiServer.app.ConsensusEngine.GetBlock(height)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -112,7 +110,7 @@ func (apiServer *ApiServer) GetStateHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := apiServer.engine.GetState(height)
+	resp, err := apiServer.app.ConsensusEngine.GetState(height)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -132,7 +130,7 @@ func (apiServer *ApiServer) GetSeenCommitHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := apiServer.engine.GetSeenCommit(height)
+	resp, err := apiServer.app.ConsensusEngine.GetSeenCommit(height)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),

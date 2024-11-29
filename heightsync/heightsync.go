@@ -106,7 +106,7 @@ func Start(flags types.KsyncFlags) error {
 		return fmt.Errorf("failed to auto select binary version: %w", err)
 	}
 
-	if err := app.StartAll(); err != nil {
+	if err := app.StartAll(0); err != nil {
 		return fmt.Errorf("failed to start app: %w", err)
 	}
 
