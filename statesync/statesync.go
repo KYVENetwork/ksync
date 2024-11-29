@@ -110,7 +110,6 @@ func Start(flags types.KsyncFlags) error {
 		return fmt.Errorf("failed to start app: %w", err)
 	}
 
-	// TODO: handle error
 	defer app.StopAll()
 
 	if err := StartStateSyncExecutor(app, snapshotCollector, snapshotHeight); err != nil {

@@ -155,20 +155,19 @@ func (app *CosmosApp) StartAll() error {
 	return nil
 }
 
-func (app *CosmosApp) StopAll() error {
+func (app *CosmosApp) StopAll() {
+	// we do not return on error here since we are shutting the
+	// application down anyway and ensure that everything else
+	// can get closed
 	if err := app.ConsensusEngine.StopProxyApp(); err != nil {
-		return fmt.Errorf("failed to stop proxy app: %w", err)
-	}
-
-	if err := app.StopBinary(); err != nil {
-		return fmt.Errorf("failed to stop cosmos app: %w", err)
+		logger.Error().Msgf("failed to stop proxy app: %s", err)
 	}
 
 	if err := app.ConsensusEngine.CloseDBs(); err != nil {
-		return fmt.Errorf("failed to close dbs in engine: %w", err)
+		logger.Error().Msgf("failed to close dbs in engin: %s", err)
 	}
 
-	return nil
+	app.StopBinary()
 }
 
 func (app *CosmosApp) StartBinary() error {
@@ -256,9 +255,9 @@ func (app *CosmosApp) StartBinaryP2P() error {
 	return nil
 }
 
-func (app *CosmosApp) StopBinary() error {
+func (app *CosmosApp) StopBinary() {
 	if app.cmd == nil {
-		return nil
+		return
 	}
 
 	// ensure that we don't stop any other process in the goroutine below
@@ -280,12 +279,11 @@ func (app *CosmosApp) StopBinary() error {
 	}()
 
 	if _, err := app.cmd.Process.Wait(); err != nil {
-		return fmt.Errorf("failed to wait for process with id %d to be terminated: %w", app.cmd.Process.Pid, err)
+		logger.Error().Msgf("failed to wait for process with id %d to be terminated: %s", app.cmd.Process.Pid, err)
 	}
 
 	logger.Info().Msg("stopped app binary")
-
-	return nil
+	return
 }
 
 func (app *CosmosApp) loadHomePath() error {

@@ -80,9 +80,7 @@ func StartBlockSyncExecutor(app *binary.CosmosApp, blockCollector types.BlockCol
 					return fmt.Errorf("failed to apply block in engine: %w", err)
 				}
 
-				if err := app.StopAll(); err != nil {
-					return err
-				}
+				app.StopAll()
 
 				if err := app.LoadConsensusEngine(); err != nil {
 					return fmt.Errorf("failed to reload engine: %w", err)

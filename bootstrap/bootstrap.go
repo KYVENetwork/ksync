@@ -29,9 +29,7 @@ func StartBootstrapWithBinary(app *binary.CosmosApp, blockCollector types.BlockC
 
 	logger.Info().Msg("genesis file is larger than 100MB, syncing first block over P2P network")
 
-	if err := app.StopAll(); err != nil {
-		return err
-	}
+	app.StopAll()
 
 	block, err := blockCollector.GetBlock(app.Genesis.GetInitialHeight())
 	if err != nil {
@@ -47,7 +45,6 @@ func StartBootstrapWithBinary(app *binary.CosmosApp, blockCollector types.BlockC
 		return fmt.Errorf("failed to start cosmos app in p2p mode: %w", err)
 	}
 
-	// TODO: handle error
 	defer app.StopBinary()
 
 	logger.Info().Msg("bootstrapping node, depending on the size of the genesis file, this step can take several minutes")
