@@ -35,7 +35,7 @@ var (
 )
 
 type Engine struct {
-	HomePath   string
+	homePath   string
 	areDBsOpen bool
 	config     *cfg.Config
 
@@ -49,6 +49,7 @@ type Engine struct {
 
 	genDoc           *GenesisDoc
 	privValidatorKey crypto.PubKey
+	nodeKey          *tmP2P.NodeKey
 
 	state         tmState.State
 	proxyApp      proxy.AppConns
@@ -57,33 +58,39 @@ type Engine struct {
 	blockExecutor *tmState.BlockExecutor
 }
 
+func NewEngine(homePath string) (*Engine, error) {
+	engine := &Engine{
+		homePath: homePath,
+	}
+
+	if err := engine.LoadConfig(); err != nil {
+		return nil, err
+	}
+
+	if err := engine.OpenDBs(); err != nil {
+		return nil, err
+	}
+
+	return engine, nil
+}
+
 func (engine *Engine) LoadConfig() error {
 	if engine.config != nil {
 		return nil
 	}
 
-	config, err := LoadConfig(engine.HomePath)
+	config, err := LoadConfig(engine.homePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
 	}
 
 	engine.config = config
-	return nil
-}
-
-func (engine *Engine) OpenDBs() error {
-	if engine.areDBsOpen {
-		return nil
-	}
-
-	if err := engine.LoadConfig(); err != nil {
-		return err
-	}
 
 	genDoc, err := nm.DefaultGenesisDocProviderFunc(engine.config)()
 	if err != nil {
 		return fmt.Errorf("failed to load state and genDoc: %w", err)
 	}
+
 	engine.genDoc = genDoc
 
 	privValidatorKey, err := privval.LoadFilePVEmptyState(
@@ -94,6 +101,19 @@ func (engine *Engine) OpenDBs() error {
 		return fmt.Errorf("failed to load validator key file: %w", err)
 	}
 	engine.privValidatorKey = privValidatorKey
+
+	nodeKey, err := tmP2P.LoadNodeKey(engine.config.NodeKeyFile())
+	if err != nil {
+		return fmt.Errorf("loading node key file failed: %w", err)
+	}
+	engine.nodeKey = nodeKey
+	return nil
+}
+
+func (engine *Engine) OpenDBs() error {
+	if engine.areDBsOpen {
+		return nil
+	}
 
 	blockDB, blockStore, err := GetBlockstoreDBs(engine.config)
 	if err != nil {
@@ -551,16 +571,10 @@ func (engine *Engine) OfferSnapshot(rawSnapshot, rawState []byte) (int64, int64,
 }
 
 func (engine *Engine) ApplySnapshotChunk(chunkIndex int64, chunk []byte) error {
-	// TODO: load node key before?
-	nodeKey, err := tmP2P.LoadNodeKey(engine.config.NodeKeyFile())
-	if err != nil {
-		return fmt.Errorf("loading node key file failed: %w", err)
-	}
-
 	res, err := engine.proxyApp.Snapshot().ApplySnapshotChunkSync(abciTypes.RequestApplySnapshotChunk{
 		Index:  uint32(chunkIndex),
 		Chunk:  chunk,
-		Sender: string(nodeKey.ID()),
+		Sender: string(engine.nodeKey.ID()),
 	})
 	if err != nil {
 		return err
@@ -634,7 +648,7 @@ func (engine *Engine) PruneBlocks(toHeight int64) error {
 }
 
 func (engine *Engine) ResetAll(keepAddrBook bool) error {
-	config, err := LoadConfig(engine.HomePath)
+	config, err := LoadConfig(engine.homePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
 	}
@@ -681,6 +695,14 @@ func (engine *Engine) ResetAll(keepAddrBook bool) error {
 			"keyFile", privValKeyFile,
 			"stateFile", privValStateFile,
 		)
+	}
+
+	if err := engine.CloseDBs(); err != nil {
+		return fmt.Errorf("failed to close dbs: %w", err)
+	}
+
+	if err := engine.OpenDBs(); err != nil {
+		return fmt.Errorf("failed to open dbs: %w", err)
 	}
 
 	return nil

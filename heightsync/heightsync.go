@@ -15,17 +15,17 @@ var (
 	logger = utils.KsyncLogger("height-sync")
 )
 
-func getUserConfirmation(y bool, snapshotHeight, continuationHeight, targetHeight int64) (bool, error) {
+func getUserConfirmation(y, canApplySnapshot bool, snapshotHeight, continuationHeight, targetHeight int64) (bool, error) {
 	if y {
 		return true, nil
 	}
 
 	answer := ""
 
-	if snapshotHeight > 0 {
+	if canApplySnapshot {
 		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by applying snapshot at height %d and syncing the remaining %d blocks [y/N]: ", targetHeight, snapshotHeight, targetHeight-snapshotHeight)
 	} else {
-		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by syncing from initial height %d [y/N]: ", targetHeight, continuationHeight)
+		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by syncing from height %d [y/N]: ", targetHeight, continuationHeight-1)
 	}
 
 	if _, err := fmt.Scan(&answer); err != nil {
@@ -54,12 +54,7 @@ func Start(flags types.KsyncFlags) error {
 		}
 	}
 
-	isReset, err := app.IsReset()
-	if err != nil {
-		return err
-	}
-
-	snapshotPoolId, err := app.Source.GetSourceBlockPoolId()
+	snapshotPoolId, err := app.Source.GetSourceSnapshotPoolId()
 	if err != nil {
 		return fmt.Errorf("failed to get snapshot pool id: %w", err)
 	}
@@ -83,17 +78,14 @@ func Start(flags types.KsyncFlags) error {
 	}
 
 	snapshotHeight := snapshotCollector.GetSnapshotHeight(flags.TargetHeight)
-	canApplySnapshot := snapshotHeight > 0 && isReset
+	canApplySnapshot := snapshotHeight > 0 && app.IsReset()
 
 	var continuationHeight int64
 
 	if canApplySnapshot {
 		continuationHeight = snapshotHeight
 	} else {
-		continuationHeight, err = app.GetContinuationHeight()
-		if err != nil {
-			return fmt.Errorf("failed to get continuation height: %w", err)
-		}
+		continuationHeight = app.GetContinuationHeight()
 	}
 
 	if canApplySnapshot {
@@ -106,7 +98,7 @@ func Start(flags types.KsyncFlags) error {
 		return fmt.Errorf("block-sync validation checks failed: %w", err)
 	}
 
-	if confirmation, err := getUserConfirmation(flags.Y, snapshotHeight, continuationHeight, flags.TargetHeight); !confirmation {
+	if confirmation, err := getUserConfirmation(flags.Y, canApplySnapshot, snapshotHeight, continuationHeight, flags.TargetHeight); !confirmation {
 		return err
 	}
 

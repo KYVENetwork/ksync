@@ -6,7 +6,7 @@ import (
 	"github.com/KYVENetwork/ksync/binary/source"
 	"github.com/KYVENetwork/ksync/engines/celestia-core-v34"
 	"github.com/KYVENetwork/ksync/engines/cometbft-v37"
-	"github.com/KYVENetwork/ksync/engines/cometbft-v38"
+	cometbft_v38 "github.com/KYVENetwork/ksync/engines/cometbft-v38"
 	"github.com/KYVENetwork/ksync/engines/tendermint-v34"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
@@ -87,33 +87,17 @@ func (app *CosmosApp) GetFlags() types.KsyncFlags {
 	return app.flags
 }
 
-func (app *CosmosApp) IsReset() (bool, error) {
-	if err := app.ConsensusEngine.OpenDBs(); err != nil {
-		return false, fmt.Errorf("failed to open dbs: %w", err)
-	}
-
-	height := app.ConsensusEngine.GetHeight()
-
-	if err := app.ConsensusEngine.CloseDBs(); err != nil {
-		return false, fmt.Errorf("failed to close dbs: %w", err)
-	}
-
-	return height == 0, nil
+func (app *CosmosApp) IsReset() bool {
+	return app.ConsensusEngine.GetHeight() == 0
 }
 
-func (app *CosmosApp) GetContinuationHeight() (int64, error) {
-	if err := app.ConsensusEngine.OpenDBs(); err != nil {
-		return 0, fmt.Errorf("failed to open dbs: %w", err)
-	}
-
-	defer app.ConsensusEngine.CloseDBs()
-
+func (app *CosmosApp) GetContinuationHeight() int64 {
 	height := app.ConsensusEngine.GetHeight() + 1
 	if height == 1 {
-		return app.Genesis.GetInitialHeight(), nil
+		return app.Genesis.GetInitialHeight()
 	}
 
-	return height, nil
+	return height
 }
 
 func (app *CosmosApp) AutoSelectBinaryVersion(height int64) error {
@@ -164,6 +148,8 @@ func (app *CosmosApp) StartAll() error {
 		return fmt.Errorf("failed to open dbs in engine: %w", err)
 	}
 
+	// TODO: wait until binary has properly booted, else
+	// abci.socketClient failed to connect to tcp://127.0.0.1:26658.  Retrying after 3s... err="dial tcp 127.0.0.1:26658: connect: connection refused"
 	if err := app.ConsensusEngine.StartProxyApp(); err != nil {
 		return fmt.Errorf("failed to start proxy app: %w", err)
 	}
@@ -332,6 +318,14 @@ func (app *CosmosApp) loadHomePath() error {
 }
 
 func (app *CosmosApp) LoadConsensusEngine() error {
+	// if there is already a consensus engine running we close the dbs
+	// before loading a new one
+	if app.ConsensusEngine != nil {
+		if err := app.ConsensusEngine.CloseDBs(); err != nil {
+			return fmt.Errorf("failed to close dbs in engine: %w", err)
+		}
+	}
+
 	cmd := exec.Command(app.binaryPath)
 
 	if app.isCosmovisor {
@@ -346,25 +340,38 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 		return fmt.Errorf("failed to get output of binary: %w", err)
 	}
 
+	// TODO: improve
 	for _, engine := range []string{"github.com/tendermint/tendermint@v", "github.com/cometbft/cometbft@v"} {
 		for _, line := range strings.Split(string(out), "\n") {
 			if strings.Contains(line, fmt.Sprintf("- %s", engine)) {
 				dependency := strings.Split(strings.ReplaceAll(strings.Split(line, " => ")[len(strings.Split(line, " => "))-1], "- ", ""), "@v")
 
 				if strings.Contains(dependency[1], "0.34.") && strings.Contains(dependency[0], "celestia-core") {
-					app.ConsensusEngine = &celestia_core_v34.Engine{HomePath: app.homePath}
+					app.ConsensusEngine, err = celestia_core_v34.NewEngine(app.homePath)
+					if err != nil {
+						return fmt.Errorf("failed to create consensus engine: %w", err)
+					}
 					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", "celestia-core-v0.34")
 					return nil
 				} else if strings.Contains(dependency[1], "0.34.") {
-					app.ConsensusEngine = &tendermint_v34.Engine{HomePath: app.homePath}
+					app.ConsensusEngine, err = tendermint_v34.NewEngine(app.homePath)
+					if err != nil {
+						return fmt.Errorf("failed to create consensus engine: %w", err)
+					}
 					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", "tendermint-v0.34")
 					return nil
 				} else if strings.Contains(dependency[1], "0.37.") {
-					app.ConsensusEngine = &cometbft_v37.Engine{HomePath: app.homePath}
+					app.ConsensusEngine, err = cometbft_v37.NewEngine(app.homePath)
+					if err != nil {
+						return fmt.Errorf("failed to create consensus engine: %w", err)
+					}
 					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", "cometbft-v0.37")
 					return nil
 				} else if strings.Contains(dependency[1], "0.38.") {
-					app.ConsensusEngine = &cometbft_v38.Engine{HomePath: app.homePath}
+					app.ConsensusEngine, err = cometbft_v38.NewEngine(app.homePath)
+					if err != nil {
+						return fmt.Errorf("failed to create consensus engine: %w", err)
+					}
 					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", "cometbft-v0.38")
 					return nil
 				} else {

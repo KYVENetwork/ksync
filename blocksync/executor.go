@@ -23,10 +23,7 @@ func StartBlockSyncExecutor(app *binary.CosmosApp, blockCollector types.BlockCol
 		return fmt.Errorf("failed to bootstrap cosmos app: %w", err)
 	}
 
-	continuationHeight, err := app.GetContinuationHeight()
-	if err != nil {
-		return fmt.Errorf("failed to get continuation height: %w", err)
-	}
+	continuationHeight := app.GetContinuationHeight()
 
 	go blockCollector.StreamBlocks(blockCh, errorCh, continuationHeight, app.GetFlags().TargetHeight)
 

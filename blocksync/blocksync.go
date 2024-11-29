@@ -16,8 +16,6 @@ var (
 // PerformBlockSyncValidationChecks makes boundary checks if app can be block-synced from the given
 // continuation height to the given target height
 func PerformBlockSyncValidationChecks(blockCollector types.BlockCollector, continuationHeight, targetHeight int64, checkEndHeight bool) error {
-	logger.Info().Msg(fmt.Sprintf("loaded current block height of node: %d", continuationHeight-1))
-
 	earliest := blockCollector.GetEarliestAvailableHeight()
 	latest := blockCollector.GetLatestAvailableHeight()
 
@@ -114,10 +112,7 @@ func Start(flags types.KsyncFlags) error {
 		}
 	}
 
-	continuationHeight, err := app.GetContinuationHeight()
-	if err != nil {
-		return fmt.Errorf("failed to get continuation height: %w", err)
-	}
+	continuationHeight := app.GetContinuationHeight()
 
 	blockCollector, err := getBlockCollector(app)
 	if err != nil {

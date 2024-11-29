@@ -33,16 +33,11 @@ func Start(flags types.KsyncFlags) error {
 		}
 	}
 
-	isReset, err := app.IsReset()
-	if err != nil {
-		return err
-	}
-
-	if flags.StartHeight > 0 && !isReset {
+	if flags.StartHeight > 0 && !app.IsReset() {
 		return fmt.Errorf("if --start-height is provided app needs to be reset")
 	}
 
-	snapshotPoolId, err := app.Source.GetSourceBlockPoolId()
+	snapshotPoolId, err := app.Source.GetSourceSnapshotPoolId()
 	if err != nil {
 		return fmt.Errorf("failed to get snapshot pool id: %w", err)
 	}
@@ -66,17 +61,14 @@ func Start(flags types.KsyncFlags) error {
 	}
 
 	snapshotHeight := snapshotCollector.GetSnapshotHeight(flags.StartHeight)
-	canApplySnapshot := snapshotHeight > 0 && isReset
+	canApplySnapshot := snapshotHeight > 0 && app.IsReset()
 
 	var continuationHeight int64
 
 	if canApplySnapshot {
 		continuationHeight = snapshotHeight
 	} else {
-		continuationHeight, err = app.GetContinuationHeight()
-		if err != nil {
-			return fmt.Errorf("failed to get continuation height: %w", err)
-		}
+		continuationHeight = app.GetContinuationHeight()
 	}
 
 	if canApplySnapshot {

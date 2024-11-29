@@ -72,12 +72,7 @@ func Start(flags types.KsyncFlags) error {
 		}
 	}
 
-	isReset, err := app.IsReset()
-	if err != nil {
-		return err
-	}
-
-	if !isReset {
+	if !app.IsReset() {
 		return fmt.Errorf("app has to be reset for state-sync")
 	}
 
