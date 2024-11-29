@@ -36,10 +36,9 @@ var (
 )
 
 type Engine struct {
-	HomePath      string
-	RpcServerPort int64
-	areDBsOpen    bool
-	config        *cfg.Config
+	HomePath   string
+	areDBsOpen bool
+	config     *cfg.Config
 
 	blockDB    db.DB
 	blockStore *tmStore.BlockStore
@@ -57,10 +56,6 @@ type Engine struct {
 	mempool       *mempool.Mempool
 	evidencePool  *evidence.Pool
 	blockExecutor *tmState.BlockExecutor
-}
-
-func (engine *Engine) GetName() string {
-	return utils.EngineTendermintV34
 }
 
 func (engine *Engine) LoadConfig() error {
@@ -153,14 +148,6 @@ func (engine *Engine) CloseDBs() error {
 	return nil
 }
 
-func (engine *Engine) GetHomePath() string {
-	return engine.HomePath
-}
-
-func (engine *Engine) GetRpcServerPort() int64 {
-	return engine.RpcServerPort
-}
-
 func (engine *Engine) GetProxyAppAddress() string {
 	return engine.config.ProxyApp
 }
@@ -190,36 +177,6 @@ func (engine *Engine) StopProxyApp() error {
 
 	engine.proxyApp = nil
 	return nil
-}
-
-func (engine *Engine) GetChainId() (string, error) {
-	if err := engine.LoadConfig(); err != nil {
-		return "", fmt.Errorf("failed to load config: %w", err)
-	}
-
-	genDoc, err := nm.DefaultGenesisDocProviderFunc(engine.config)()
-	if err != nil {
-		return "", fmt.Errorf("failed to load genDoc: %w", err)
-	}
-
-	return genDoc.ChainID, nil
-}
-
-func (engine *Engine) GetContinuationHeight() (int64, error) {
-	height := engine.blockStore.Height()
-
-	initialHeight, err := utils.GetInitialHeightFromGenesisFile(engine.GetGenesisPath())
-	if err != nil {
-		return 0, fmt.Errorf("failed to load initial height from genesis file: %w", err)
-	}
-
-	continuationHeight := height + 1
-
-	if continuationHeight < initialHeight {
-		continuationHeight = initialHeight
-	}
-
-	return continuationHeight, nil
 }
 
 func (engine *Engine) DoHandshake() error {
@@ -380,20 +337,6 @@ func (engine *Engine) ApplyFirstBlockOverP2P(rawBlock, nextRawBlock []byte) erro
 	return nil
 }
 
-func (engine *Engine) GetGenesisPath() string {
-	return engine.config.GenesisFile()
-}
-
-func (engine *Engine) GetGenesisHeight() (int64, error) {
-	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(engine.config)
-	genDoc, err := defaultDocProvider()
-	if err != nil {
-		return 0, err
-	}
-
-	return genDoc.InitialHeight, nil
-}
-
 func (engine *Engine) GetHeight() int64 {
 	return engine.blockStore.Height()
 }
@@ -457,7 +400,7 @@ func (engine *Engine) GetBlock(height int64) ([]byte, error) {
 	return json.Marshal(block)
 }
 
-func (engine *Engine) StartRPCServer() {
+func (engine *Engine) StartRPCServer(port int64) {
 	// wait until all reactors have been booted
 	for engine.blockExecutor == nil {
 		time.Sleep(1000)
@@ -515,7 +458,7 @@ func (engine *Engine) StartRPCServer() {
 	config := rpcserver.DefaultConfig()
 
 	rpcserver.RegisterRPCFuncs(mux, routes, rpcLogger)
-	listener, err := rpcserver.Listen(fmt.Sprintf("tcp://127.0.0.1:%d", engine.RpcServerPort), config)
+	listener, err := rpcserver.Listen(fmt.Sprintf("tcp://127.0.0.1:%d", port), config)
 	if err != nil {
 		tmLogger.Error(fmt.Sprintf("failed to get rpc listener: %s", err))
 		return

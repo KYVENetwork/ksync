@@ -15,6 +15,31 @@ var (
 	logger = utils.KsyncLogger("height-sync")
 )
 
+func getUserConfirmation(y bool, snapshotHeight, continuationHeight, targetHeight int64) (bool, error) {
+	if y {
+		return true, nil
+	}
+
+	answer := ""
+
+	if snapshotHeight > 0 {
+		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by applying snapshot at height %d and syncing the remaining %d blocks [y/N]: ", targetHeight, snapshotHeight, targetHeight-snapshotHeight)
+	} else {
+		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by syncing from initial height %d [y/N]: ", targetHeight, continuationHeight)
+	}
+
+	if _, err := fmt.Scan(&answer); err != nil {
+		return false, fmt.Errorf("failed to read in user input: %w", err)
+	}
+
+	if strings.ToLower(answer) != "y" {
+		logger.Info().Msg("aborted height-sync")
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func Start(flags types.KsyncFlags) error {
 	logger.Info().Msg("starting height-sync")
 
@@ -27,6 +52,11 @@ func Start(flags types.KsyncFlags) error {
 		if err := app.ConsensusEngine.ResetAll(true); err != nil {
 			return fmt.Errorf("failed to reset cosmos app: %w", err)
 		}
+	}
+
+	isReset, err := app.IsReset()
+	if err != nil {
+		return err
 	}
 
 	snapshotPoolId, err := app.Source.GetSourceBlockPoolId()
@@ -52,40 +82,32 @@ func Start(flags types.KsyncFlags) error {
 		return fmt.Errorf("failed to init kyve block collector: %w", err)
 	}
 
-	// TODO: make this more clear why we need a continuationHeight
 	snapshotHeight := snapshotCollector.GetSnapshotHeight(flags.TargetHeight)
-	continuationHeight := snapshotHeight
+	canApplySnapshot := snapshotHeight > 0 && isReset
 
-	if snapshotHeight > 0 {
-		if err := statesync.PerformStateSyncValidationChecks(app, snapshotCollector, snapshotHeight); err != nil {
-			return fmt.Errorf("state-sync validation checks failed: %w", err)
-		}
+	var continuationHeight int64
+
+	if canApplySnapshot {
+		continuationHeight = snapshotHeight
 	} else {
-		// if the target height is below the first snapshot height we start block-syncing from the initial height
-		continuationHeight = app.Genesis.GetInitialHeight()
+		continuationHeight, err = app.GetContinuationHeight()
+		if err != nil {
+			return fmt.Errorf("failed to get continuation height: %w", err)
+		}
 	}
 
-	if err := blocksync.PerformBlockSyncValidationChecks(app, blockCollector, continuationHeight, flags.TargetHeight, true); err != nil {
+	if canApplySnapshot {
+		if err := statesync.PerformStateSyncValidationChecks(snapshotCollector, snapshotHeight); err != nil {
+			return fmt.Errorf("state-sync validation checks failed: %w", err)
+		}
+	}
+
+	if err := blocksync.PerformBlockSyncValidationChecks(blockCollector, continuationHeight, flags.TargetHeight, true); err != nil {
 		return fmt.Errorf("block-sync validation checks failed: %w", err)
 	}
 
-	if !flags.Y {
-		answer := ""
-
-		if snapshotHeight > 0 {
-			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by applying snapshot at height %d and syncing the remaining %d blocks [y/N]: ", flags.TargetHeight, snapshotHeight, flags.TargetHeight-snapshotHeight)
-		} else {
-			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by syncing from initial height %d [y/N]: ", flags.TargetHeight, continuationHeight)
-		}
-
-		if _, err := fmt.Scan(&answer); err != nil {
-			return fmt.Errorf("failed to read in user input: %w", err)
-		}
-
-		if strings.ToLower(answer) != "y" {
-			logger.Info().Msg("aborted height-sync")
-			return nil
-		}
+	if confirmation, err := getUserConfirmation(flags.Y, snapshotHeight, continuationHeight, flags.TargetHeight); !confirmation {
+		return err
 	}
 
 	if err := app.AutoSelectBinaryVersion(continuationHeight); err != nil {
@@ -99,16 +121,18 @@ func Start(flags types.KsyncFlags) error {
 	// TODO: handle error
 	defer app.StopAll()
 
-	if err := statesync.StartStateSyncExecutor(app, snapshotCollector, snapshotHeight); err != nil {
-		return fmt.Errorf("failed to start state-sync executor: %w", err)
-	}
+	if canApplySnapshot {
+		if err := statesync.StartStateSyncExecutor(app, snapshotCollector, snapshotHeight); err != nil {
+			return fmt.Errorf("failed to start state-sync executor: %w", err)
+		}
 
-	// TODO: do we need to restart here?
+		// TODO: do we need to restart here?
+	}
 
 	// we only pass the snapshot collector to the block executor if we are creating
 	// state-sync snapshots with serve-snapshots
 	if err := blocksync.StartBlockSyncExecutor(app, blockCollector, nil); err != nil {
-		return fmt.Errorf("failed to start state-sync executor: %w", err)
+		return fmt.Errorf("failed to start block-sync executor: %w", err)
 	}
 
 	logger.Info().Msgf("successfully finished height-sync")

@@ -21,7 +21,7 @@ func LoadLatestPoolData(sourceRegistry types.SourceRegistry) (*types.SourceRegis
 	for _, entry := range sourceRegistry.Entries {
 		if entry.Networks.Kyve != nil && entry.Networks.Kyve.Integrations != nil && entry.Networks.Kyve.Integrations.KSYNC != nil {
 			if entry.Networks.Kyve.Integrations.KSYNC.BlockSyncPool != nil {
-				poolResponse, err := pool.GetPoolInfo(utils.RestEndpointMainnet, int64(*entry.Networks.Kyve.Integrations.KSYNC.BlockSyncPool))
+				poolResponse, err := pool.GetPool(utils.RestEndpointMainnet, int64(*entry.Networks.Kyve.Integrations.KSYNC.BlockSyncPool))
 				if err != nil {
 					return nil, err
 				}
@@ -29,7 +29,7 @@ func LoadLatestPoolData(sourceRegistry types.SourceRegistry) (*types.SourceRegis
 				entry.Networks.Kyve.LatestBlockKey = &poolResponse.Pool.Data.CurrentKey
 			}
 			if entry.Networks.Kyve.Integrations.KSYNC.StateSyncPool != nil {
-				poolResponse, err := pool.GetPoolInfo(utils.RestEndpointMainnet, int64(*entry.Networks.Kyve.Integrations.KSYNC.StateSyncPool))
+				poolResponse, err := pool.GetPool(utils.RestEndpointMainnet, int64(*entry.Networks.Kyve.Integrations.KSYNC.StateSyncPool))
 				if err != nil {
 					return nil, err
 				}
@@ -39,7 +39,7 @@ func LoadLatestPoolData(sourceRegistry types.SourceRegistry) (*types.SourceRegis
 		}
 		if entry.Networks.Kaon != nil && entry.Networks.Kaon.Integrations != nil && entry.Networks.Kaon.Integrations.KSYNC != nil {
 			if entry.Networks.Kaon.Integrations.KSYNC.BlockSyncPool != nil {
-				poolResponse, err := pool.GetPoolInfo(utils.RestEndpointKaon, int64(*entry.Networks.Kaon.Integrations.KSYNC.BlockSyncPool))
+				poolResponse, err := pool.GetPool(utils.RestEndpointKaon, int64(*entry.Networks.Kaon.Integrations.KSYNC.BlockSyncPool))
 				if err != nil {
 					return nil, err
 				}
@@ -47,7 +47,7 @@ func LoadLatestPoolData(sourceRegistry types.SourceRegistry) (*types.SourceRegis
 				entry.Networks.Kaon.LatestBlockKey = &poolResponse.Pool.Data.CurrentKey
 			}
 			if entry.Networks.Kaon.Integrations.KSYNC.StateSyncPool != nil {
-				poolResponse, err := pool.GetPoolInfo(utils.RestEndpointKaon, int64(*entry.Networks.Kaon.Integrations.KSYNC.StateSyncPool))
+				poolResponse, err := pool.GetPool(utils.RestEndpointKaon, int64(*entry.Networks.Kaon.Integrations.KSYNC.StateSyncPool))
 				if err != nil {
 					return nil, err
 				}

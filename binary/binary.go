@@ -82,23 +82,33 @@ func (app *CosmosApp) GetFlags() types.KsyncFlags {
 	return app.flags
 }
 
+func (app *CosmosApp) IsReset() (bool, error) {
+	if err := app.ConsensusEngine.OpenDBs(); err != nil {
+		return false, fmt.Errorf("failed to open dbs: %w", err)
+	}
+
+	height := app.ConsensusEngine.GetHeight()
+
+	if err := app.ConsensusEngine.CloseDBs(); err != nil {
+		return false, fmt.Errorf("failed to close dbs: %w", err)
+	}
+
+	return height == 0, nil
+}
+
 func (app *CosmosApp) GetContinuationHeight() (int64, error) {
 	if err := app.ConsensusEngine.OpenDBs(); err != nil {
 		return 0, fmt.Errorf("failed to open dbs: %w", err)
 	}
 
-	height := app.ConsensusEngine.GetHeight()
-	initialHeight := app.Genesis.GetInitialHeight()
+	defer app.ConsensusEngine.CloseDBs()
 
-	if err := app.ConsensusEngine.CloseDBs(); err != nil {
-		return 0, fmt.Errorf("failed to close dbs: %w", err)
+	height := app.ConsensusEngine.GetHeight() + 1
+	if height == 1 {
+		return app.Genesis.GetInitialHeight(), nil
 	}
 
-	if height+1 < initialHeight {
-		return initialHeight, nil
-	}
-
-	return height + 1, nil
+	return height, nil
 }
 
 func (app *CosmosApp) AutoSelectBinaryVersion(height int64) error {
@@ -195,6 +205,8 @@ func (app *CosmosApp) StartBinary() error {
 		"--address",
 		app.ConsensusEngine.GetProxyAppAddress(),
 	)
+
+	// TODO: add snapshot args here
 
 	cmd.Args = append(cmd.Args, strings.Split(app.flags.AppFlags, ",")...)
 

@@ -13,11 +13,11 @@ import (
 )
 
 func init() {
-	infoCmd.Flags().StringVarP(&chainId, "chain-id", "c", utils.DefaultChainId, fmt.Sprintf("KYVE chain id [\"%s\",\"%s\"]", utils.ChainIdMainnet, utils.ChainIdKaon))
+	infoCmd.Flags().StringVarP(&flags.ChainId, "chain-id", "c", utils.DefaultChainId, fmt.Sprintf("KYVE chain id [\"%s\",\"%s\"]", utils.ChainIdMainnet, utils.ChainIdKaon))
 
-	infoCmd.Flags().StringVar(&registryUrl, "registry-url", utils.DefaultRegistryURL, "URL to fetch latest KYVE Source-Registry")
+	infoCmd.Flags().StringVar(&flags.RegistryUrl, "registry-url", utils.DefaultRegistryURL, "URL to fetch latest KYVE Source-Registry")
 
-	infoCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
+	infoCmd.Flags().BoolVar(&flags.OptOut, "opt-out", false, "disable the collection of anonymous usage data")
 
 	RootCmd.AddCommand(infoCmd)
 }
@@ -26,13 +26,13 @@ var infoCmd = &cobra.Command{
 	Use:   "info",
 	Short: "Get KSYNC chain support information",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		utils.TrackInfoEvent(chainId, optOut)
+		utils.TrackInfoEvent(flags.ChainId, flags.OptOut)
 
-		if chainId != utils.ChainIdMainnet && chainId != utils.ChainIdKaon {
-			return fmt.Errorf("chain-id %s not supported", chainId)
+		if flags.ChainId != utils.ChainIdMainnet && flags.ChainId != utils.ChainIdKaon {
+			return fmt.Errorf("chain-id %s not supported", flags.ChainId)
 		}
 
-		sourceRegistry, err := helpers.GetSourceRegistry(registryUrl)
+		sourceRegistry, err := helpers.GetSourceRegistry(flags.RegistryUrl)
 		if err != nil {
 			return fmt.Errorf("failed to get source registry: %w", err)
 		}
@@ -46,7 +46,7 @@ var infoCmd = &cobra.Command{
 
 		var keys []string
 		for key, entry := range sourceRegistry.Entries {
-			if chainId == utils.ChainIdMainnet {
+			if flags.ChainId == utils.ChainIdMainnet {
 				if entry.Networks.Kyve != nil {
 					if entry.Networks.Kyve.Integrations != nil {
 						if entry.Networks.Kyve.Integrations.KSYNC != nil {
@@ -55,7 +55,7 @@ var infoCmd = &cobra.Command{
 					}
 				}
 			}
-			if chainId == utils.ChainIdKaon {
+			if flags.ChainId == utils.ChainIdKaon {
 				if entry.Networks.Kaon != nil {
 					if entry.Networks.Kaon.Integrations != nil {
 						if entry.Networks.Kaon.Integrations.KSYNC != nil {
@@ -76,7 +76,7 @@ var infoCmd = &cobra.Command{
 
 			var title string
 
-			if chainId == utils.ChainIdMainnet {
+			if flags.ChainId == utils.ChainIdMainnet {
 				if entry.Networks.Kyve != nil {
 					if entry.Networks.Kyve.Integrations != nil {
 						if entry.Networks.Kyve.Integrations.KSYNC == nil {
@@ -87,7 +87,7 @@ var infoCmd = &cobra.Command{
 				} else {
 					continue
 				}
-			} else if chainId == utils.ChainIdKaon {
+			} else if flags.ChainId == utils.ChainIdKaon {
 				if entry.Networks.Kaon != nil {
 					if entry.Networks.Kaon.Integrations != nil {
 						if entry.Networks.Kaon.Integrations.KSYNC == nil {
@@ -100,7 +100,7 @@ var infoCmd = &cobra.Command{
 				}
 			}
 
-			blockSync, stateSync, heightSync := sources.FormatOutput(&entry, chainId)
+			blockSync, stateSync, heightSync := sources.FormatOutput(&entry, flags.ChainId)
 			t.AppendRows([]table.Row{
 				{
 					title,

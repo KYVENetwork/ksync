@@ -14,8 +14,7 @@ var (
 )
 
 // PerformStateSyncValidationChecks makes boundary checks for the given snapshot height
-func PerformStateSyncValidationChecks(app *binary.CosmosApp, snapshotCollector types.SnapshotCollector, snapshotHeight int64) error {
-	// get lowest and highest complete snapshot
+func PerformStateSyncValidationChecks(snapshotCollector types.SnapshotCollector, snapshotHeight int64) error {
 	earliest := snapshotCollector.GetEarliestAvailableHeight()
 	latest := snapshotCollector.GetLatestAvailableHeight()
 
@@ -32,6 +31,33 @@ func PerformStateSyncValidationChecks(app *binary.CosmosApp, snapshotCollector t
 	return nil
 }
 
+func getUserConfirmation(y bool, snapshotHeight, targetHeight int64) (bool, error) {
+	if y {
+		return true, nil
+	}
+
+	answer := ""
+
+	// if we found a different snapshotHeight as the requested targetHeight it means there was no snapshot
+	// at the requested targetHeight. Ask the user here if KSYNC should sync to the nearest height instead
+	if snapshotHeight != targetHeight {
+		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m could not find snapshot with requested height %d, state-sync to nearest available snapshot with height %d instead? [y/N]: ", targetHeight, snapshotHeight)
+	} else {
+		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should snapshot with height %d be applied with state-sync [y/N]: ", snapshotHeight)
+	}
+
+	if _, err := fmt.Scan(&answer); err != nil {
+		return false, fmt.Errorf("failed to read in user input: %w", err)
+	}
+
+	if strings.ToLower(answer) != "y" {
+		logger.Info().Msg("aborted state-sync")
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func Start(flags types.KsyncFlags) error {
 	logger.Info().Msg("starting state-sync")
 
@@ -44,6 +70,15 @@ func Start(flags types.KsyncFlags) error {
 		if err := app.ConsensusEngine.ResetAll(true); err != nil {
 			return fmt.Errorf("failed to reset cosmos app: %w", err)
 		}
+	}
+
+	isReset, err := app.IsReset()
+	if err != nil {
+		return err
+	}
+
+	if !isReset {
+		return fmt.Errorf("app has to be reset for state-sync")
 	}
 
 	snapshotPoolId, err := app.Source.GetSourceBlockPoolId()
@@ -60,35 +95,16 @@ func Start(flags types.KsyncFlags) error {
 	}
 
 	snapshotHeight := snapshotCollector.GetSnapshotHeight(flags.TargetHeight)
-
 	if snapshotHeight == 0 {
 		return fmt.Errorf("no snapshot could be found, target height %d too low", flags.TargetHeight)
 	}
 
-	if err := PerformStateSyncValidationChecks(app, snapshotCollector, snapshotHeight); err != nil {
+	if err := PerformStateSyncValidationChecks(snapshotCollector, snapshotHeight); err != nil {
 		return fmt.Errorf("state-sync validation checks failed: %w", err)
 	}
 
-	// TODO: move to helper method?
-	if !flags.Y {
-		answer := ""
-
-		// if we found a different snapshotHeight as the requested targetHeight it means there was no snapshot
-		// at the requested targetHeight. Ask the user here if KSYNC should sync to the nearest height instead
-		if snapshotHeight != flags.TargetHeight {
-			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m could not find snapshot with requested height %d, state-sync to nearest available snapshot with height %d instead? [y/N]: ", flags.TargetHeight, snapshotHeight)
-		} else {
-			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should snapshot with height %d be applied with state-sync [y/N]: ", snapshotHeight)
-		}
-
-		if _, err := fmt.Scan(&answer); err != nil {
-			return fmt.Errorf("failed to read in user input: %w", err)
-		}
-
-		if strings.ToLower(answer) != "y" {
-			logger.Info().Msg("aborted state-sync")
-			return nil
-		}
+	if confirmation, err := getUserConfirmation(flags.Y, snapshotHeight, flags.TargetHeight); !confirmation {
+		return err
 	}
 
 	if err := app.AutoSelectBinaryVersion(snapshotHeight); err != nil {
@@ -102,7 +118,6 @@ func Start(flags types.KsyncFlags) error {
 	// TODO: handle error
 	defer app.StopAll()
 
-	// TODO: add contract that binary, dbs and proxy app must be open and running for this method
 	if err := StartStateSyncExecutor(app, snapshotCollector, snapshotHeight); err != nil {
 		return fmt.Errorf("failed to start state-sync executor: %w", err)
 	}

@@ -15,7 +15,7 @@ var (
 
 // PerformBlockSyncValidationChecks makes boundary checks if app can be block-synced from the given
 // continuation height to the given target height
-func PerformBlockSyncValidationChecks(app *binary.CosmosApp, blockCollector types.BlockCollector, continuationHeight, targetHeight int64, checkEndHeight bool) error {
+func PerformBlockSyncValidationChecks(blockCollector types.BlockCollector, continuationHeight, targetHeight int64, checkEndHeight bool) error {
 	logger.Info().Msg(fmt.Sprintf("loaded current block height of node: %d", continuationHeight-1))
 
 	earliest := blockCollector.GetEarliestAvailableHeight()
@@ -47,6 +47,59 @@ func PerformBlockSyncValidationChecks(app *binary.CosmosApp, blockCollector type
 	return nil
 }
 
+func getBlockCollector(app *binary.CosmosApp) (types.BlockCollector, error) {
+	if app.GetFlags().BlockRpc != "" {
+		blockCollector, err := collector.NewRpcBlockCollector(app.GetFlags().BlockRpc, app.GetFlags().BlockRpcReqTimeout)
+		if err != nil {
+			return nil, fmt.Errorf("failed to init rpc block collector: %w", err)
+		}
+
+		return blockCollector, nil
+	}
+
+	// if there is no entry in the source registry for the source
+	// and if no block pool id was provided with the flags it would fail here
+	blockPoolId, err := app.Source.GetSourceBlockPoolId()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get block pool id: %w", err)
+	}
+
+	chainRest := utils.GetChainRest(app.GetFlags().ChainId, app.GetFlags().ChainRest)
+	storageRest := strings.TrimSuffix(app.GetFlags().StorageRest, "/")
+
+	blockCollector, err := collector.NewKyveBlockCollector(blockPoolId, chainRest, storageRest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init kyve block collector: %w", err)
+	}
+
+	return blockCollector, nil
+}
+
+func getUserConfirmation(y bool, continuationHeight, targetHeight int64) (bool, error) {
+	if y {
+		return true, nil
+	}
+
+	answer := ""
+
+	if targetHeight > 0 {
+		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should %d blocks from height %d to %d be synced [y/N]: ", targetHeight-continuationHeight+1, continuationHeight-1, targetHeight)
+	} else {
+		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should blocks from height %d be synced [y/N]: ", continuationHeight-1)
+	}
+
+	if _, err := fmt.Scan(&answer); err != nil {
+		return false, fmt.Errorf("failed to read in user input: %s", err)
+	}
+
+	if strings.ToLower(answer) != "y" {
+		logger.Info().Msg("aborted block-sync")
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func Start(flags types.KsyncFlags) error {
 	logger.Info().Msg("starting block-sync")
 
@@ -66,51 +119,17 @@ func Start(flags types.KsyncFlags) error {
 		return fmt.Errorf("failed to get continuation height: %w", err)
 	}
 
-	// TODO: maybe put it own method?
-	var blockCollector types.BlockCollector
-
-	if flags.BlockRpc != "" {
-		if blockCollector, err = collector.NewRpcBlockCollector(flags.BlockRpc, flags.BlockRpcReqTimeout); err != nil {
-			return fmt.Errorf("failed to init rpc block collector: %w", err)
-		}
-	} else {
-		// if there is no entry in the source registry for the source
-		// and if no block pool id was provided with the flags it would fail here
-		blockPoolId, err := app.Source.GetSourceBlockPoolId()
-		if err != nil {
-			return fmt.Errorf("failed to get block pool id: %w", err)
-		}
-
-		chainRest := utils.GetChainRest(flags.ChainId, flags.ChainRest)
-		storageRest := strings.TrimSuffix(flags.StorageRest, "/")
-
-		if blockCollector, err = collector.NewKyveBlockCollector(blockPoolId, chainRest, storageRest); err != nil {
-			return fmt.Errorf("failed to init kyve block collector: %w", err)
-		}
+	blockCollector, err := getBlockCollector(app)
+	if err != nil {
+		return err
 	}
 
-	if err := PerformBlockSyncValidationChecks(app, blockCollector, continuationHeight, app.GetFlags().TargetHeight, true); err != nil {
+	if err := PerformBlockSyncValidationChecks(blockCollector, continuationHeight, flags.TargetHeight, true); err != nil {
 		return fmt.Errorf("block-sync validation checks failed: %w", err)
 	}
 
-	// TODO: move to helper method?
-	if !flags.Y {
-		answer := ""
-
-		if flags.TargetHeight > 0 {
-			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should %d blocks from height %d to %d be synced [y/N]: ", flags.TargetHeight-continuationHeight+1, continuationHeight-1, flags.TargetHeight)
-		} else {
-			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should blocks from height %d be synced [y/N]: ", continuationHeight-1)
-		}
-
-		if _, err := fmt.Scan(&answer); err != nil {
-			return fmt.Errorf("failed to read in user input: %s", err)
-		}
-
-		if strings.ToLower(answer) != "y" {
-			logger.Info().Msg("aborted block-sync")
-			return nil
-		}
+	if confirmation, err := getUserConfirmation(flags.Y, continuationHeight, flags.TargetHeight); !confirmation {
+		return err
 	}
 
 	if err := app.AutoSelectBinaryVersion(continuationHeight); err != nil {
@@ -124,11 +143,14 @@ func Start(flags types.KsyncFlags) error {
 	// TODO: handle error
 	defer app.StopAll()
 
+	// TODO: maybe move to block sync executor?
 	if app.GetFlags().RpcServer {
 		go app.ConsensusEngine.StartRPCServer()
 	}
 
-	// TODO: add contract that binary, dbs and proxy app must be open and running for this method
+	// TODO: catch panics
+	// we only pass the snapshot collector to the block executor if we are creating
+	// state-sync snapshots with serve-snapshots
 	if err := StartBlockSyncExecutor(app, blockCollector, nil); err != nil {
 		return fmt.Errorf("failed to start block-sync executor: %w", err)
 	}

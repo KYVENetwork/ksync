@@ -134,10 +134,6 @@ type SnapshotCollector interface {
 // Engine is an interface defining common behaviour for each consensus engine.
 // Currently, both tendermint-v34 and cometbft-v38 are supported
 type Engine interface {
-	// GetName gets the engine name
-	// TODO: remove
-	GetName() string
-
 	// LoadConfig loads and sets the config
 	// TODO: remove to NewEngine method
 	LoadConfig() error
@@ -148,14 +144,6 @@ type Engine interface {
 	// CloseDBs closes the relevant blockstore and state DBs
 	CloseDBs() error
 
-	// GetHomePath gets the home path of the config and data folder
-	// TODO: remove
-	GetHomePath() string
-
-	// GetRpcServerPort gets the rpc server port
-	// TODO: remove
-	GetRpcServerPort() int64
-
 	// GetProxyAppAddress gets the proxy app address of the TSP connection
 	GetProxyAppAddress() string
 
@@ -164,15 +152,6 @@ type Engine interface {
 
 	// StopProxyApp stops the proxy app connections to the app
 	StopProxyApp() error
-
-	// GetChainId gets the chain id of the app
-	// TODO: remove
-	GetChainId() (string, error)
-
-	// GetContinuationHeight gets the block height from the app at which
-	// KSYNC should proceed block-syncing
-	// TODO: remove
-	GetContinuationHeight() (int64, error)
 
 	// DoHandshake does a handshake with the app and needs to be called
 	// before ApplyBlock
@@ -185,14 +164,6 @@ type Engine interface {
 	// ApplyFirstBlockOverP2P applies the first block over the P2P reactor
 	// which is necessary, if the genesis file is bigger than 100MB
 	ApplyFirstBlockOverP2P(rawBlock, nextRawBlock []byte) error
-
-	// GetGenesisPath gets the file path to the genesis file
-	// TODO: remove
-	GetGenesisPath() string
-
-	// GetGenesisHeight gets the initial height defined by the genesis file
-	// TODO: remove
-	GetGenesisHeight() (int64, error)
 
 	// GetHeight gets the latest height stored in the blockstore.db
 	GetHeight() int64
@@ -219,7 +190,7 @@ type Engine interface {
 
 	// StartRPCServer spins up a basic rpc server of the engine which serves
 	// /status, /block and /block_results
-	StartRPCServer()
+	StartRPCServer(port int64)
 
 	// GetState rebuilds the requested state from the blockstore and state.db
 	GetState(height int64) ([]byte, error)

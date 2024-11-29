@@ -10,34 +10,6 @@ import (
 var flags types.KsyncFlags
 
 var (
-	engine                  string
-	binaryPath              string
-	homePath                string
-	chainId                 string
-	chainRest               string
-	storageRest             string
-	snapshotPoolId          string
-	blockPoolId             string
-	startHeight             int64
-	targetHeight            int64
-	rpcServer               bool
-	rpcServerPort           int64
-	snapshotPort            int64
-	source                  string
-	registryUrl             string
-	pruning                 bool
-	keepSnapshots           bool
-	skipWaiting             bool
-	appFlags                string
-	autoselectBinaryVersion bool
-	reset                   bool
-	keepAddrBook            bool
-	optOut                  bool
-	debug                   bool
-	y                       bool
-)
-
-var (
 	logger = utils.KsyncLogger("commands")
 )
 

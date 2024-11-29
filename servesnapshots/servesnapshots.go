@@ -1,17 +1,13 @@
 package servesnapshots
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/KYVENetwork/ksync/binary"
+	"github.com/KYVENetwork/ksync/binary/collector"
 	"github.com/KYVENetwork/ksync/blocksync"
-	"github.com/KYVENetwork/ksync/bootstrap"
-	"github.com/KYVENetwork/ksync/collectors/pool"
-	"github.com/KYVENetwork/ksync/server"
 	"github.com/KYVENetwork/ksync/statesync"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
-	"os/exec"
-	"strconv"
 	"strings"
 )
 
@@ -19,155 +15,109 @@ var (
 	logger = utils.KsyncLogger("serve-snapshots")
 )
 
-// PerformServeSnapshotsValidationChecks checks if the targetHeight lies in the range of available blocks and checks
-// if a state-sync snapshot is available right before the startHeight
-func PerformServeSnapshotsValidationChecks(engine types.Engine, chainRest string, snapshotPoolId, blockPoolId, startHeight, targetHeight int64) (snapshotBundleId, snapshotHeight int64, err error) {
-	height := engine.GetHeight()
-
-	// only if the app has not indexed any blocks yet we state-sync to the specified startHeight
-	if height == 0 {
-		snapshotBundleId, snapshotHeight, _ = statesync.PerformStateSyncValidationChecks(chainRest, snapshotPoolId, startHeight, false)
-	}
-
-	continuationHeight := snapshotHeight
-	if continuationHeight == 0 {
-		c, err := engine.GetContinuationHeight()
-		if err != nil {
-			return 0, 0, fmt.Errorf("failed to get continuation height: %w", err)
-		}
-		continuationHeight = c
-	}
-
-	if err := blocksync.PerformBlockSyncValidationChecks(chainRest, nil, &blockPoolId, continuationHeight, targetHeight, false, false); err != nil {
-		return 0, 0, fmt.Errorf("block-sync validation checks failed: %w", err)
-	}
-
-	return
-}
-
-func StartServeSnapshotsWithBinary(engine types.Engine, binaryPath, homePath, chainRest, storageRest string, blockPoolId *int64, snapshotPoolId, targetHeight, height, snapshotBundleId, snapshotHeight, snapshotPort int64, appFlags string, rpcServer, pruning, keepSnapshots, skipWaiting, debug bool) error {
+func Start(flags types.KsyncFlags) error {
 	logger.Info().Msg("starting serve-snapshots")
 
-	if pruning && skipWaiting {
+	if flags.Pruning && flags.SkipWaiting {
 		return fmt.Errorf("pruning has to be disabled with --pruning=false if --skip-waiting is true")
 	}
 
-	// get snapshot interval from pool
-	var config types.TendermintSSyncConfig
-	snapshotPool, err := pool.GetPoolInfo(chainRest, snapshotPoolId)
-
-	if err := json.Unmarshal([]byte(snapshotPool.Pool.Data.Config), &config); err != nil {
-		return fmt.Errorf("failed to read pool config: %w", err)
+	app, err := binary.NewCosmosApp(flags)
+	if err != nil {
+		return fmt.Errorf("failed to init cosmos app: %w", err)
 	}
 
-	logger.Info().Msg(fmt.Sprintf("found snapshot interval of %d on snapshot pool", config.Interval))
-
-	snapshotArgs := append(strings.Split(appFlags, ","), "--state-sync.snapshot-interval", strconv.FormatInt(config.Interval, 10))
-
-	if pruning {
-		snapshotArgs = append(
-			snapshotArgs,
-			"--pruning",
-			"custom",
-			"--pruning-keep-recent",
-			strconv.FormatInt(utils.SnapshotPruningWindowFactor*config.Interval, 10),
-			"--pruning-interval",
-			"10",
-		)
-
-		if keepSnapshots {
-			snapshotArgs = append(
-				snapshotArgs,
-				"--state-sync.snapshot-keep-recent",
-				"0",
-			)
-		} else {
-			snapshotArgs = append(
-				snapshotArgs,
-				"--state-sync.snapshot-keep-recent",
-				strconv.FormatInt(utils.SnapshotPruningWindowFactor, 10),
-			)
+	if flags.Reset {
+		if err := app.ConsensusEngine.ResetAll(true); err != nil {
+			return fmt.Errorf("failed to reset cosmos app: %w", err)
 		}
+	}
+
+	isReset, err := app.IsReset()
+	if err != nil {
+		return err
+	}
+
+	if flags.StartHeight > 0 && !isReset {
+		return fmt.Errorf("if --start-height is provided app needs to be reset")
+	}
+
+	snapshotPoolId, err := app.Source.GetSourceBlockPoolId()
+	if err != nil {
+		return fmt.Errorf("failed to get snapshot pool id: %w", err)
+	}
+
+	blockPoolId, err := app.Source.GetSourceBlockPoolId()
+	if err != nil {
+		return fmt.Errorf("failed to get block pool id: %w", err)
+	}
+
+	chainRest := utils.GetChainRest(flags.ChainId, flags.ChainRest)
+	storageRest := strings.TrimSuffix(flags.StorageRest, "/")
+
+	snapshotCollector, err := collector.NewKyveSnapshotCollector(snapshotPoolId, chainRest, storageRest)
+	if err != nil {
+		return fmt.Errorf("failed to init kyve snapshot collector: %w", err)
+	}
+
+	blockCollector, err := collector.NewKyveBlockCollector(blockPoolId, chainRest, storageRest)
+	if err != nil {
+		return fmt.Errorf("failed to init kyve block collector: %w", err)
+	}
+
+	snapshotHeight := snapshotCollector.GetSnapshotHeight(flags.StartHeight)
+	canApplySnapshot := snapshotHeight > 0 && isReset
+
+	var continuationHeight int64
+
+	if canApplySnapshot {
+		continuationHeight = snapshotHeight
 	} else {
-		snapshotArgs = append(
-			snapshotArgs,
-			"--state-sync.snapshot-keep-recent",
-			"0",
-			"--pruning",
-			"nothing",
-		)
+		continuationHeight, err = app.GetContinuationHeight()
+		if err != nil {
+			return fmt.Errorf("failed to get continuation height: %w", err)
+		}
 	}
 
-	var cmd *exec.Cmd
-
-	if height == 0 && snapshotHeight > 0 {
-		// start binary process thread
-		cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, snapshotArgs)
-		if err != nil {
-			return fmt.Errorf("failed to start binary process: %w", err)
+	if canApplySnapshot {
+		if err := statesync.PerformStateSyncValidationChecks(snapshotCollector, snapshotHeight); err != nil {
+			return fmt.Errorf("state-sync validation checks failed: %w", err)
 		}
+	}
 
-		if err := engine.OpenDBs(); err != nil {
-			return fmt.Errorf("failed to open dbs in engine: %w", err)
-		}
+	if err := blocksync.PerformBlockSyncValidationChecks(blockCollector, continuationHeight, flags.TargetHeight, false); err != nil {
+		return fmt.Errorf("block-sync validation checks failed: %w", err)
+	}
 
-		// found snapshot, applying it and continuing block-sync from here
-		if err := statesync.StartStateSyncExecutor(engine, chainRest, storageRest, snapshotPoolId, snapshotBundleId); err != nil {
-			logger.Error().Msg(fmt.Sprintf("state-sync failed with: %s", err))
+	if err := app.AutoSelectBinaryVersion(continuationHeight); err != nil {
+		return fmt.Errorf("failed to auto select binary version: %w", err)
+	}
 
-			if err := utils.StopBinaryProcess(cmd); err != nil {
-				return fmt.Errorf("failed to stop binary process: %w", err)
-			}
+	if err := app.StartAll(); err != nil {
+		return fmt.Errorf("failed to start app: %w", err)
+	}
 
+	// TODO: handle error
+	defer app.StopAll()
+
+	if canApplySnapshot {
+		if err := statesync.StartStateSyncExecutor(app, snapshotCollector, snapshotHeight); err != nil {
 			return fmt.Errorf("failed to start state-sync executor: %w", err)
 		}
 
-		// TODO: does app has to be restarted after a state-sync?
-		if engine.GetName() == utils.EngineCometBFTV37 || engine.GetName() == utils.EngineCometBFTV38 {
-			// ignore error, since process gets terminated anyway afterward
-			e := engine.CloseDBs()
-			_ = e
-
-			if err := utils.StopBinaryProcess(cmd); err != nil {
-				return fmt.Errorf("failed to stop binary process: %w", err)
-			}
-
-			cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, snapshotArgs)
-			if err != nil {
-				return fmt.Errorf("failed to start process: %w", err)
-			}
-
-			if err := engine.OpenDBs(); err != nil {
-				return fmt.Errorf("failed to open dbs in engine: %w", err)
-			}
-		}
-	} else {
-		// if we have to sync from genesis we first bootstrap the node
-		if err := bootstrap.StartBootstrapWithBinary(engine, binaryPath, homePath, chainRest, storageRest, nil, blockPoolId, appFlags, debug); err != nil {
-			return fmt.Errorf("failed to bootstrap node: %w", err)
-		}
-
-		// after the node is bootstrapped we start the binary process thread
-		cmd, err = utils.StartBinaryProcessForDB(engine, binaryPath, debug, snapshotArgs)
-		if err != nil {
-			return fmt.Errorf("failed to start binary process: %w", err)
-		}
-
-		if err := engine.OpenDBs(); err != nil {
-			return fmt.Errorf("failed to open dbs in engine: %w", err)
-		}
+		// TODO: do we need to restart here?
 	}
 
-	if rpcServer {
-		go engine.StartRPCServer()
+	if app.GetFlags().RpcServer {
+		go app.ConsensusEngine.StartRPCServer()
 	}
 
-	go server.StartSnapshotApiServer(engine, snapshotPort)
-
-	if err := blocksync.StartBlockSyncExecutor(cmd, binaryPath, engine, chainRest, storageRest, nil, blockPoolId, targetHeight, snapshotPoolId, config.Interval, pruning, skipWaiting, nil, debug, appFlags); err != nil {
-		return fmt.Errorf("failed to start block sync executor: %w", err)
+	// we only pass the snapshot collector to the block executor if we are creating
+	// state-sync snapshots with serve-snapshots
+	if err := blocksync.StartBlockSyncExecutor(app, blockCollector, snapshotCollector); err != nil {
+		return fmt.Errorf("failed to start block-sync executor: %w", err)
 	}
 
-	logger.Info().Msg(fmt.Sprintf("finished serve-snapshots"))
+	logger.Info().Msgf("successfully finished serve-snapshots")
 	return nil
 }
