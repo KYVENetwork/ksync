@@ -39,6 +39,10 @@ func StartBlockSyncExecutor(app *binary.CosmosApp, blockCollector types.BlockCol
 		return fmt.Errorf("failed to do handshake: %w", err)
 	}
 
+	if app.GetFlags().RpcServer {
+		go app.ConsensusEngine.StartRPCServer(app.GetFlags().RpcServerPort)
+	}
+
 	snapshotPoolHeight := int64(0)
 
 	// if KSYNC has already fetched 3 * snapshot_interval ahead of the snapshot pool we wait

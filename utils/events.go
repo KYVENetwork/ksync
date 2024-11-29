@@ -211,10 +211,11 @@ func TrackServeSnapshotsEvent(engine types.Engine, chainId, chainRest, storageRe
 		return
 	}
 
-	project, err := engine.GetChainId()
-	if err != nil {
-		return
-	}
+	// TODO: get chain id
+	//project, err := engine.GetChainId()
+	//if err != nil {
+	//	return
+	//}
 
 	currentHeight := engine.GetHeight()
 
@@ -225,7 +226,7 @@ func TrackServeSnapshotsEvent(engine types.Engine, chainId, chainRest, storageRe
 			Set("chain_id", chainId).
 			Set("chain_rest", chainRest).
 			Set("storage_rest", storageRest).
-			Set("project", project).
+			Set("project", "").
 			Set("current_height", currentHeight).
 			Set("snapshot_port", snapshotPort).
 			Set("rpc_server", rpcServer).
@@ -251,10 +252,11 @@ func TrackSyncStartEvent(engine types.Engine, syncType, chainId, chainRest, stor
 		return
 	}
 
-	project, err := engine.GetChainId()
-	if err != nil {
-		return
-	}
+	// TODO: get chain id
+	//project, err := engine.GetChainId()
+	//if err != nil {
+	//	return
+	//}
 
 	currentHeight := engine.GetHeight()
 
@@ -267,7 +269,7 @@ func TrackSyncStartEvent(engine types.Engine, syncType, chainId, chainRest, stor
 			Set("chain_id", chainId).
 			Set("chain_rest", chainRest).
 			Set("storage_rest", storageRest).
-			Set("project", project).
+			Set("project", "").
 			Set("current_height", currentHeight).
 			Set("target_height", targetHeight),
 		Context: getContext(),

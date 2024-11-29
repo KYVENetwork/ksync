@@ -2,7 +2,7 @@ package commands
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/engines"
+	"github.com/KYVENetwork/ksync/binary"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 )
@@ -26,11 +26,16 @@ var resetCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		utils.TrackResetEvent(flags.OptOut)
 
-		if err := engines.EngineFactory(flags.Engine, flags.HomePath, flags.RpcServerPort).ResetAll(flags.KeepAddrBook); err != nil {
-			return fmt.Errorf("failed to reset tendermint application: %w", err)
+		app, err := binary.NewCosmosApp(flags)
+		if err != nil {
+			return fmt.Errorf("failed to init cosmos app: %w", err)
 		}
 
-		logger.Info().Msg("successfully reset tendermint application")
+		if err := app.ConsensusEngine.ResetAll(true); err != nil {
+			return fmt.Errorf("failed to reset cosmos app: %w", err)
+		}
+
+		logger.Info().Msg("successfully reset cosmos app")
 		return nil
 	},
 }

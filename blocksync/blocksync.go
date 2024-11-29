@@ -143,11 +143,6 @@ func Start(flags types.KsyncFlags) error {
 	// TODO: handle error
 	defer app.StopAll()
 
-	// TODO: maybe move to block sync executor?
-	if app.GetFlags().RpcServer {
-		go app.ConsensusEngine.StartRPCServer()
-	}
-
 	// TODO: catch panics
 	// we only pass the snapshot collector to the block executor if we are creating
 	// state-sync snapshots with serve-snapshots

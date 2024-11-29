@@ -339,16 +339,16 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 				dependency := strings.Split(strings.ReplaceAll(strings.Split(line, " => ")[len(strings.Split(line, " => "))-1], "- ", ""), "@v")
 
 				if strings.Contains(dependency[1], "0.34.") && strings.Contains(dependency[0], "celestia-core") {
-					app.ConsensusEngine = &celestia_core_v34.Engine{HomePath: app.homePath, RpcServerPort: app.flags.RpcServerPort}
+					app.ConsensusEngine = &celestia_core_v34.Engine{HomePath: app.homePath}
 					return nil
 				} else if strings.Contains(dependency[1], "0.34.") {
-					app.ConsensusEngine = &tendermint_v34.Engine{HomePath: app.homePath, RpcServerPort: app.flags.RpcServerPort}
+					app.ConsensusEngine = &tendermint_v34.Engine{HomePath: app.homePath}
 					return nil
 				} else if strings.Contains(dependency[1], "0.37.") {
-					app.ConsensusEngine = &cometbft_v37.Engine{HomePath: app.homePath, RpcServerPort: app.flags.RpcServerPort}
+					app.ConsensusEngine = &cometbft_v37.Engine{HomePath: app.homePath}
 					return nil
 				} else if strings.Contains(dependency[1], "0.38.") {
-					app.ConsensusEngine = &cometbft_v38.Engine{HomePath: app.homePath, RpcServerPort: app.flags.RpcServerPort}
+					app.ConsensusEngine = &cometbft_v38.Engine{HomePath: app.homePath}
 					return nil
 				} else {
 					return fmt.Errorf("failed to find engine in binary dependencies")

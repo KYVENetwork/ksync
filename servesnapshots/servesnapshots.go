@@ -108,10 +108,6 @@ func Start(flags types.KsyncFlags) error {
 		// TODO: do we need to restart here?
 	}
 
-	if app.GetFlags().RpcServer {
-		go app.ConsensusEngine.StartRPCServer()
-	}
-
 	// we only pass the snapshot collector to the block executor if we are creating
 	// state-sync snapshots with serve-snapshots
 	if err := blocksync.StartBlockSyncExecutor(app, blockCollector, snapshotCollector); err != nil {
