@@ -96,8 +96,6 @@ func Start(flags types.KsyncFlags) error {
 		if err := statesync.StartStateSyncExecutor(app, snapshotCollector, snapshotHeight); err != nil {
 			return fmt.Errorf("failed to start state-sync executor: %w", err)
 		}
-
-		// TODO: do we need to restart here?
 	}
 
 	// we only pass the snapshot collector to the block executor if we are creating

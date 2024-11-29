@@ -148,8 +148,6 @@ func (app *CosmosApp) StartAll() error {
 		return fmt.Errorf("failed to open dbs in engine: %w", err)
 	}
 
-	// TODO: wait until binary has properly booted, else
-	// abci.socketClient failed to connect to tcp://127.0.0.1:26658.  Retrying after 3s... err="dial tcp 127.0.0.1:26658: connect: connection refused"
 	if err := app.ConsensusEngine.StartProxyApp(); err != nil {
 		return fmt.Errorf("failed to start proxy app: %w", err)
 	}
@@ -207,11 +205,11 @@ func (app *CosmosApp) StartBinary() error {
 		cmd.Stderr = os.Stderr
 	}
 
+	logger.Info().Msg("starting app binary")
+
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start cosmos app: %w", err)
 	}
-
-	logger.Info().Msg("started app binary")
 
 	app.cmd = cmd
 	return nil
@@ -248,11 +246,11 @@ func (app *CosmosApp) StartBinaryP2P() error {
 		cmd.Stderr = os.Stderr
 	}
 
+	logger.Info().Msg("starting app binary in p2p mode")
+
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start cosmos app: %w", err)
 	}
-
-	logger.Info().Msg("started app binary in p2p mode")
 
 	app.cmd = cmd
 	return nil
