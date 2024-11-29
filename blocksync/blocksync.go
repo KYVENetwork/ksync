@@ -33,7 +33,7 @@ func PerformBlockSyncValidationChecks(blockCollector types.BlockCollector, conti
 		return fmt.Errorf("requested target height is %d but app is already at block height %d", targetHeight, continuationHeight)
 	}
 
-	// TODO: find out what checkEndHeight does
+	// checkEndHeight can be false if the target height is likely not being created yet
 	if checkEndHeight && targetHeight > 0 && targetHeight > latest {
 		return fmt.Errorf("requested target height is %d but current last available block on pool is %d", targetHeight, latest)
 	}

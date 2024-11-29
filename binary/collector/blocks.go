@@ -206,6 +206,7 @@ func (collector *KyveBlockCollector) GetBlock(height int64) ([]byte, error) {
 	return nil, fmt.Errorf("failed to find block %d in finalized bundle %s", height, finalizedBundle.StorageId)
 }
 
+// TODO: fails at live height
 func (collector *KyveBlockCollector) StreamBlocks(blockCh chan<- *types.BlockItem, errorCh chan<- error, continuationHeight, targetHeight int64) {
 	// from the height where the collector should start downloading blocks we derive the pagination
 	// key of the bundles page so we can start from there

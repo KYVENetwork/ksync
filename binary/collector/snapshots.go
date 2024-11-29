@@ -161,8 +161,29 @@ func (collector *KyveSnapshotCollector) DownloadChunkFromBundleId(bundleId int64
 }
 
 func (collector *KyveSnapshotCollector) FindSnapshotBundleIdForHeight(height int64) (int64, error) {
+	latestBundleId := collector.totalBundles - 1
+	
+	// if the height is the latest height we can calculate the location of bundle id for the first
+	// chunk immediately
+	if height == collector.latestAvailableHeight {
+		finalizedBundle, err := utils.GetFinalizedBundleById(collector.chainRest, collector.poolId, latestBundleId)
+		if err != nil {
+			return 0, fmt.Errorf("failed to get finalized bundle with id %d: %w", latestBundleId, err)
+		}
+
+		h, chunkIndex, err := utils.ParseSnapshotFromKey(finalizedBundle.ToKey)
+		if err != nil {
+			return 0, fmt.Errorf("failed to parse snapshot key %s: %w", finalizedBundle.ToKey, err)
+		}
+
+		if h == height {
+			return latestBundleId - chunkIndex, nil
+		}
+	}
+
+	// if the height is not the latest height we try to find it with binary search
 	low := int64(0)
-	high := collector.totalBundles - 1
+	high := latestBundleId
 
 	// stop when low and high meet
 	for low <= high {
