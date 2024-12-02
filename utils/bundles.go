@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/tendermint/tendermint/libs/json"
-	"strconv"
 )
 
 func GetPool(restEndpoint string, poolId int64) (*types.PoolResponse, error) {
-	data, err := GetFromUrlWithBackoff(fmt.Sprintf("%s/kyve/query/v1beta1/pool/%d", restEndpoint, poolId))
+	data, err := GetFromUrl(fmt.Sprintf("%s/kyve/query/v1beta1/pool/%d", restEndpoint, poolId))
 	if err != nil {
 		return nil, fmt.Errorf("failed to query pool %d", poolId)
 	}
@@ -24,7 +23,7 @@ func GetPool(restEndpoint string, poolId int64) (*types.PoolResponse, error) {
 }
 
 func GetFinalizedBundlesPageWithOffset(restEndpoint string, poolId int64, paginationLimit, paginationOffset int64, paginationKey string, reverse bool) ([]types.FinalizedBundle, string, error) {
-	raw, err := GetFromUrlWithBackoff(fmt.Sprintf(
+	raw, err := GetFromUrl(fmt.Sprintf(
 		"%s/kyve/v1/bundles/%d?pagination.limit=%d&pagination.offset=%d&pagination.key=%s&pagination.reverse=%v",
 		restEndpoint,
 		poolId,
@@ -53,7 +52,7 @@ func GetFinalizedBundlesPage(restEndpoint string, poolId int64, paginationLimit 
 }
 
 func GetFinalizedBundleById(restEndpoint string, poolId int64, bundleId int64) (*types.FinalizedBundle, error) {
-	raw, err := GetFromUrlWithBackoff(fmt.Sprintf(
+	raw, err := GetFromUrl(fmt.Sprintf(
 		"%s/kyve/v1/bundles/%d/%d",
 		restEndpoint,
 		poolId,
@@ -96,37 +95,27 @@ func GetDataFromFinalizedBundle(bundle types.FinalizedBundle, storageRest string
 }
 
 func RetrieveDataFromStorageProvider(bundle types.FinalizedBundle, storageRest string) ([]byte, error) {
-	id, err := strconv.ParseUint(bundle.StorageProviderId, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse uint from storage provider id: %w", err)
-	}
-
 	if storageRest != "" {
-		return GetFromUrlWithBackoff(fmt.Sprintf("%s/%s", storageRest, bundle.StorageId))
+		return GetFromUrl(fmt.Sprintf("%s/%s", storageRest, bundle.StorageId))
 	}
 
-	switch id {
-	case 1:
-		return GetFromUrlWithBackoff(fmt.Sprintf("%v/%s", RestEndpointArweave, bundle.StorageId))
-	case 2:
-		return GetFromUrlWithBackoff(fmt.Sprintf("%v/%s", RestEndpointBundlr, bundle.StorageId))
-	case 3:
-		return GetFromUrlWithBackoff(fmt.Sprintf("%v/%s", RestEndpointKYVEStorage, bundle.StorageId))
-	case 4:
-		return GetFromUrlWithBackoff(fmt.Sprintf("%v/%s", RestEndpointTurboStorage, bundle.StorageId))
+	switch bundle.StorageProviderId {
+	case "1":
+		return GetFromUrl(fmt.Sprintf("%s/%s", RestEndpointArweave, bundle.StorageId))
+	case "2":
+		return GetFromUrl(fmt.Sprintf("%s/%s", RestEndpointBundlr, bundle.StorageId))
+	case "3":
+		return GetFromUrl(fmt.Sprintf("%s/%s", RestEndpointKYVEStorage, bundle.StorageId))
+	case "4":
+		return GetFromUrl(fmt.Sprintf("%s/%s", RestEndpointTurboStorage, bundle.StorageId))
 	default:
 		return nil, fmt.Errorf("bundle has an invalid storage provider id %s. canceling sync", bundle.StorageProviderId)
 	}
 }
 
 func DecompressBundleFromStorageProvider(bundle types.FinalizedBundle, data []byte) ([]byte, error) {
-	id, err := strconv.ParseUint(bundle.CompressionId, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse uint from compression id: %w", err)
-	}
-
-	switch id {
-	case 1:
+	switch bundle.CompressionId {
+	case "1":
 		return DecompressGzip(data)
 	default:
 		return nil, fmt.Errorf("bundle has an invalid compression id %s. canceling sync", bundle.CompressionId)

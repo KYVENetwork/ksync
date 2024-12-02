@@ -18,9 +18,7 @@ type RpcBlockCollector struct {
 }
 
 func NewRpcBlockCollector(rpc string, blockRpcReqTimeout int64) (*RpcBlockCollector, error) {
-	result, err := utils.GetFromUrlWithOptions(fmt.Sprintf("%s/status", rpc),
-		utils.GetFromUrlOptions{SkipTLSVerification: true},
-	)
+	result, err := utils.GetFromUrl(fmt.Sprintf("%s/status", rpc))
 	if err != nil {
 		return nil, fmt.Errorf("failed to query rpc endpoint %s: %w", rpc, err)
 	}
@@ -51,9 +49,7 @@ func (collector *RpcBlockCollector) GetLatestAvailableHeight() int64 {
 }
 
 func (collector *RpcBlockCollector) GetBlock(height int64) ([]byte, error) {
-	blockResponse, err := utils.GetFromUrlWithOptions(fmt.Sprintf("%s/block?height=%d", collector.rpc, height),
-		utils.GetFromUrlOptions{SkipTLSVerification: true, WithBackoff: true},
-	)
+	blockResponse, err := utils.GetFromUrl(fmt.Sprintf("%s/block?height=%d", collector.rpc, height))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get block %d from rpc: %w", height, err)
 	}
@@ -68,12 +64,7 @@ func (collector *RpcBlockCollector) GetBlock(height int64) ([]byte, error) {
 
 func (collector *RpcBlockCollector) StreamBlocks(blockCh chan<- *types.BlockItem, errorCh chan<- error, continuationHeight, targetHeight int64) {
 	for {
-		// TODO: log here?
-		// logger.Info().Msg(fmt.Sprintf("downloading block with height %d", continuationHeight))
-
-		blockResponse, err := utils.GetFromUrlWithOptions(fmt.Sprintf("%s/block?height=%d", collector.rpc, continuationHeight),
-			utils.GetFromUrlOptions{SkipTLSVerification: true, WithBackoff: true},
-		)
+		blockResponse, err := utils.GetFromUrl(fmt.Sprintf("%s/block?height=%d", collector.rpc, continuationHeight))
 		if err != nil {
 			errorCh <- fmt.Errorf("failed to get block %d from rpc: %w", continuationHeight, err)
 			return
@@ -183,7 +174,7 @@ func (collector *KyveBlockCollector) GetBlock(height int64) ([]byte, error) {
 	}
 
 	for _, dataItem := range bundle {
-		h, err := utils.ParseBlockHeightFromKey(dataItem.Key)
+		h, err := strconv.ParseInt(dataItem.Key, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("failed parse block height from key %s: %w", dataItem.Key, err)
 		}
@@ -206,7 +197,6 @@ func (collector *KyveBlockCollector) GetBlock(height int64) ([]byte, error) {
 	return nil, fmt.Errorf("failed to find block %d in finalized bundle %s", height, finalizedBundle.StorageId)
 }
 
-// TODO: fails at live height
 func (collector *KyveBlockCollector) StreamBlocks(blockCh chan<- *types.BlockItem, errorCh chan<- error, continuationHeight, targetHeight int64) {
 	// from the height where the collector should start downloading blocks we derive the pagination
 	// key of the bundles page so we can start from there
@@ -237,9 +227,6 @@ BundleCollector:
 				continue
 			}
 
-			// TODO: log here?
-			// logger.Info().Msg(fmt.Sprintf("downloading bundle with storage id %s", finalizedBundle.StorageId))
-
 			deflated, err := utils.GetDataFromFinalizedBundle(finalizedBundle, collector.storageRest)
 			if err != nil {
 				errorCh <- fmt.Errorf("failed to get data from finalized bundle with storage id %s: %w", finalizedBundle.StorageId, err)
@@ -255,7 +242,7 @@ BundleCollector:
 			}
 
 			for _, dataItem := range bundle {
-				height, err := utils.ParseBlockHeightFromKey(dataItem.Key)
+				height, err := strconv.ParseInt(dataItem.Key, 10, 64)
 				if err != nil {
 					errorCh <- fmt.Errorf("failed parse block height from key %s: %w", dataItem.Key, err)
 					return
@@ -279,7 +266,10 @@ BundleCollector:
 					Block:  block,
 				}
 
-				// exit if mustExit is true and target height is reached
+				// update continuation height
+				continuationHeight = height + 1
+
+				// exit if target height is reached
 				if targetHeight > 0 && height >= targetHeight+1 {
 					break BundleCollector
 				}
@@ -327,7 +317,7 @@ func (collector *KyveBlockCollector) getFinalizedBundleForBlockHeight(height int
 	// the correct index
 	index := height - collector.earliestAvailableHeight
 
-	raw, err := utils.GetFromUrlWithBackoff(fmt.Sprintf(
+	raw, err := utils.GetFromUrl(fmt.Sprintf(
 		"%s/kyve/v1/bundles/%d?index=%d",
 		collector.chainRest,
 		collector.poolId,
