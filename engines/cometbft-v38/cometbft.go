@@ -566,17 +566,17 @@ func (engine *Engine) GetSeenCommit(height int64) ([]byte, error) {
 	return json.Marshal(block.LastCommit)
 }
 
-func (engine *Engine) OfferSnapshot(rawSnapshot, rawState []byte) (int64, int64, error) {
+func (engine *Engine) OfferSnapshot(rawSnapshot, rawState []byte) error {
 	var snapshot *abciTypes.Snapshot
 
 	if err := json.Unmarshal(rawSnapshot, &snapshot); err != nil {
-		return 0, 0, fmt.Errorf("failed to unmarshal snapshot: %w", err)
+		return fmt.Errorf("failed to unmarshal snapshot: %w", err)
 	}
 
 	var state *tmState.State
 
 	if err := json.Unmarshal(rawState, &state); err != nil {
-		return 0, 0, fmt.Errorf("failed to unmarshal state: %w", err)
+		return fmt.Errorf("failed to unmarshal state: %w", err)
 	}
 
 	res, err := engine.proxyApp.Snapshot().OfferSnapshot(context.Background(), &abciTypes.RequestOfferSnapshot{
@@ -584,14 +584,14 @@ func (engine *Engine) OfferSnapshot(rawSnapshot, rawState []byte) (int64, int64,
 		AppHash:  state.AppHash,
 	})
 	if err != nil {
-		return 0, 0, err
+		return err
 	}
 
 	if res.Result.String() != abciTypes.ResponseOfferSnapshot_ACCEPT.String() {
-		return 0, 0, fmt.Errorf(res.Result.String())
+		return fmt.Errorf(res.Result.String())
 	}
 
-	return int64(snapshot.Height), int64(snapshot.Chunks), nil
+	return nil
 }
 
 func (engine *Engine) ApplySnapshotChunk(chunkIndex int64, chunk []byte) error {

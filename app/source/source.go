@@ -53,20 +53,17 @@ func (source *Source) GetRegistryUrl() string {
 	return source.registryUrl
 }
 
-func (source *Source) GetSourceEntry() types.Entry {
-	return source.sourceRegistry.Entries[source.sourceId]
-}
-
 func (source *Source) GetSourceBlockPoolId() (int64, error) {
 	if source.blockPoolId != "" {
 		return strconv.ParseInt(source.blockPoolId, 10, 64)
 	}
 
-	// TODO: return error if source id can not be found
-	entry := source.GetSourceEntry()
+	entry, found := source.sourceRegistry.Entries[source.sourceId]
+	if !found {
+		return 0, fmt.Errorf("source with id \"%s\" not found in registry", source.sourceId)
+	}
 
 	if source.chainId == utils.ChainIdMainnet {
-		// TODO: throw error if pool id is nil
 		return int64(*entry.Networks.Kyve.Integrations.KSYNC.BlockSyncPool), nil
 	} else if source.chainId == utils.ChainIdKaon {
 		return int64(*entry.Networks.Kaon.Integrations.KSYNC.BlockSyncPool), nil
@@ -80,8 +77,10 @@ func (source *Source) GetSourceSnapshotPoolId() (int64, error) {
 		return strconv.ParseInt(source.snapshotPoolId, 10, 64)
 	}
 
-	// TODO: return error if source id can not be found
-	entry := source.GetSourceEntry()
+	entry, found := source.sourceRegistry.Entries[source.sourceId]
+	if !found {
+		return 0, fmt.Errorf("source with id \"%s\" not found in registry", source.sourceId)
+	}
 
 	if source.chainId == utils.ChainIdMainnet {
 		return int64(*entry.Networks.Kyve.Integrations.KSYNC.StateSyncPool), nil
@@ -93,8 +92,11 @@ func (source *Source) GetSourceSnapshotPoolId() (int64, error) {
 }
 
 func (source *Source) GetUpgradeNameForHeight(height int64) (string, error) {
-	// TODO: return error if source id can not be found
-	entry := source.GetSourceEntry()
+	entry, found := source.sourceRegistry.Entries[source.sourceId]
+	if !found {
+		return "", fmt.Errorf("source with id \"%s\" not found in registry", source.sourceId)
+	}
+
 	upgradeName := "genesis"
 
 	for _, upgrade := range entry.Codebase.Settings.Upgrades {
@@ -114,8 +116,11 @@ func (source *Source) GetUpgradeNameForHeight(height int64) (string, error) {
 }
 
 func (source *Source) GetRecommendedVersionForHeight(height int64) (string, error) {
-	// TODO: return error if source id can not be found
-	entry := source.GetSourceEntry()
+	entry, found := source.sourceRegistry.Entries[source.sourceId]
+	if !found {
+		return "", fmt.Errorf("source with id \"%s\" not found in registry", source.sourceId)
+	}
+
 	var recommendedVersion string
 
 	for _, upgrade := range entry.Codebase.Settings.Upgrades {

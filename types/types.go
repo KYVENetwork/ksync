@@ -2,7 +2,6 @@ package types
 
 import (
 	"encoding/json"
-	"time"
 )
 
 type AbciInfoResponse struct {
@@ -62,14 +61,17 @@ type SnapshotDataItem struct {
 
 type SnapshotBundle = []SnapshotDataItem
 
+type Snapshot struct {
+	Height   uint64 `json:"height,omitempty"`
+	Format   uint32 `json:"format,omitempty"`
+	Chunks   uint32 `json:"chunks,omitempty"`
+	Hash     []byte `json:"hash,omitempty"`
+	Metadata []byte `json:"metadata,omitempty"`
+}
+
 type BlockItem struct {
 	Height int64
 	Block  json.RawMessage
-}
-
-type Snapshot struct {
-	BundleId int64
-	Height   int64
 }
 
 type Pagination struct {
@@ -91,10 +93,6 @@ type FinalizedBundlesResponse = struct {
 	Pagination       Pagination        `json:"pagination"`
 }
 
-type FinalizedBundleResponse = struct {
-	FinalizedBundle FinalizedBundle `json:"finalized_bundle"`
-}
-
 type SupportedChain = struct {
 	BlockPoolId    string `json:"block_pool_id"`
 	ChainId        string `json:"chain-id"`
@@ -102,19 +100,6 @@ type SupportedChain = struct {
 	LatestStateKey string `json:"latest_state_key"`
 	Name           string `json:"name"`
 	StatePoolId    string `json:"state_pool_id"`
-}
-
-type SupportedChains = struct {
-	Mainnet []SupportedChain `json:"kyve-1"`
-	Kaon    []SupportedChain `json:"kaon-1"`
-}
-
-type BackupConfig = struct {
-	Interval    int64
-	KeepRecent  int64
-	Src         string
-	Dest        string
-	Compression string
 }
 
 type Networks struct {
@@ -175,11 +160,6 @@ type Entry struct {
 
 type SourceRegistry struct {
 	Entries map[string]Entry `yaml:",inline"`
-}
-
-type BlockRpcConfig struct {
-	Endpoint       string
-	RequestTimeout time.Duration
 }
 
 type KsyncFlags struct {

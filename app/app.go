@@ -36,39 +36,33 @@ type CosmosApp struct {
 }
 
 func NewCosmosApp(flags types.KsyncFlags) (*CosmosApp, error) {
-	fullBinaryPath, err := exec.LookPath(flags.BinaryPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to lookup binary path %s: %w", flags.BinaryPath, err)
+	app := &CosmosApp{flags: flags}
+
+	if err := app.LoadBinaryPath(); err != nil {
+		return nil, fmt.Errorf("failed to load binary path: %w", err)
 	}
 
-	logger.Info().Msgf("loaded cosmos app at path \"%s\" from app binary", fullBinaryPath)
-
-	app := &CosmosApp{
-		binaryPath:   fullBinaryPath,
-		homePath:     flags.HomePath,
-		flags:        flags,
-		isCosmovisor: strings.HasSuffix(flags.BinaryPath, "cosmovisor"),
+	if err := app.LoadHomePath(); err != nil {
+		return nil, fmt.Errorf("failed to load home path from binary: %w", err)
 	}
 
-	if app.GetHomePath() == "" {
-		if err = app.loadHomePath(); err != nil {
-			return nil, fmt.Errorf("failed to load home path from binary: %w", err)
-		}
+	if err := app.LoadConsensusEngine(); err != nil {
+		return nil, fmt.Errorf("failed to load consensus engine from binary: %w", err)
 	}
 
-	if err = app.LoadConsensusEngine(); err != nil {
-		return nil, fmt.Errorf("failed to load engine type from binary: %w", err)
-	}
-
-	app.Genesis, err = genesis.NewGenesis(app.GetHomePath())
+	appGenesis, err := genesis.NewGenesis(app.GetHomePath())
 	if err != nil {
 		return nil, fmt.Errorf("failed to init genesis: %w", err)
 	}
 
-	app.Source, err = source.NewSource(app.Genesis.GetChainId(), flags.ChainId)
+	app.Genesis = appGenesis
+
+	appSource, err := source.NewSource(app.Genesis.GetChainId(), flags.ChainId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init source: %w", err)
 	}
+
+	app.Source = appSource
 
 	return app, nil
 }
@@ -323,7 +317,25 @@ func (app *CosmosApp) StopBinary() {
 	return
 }
 
-func (app *CosmosApp) loadHomePath() error {
+func (app *CosmosApp) LoadBinaryPath() error {
+	binaryPath, err := exec.LookPath(app.flags.BinaryPath)
+	if err != nil {
+		return err
+	}
+
+	app.binaryPath = binaryPath
+	app.isCosmovisor = strings.HasSuffix(binaryPath, "cosmovisor")
+
+	logger.Info().Msgf("loaded cosmos app at path \"%s\" from app binary", binaryPath)
+	return nil
+}
+
+func (app *CosmosApp) LoadHomePath() error {
+	if app.flags.HomePath != "" {
+		app.homePath = app.flags.HomePath
+		return nil
+	}
+
 	cmd := exec.Command(app.binaryPath)
 
 	if app.isCosmovisor {
@@ -377,46 +389,34 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 		return fmt.Errorf("failed to get output of binary: %w", err)
 	}
 
-	// TODO: improve
-	for _, engine := range []string{"github.com/tendermint/tendermint@v", "github.com/cometbft/cometbft@v"} {
-		for _, line := range strings.Split(string(out), "\n") {
-			if strings.Contains(line, fmt.Sprintf("- %s", engine)) {
-				dependency := strings.Split(strings.ReplaceAll(strings.Split(line, " => ")[len(strings.Split(line, " => "))-1], "- ", ""), "@v")
+	app.ConsensusEngine, err = func() (types.Engine, error) {
+		for _, engine := range []string{"github.com/tendermint/tendermint@v", "github.com/cometbft/cometbft@v"} {
+			for _, line := range strings.Split(string(out), "\n") {
+				if strings.Contains(line, fmt.Sprintf("- %s", engine)) {
+					dependency := strings.Split(strings.ReplaceAll(strings.Split(line, " => ")[len(strings.Split(line, " => "))-1], "- ", ""), "@v")
 
-				if strings.Contains(dependency[1], "0.34.") && strings.Contains(dependency[0], "celestia-core") {
-					app.ConsensusEngine, err = celestia_core_v34.NewEngine(app.homePath)
-					if err != nil {
-						return fmt.Errorf("failed to create consensus engine: %w", err)
+					if strings.Contains(dependency[1], "0.34.") && strings.Contains(dependency[0], "celestia-core") {
+						return celestia_core_v34.NewEngine(app.homePath)
+					} else if strings.Contains(dependency[1], "0.34.") {
+						return tendermint_v34.NewEngine(app.homePath)
+					} else if strings.Contains(dependency[1], "0.37.") {
+						return cometbft_v37.NewEngine(app.homePath)
+					} else if strings.Contains(dependency[1], "0.38.") {
+						return cometbft_v38.NewEngine(app.homePath)
+					} else {
+						return nil, fmt.Errorf("failed to find engine in binary dependencies")
 					}
-					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", app.ConsensusEngine.GetName())
-					return nil
-				} else if strings.Contains(dependency[1], "0.34.") {
-					app.ConsensusEngine, err = tendermint_v34.NewEngine(app.homePath)
-					if err != nil {
-						return fmt.Errorf("failed to create consensus engine: %w", err)
-					}
-					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", app.ConsensusEngine.GetName())
-					return nil
-				} else if strings.Contains(dependency[1], "0.37.") {
-					app.ConsensusEngine, err = cometbft_v37.NewEngine(app.homePath)
-					if err != nil {
-						return fmt.Errorf("failed to create consensus engine: %w", err)
-					}
-					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", app.ConsensusEngine.GetName())
-					return nil
-				} else if strings.Contains(dependency[1], "0.38.") {
-					app.ConsensusEngine, err = cometbft_v38.NewEngine(app.homePath)
-					if err != nil {
-						return fmt.Errorf("failed to create consensus engine: %w", err)
-					}
-					logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", app.ConsensusEngine.GetName())
-					return nil
-				} else {
-					return fmt.Errorf("failed to find engine in binary dependencies")
 				}
 			}
 		}
+
+		return nil, fmt.Errorf("failed to find engine in binary dependencies")
+	}()
+
+	if err != nil {
+		return err
 	}
 
-	return fmt.Errorf("failed to find engine in binary dependencies")
+	logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", app.ConsensusEngine.GetName())
+	return nil
 }

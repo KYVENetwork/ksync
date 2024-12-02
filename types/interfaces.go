@@ -130,13 +130,12 @@ type Engine interface {
 	GetSeenCommit(height int64) ([]byte, error)
 
 	// OfferSnapshot offers a snapshot over ABCI to the app
-	OfferSnapshot(rawSnapshot, rawState []byte) (int64, int64, error)
+	OfferSnapshot(rawSnapshot, rawState []byte) error
 
 	// ApplySnapshotChunk applies a snapshot chunk over ABCI to the app
 	ApplySnapshotChunk(chunkIndex int64, chunk []byte) error
 
 	// BootstrapState initializes the tendermint state
-	// TODO: do we need to store the first block here?
 	BootstrapState(rawState, rawSeenCommit, rawBlock []byte) error
 
 	// PruneBlocks prunes blocks from the block store and state store
