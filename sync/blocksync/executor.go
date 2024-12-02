@@ -2,9 +2,7 @@ package blocksync
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/binary"
-	"github.com/KYVENetwork/ksync/bootstrap"
-	"github.com/KYVENetwork/ksync/server"
+	"github.com/KYVENetwork/ksync/app"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"time"
@@ -15,12 +13,12 @@ var (
 	errorCh = make(chan error)
 )
 
-func StartBlockSyncExecutor(app *binary.CosmosApp, blockCollector types.BlockCollector, snapshotCollector types.SnapshotCollector) error {
+func StartBlockSyncExecutor(app *app.CosmosApp, blockCollector types.BlockCollector, snapshotCollector types.SnapshotCollector) error {
 	if blockCollector == nil {
 		return fmt.Errorf("block collector can't be nil")
 	}
 
-	if err := bootstrap.StartBootstrapWithBinary(app, blockCollector); err != nil {
+	if err := bootstrapApp(app, blockCollector, snapshotCollector); err != nil {
 		return fmt.Errorf("failed to bootstrap cosmos app: %w", err)
 	}
 
@@ -39,10 +37,6 @@ func StartBlockSyncExecutor(app *binary.CosmosApp, blockCollector types.BlockCol
 
 	if app.GetFlags().RpcServer {
 		go app.ConsensusEngine.StartRPCServer(app.GetFlags().RpcServerPort)
-	}
-
-	if snapshotCollector != nil {
-		go server.StartSnapshotApiServer(app)
 	}
 
 	snapshotPoolHeight := int64(0)

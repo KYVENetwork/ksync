@@ -1,18 +1,18 @@
-package server
+package servesnapshots
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/binary"
+	"github.com/KYVENetwork/ksync/app"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
 )
 
 type ApiServer struct {
-	app *binary.CosmosApp
+	app *app.CosmosApp
 }
 
-func StartSnapshotApiServer(app *binary.CosmosApp) *ApiServer {
+func startSnapshotApiServer(app *app.CosmosApp) *ApiServer {
 	apiServer := &ApiServer{
 		app: app,
 	}

@@ -2,8 +2,8 @@ package blocksync
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/binary"
-	"github.com/KYVENetwork/ksync/binary/collector"
+	"github.com/KYVENetwork/ksync/app"
+	"github.com/KYVENetwork/ksync/app/collector"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"strings"
@@ -45,7 +45,7 @@ func PerformBlockSyncValidationChecks(blockCollector types.BlockCollector, conti
 	return nil
 }
 
-func getBlockCollector(app *binary.CosmosApp) (types.BlockCollector, error) {
+func getBlockCollector(app *app.CosmosApp) (types.BlockCollector, error) {
 	if app.GetFlags().BlockRpc != "" {
 		blockCollector, err := collector.NewRpcBlockCollector(app.GetFlags().BlockRpc, app.GetFlags().BlockRpcReqTimeout)
 		if err != nil {
@@ -101,7 +101,7 @@ func getUserConfirmation(y bool, continuationHeight, targetHeight int64) (bool, 
 func Start(flags types.KsyncFlags) error {
 	logger.Info().Msg("starting block-sync")
 
-	app, err := binary.NewCosmosApp(flags)
+	app, err := app.NewCosmosApp(flags)
 	if err != nil {
 		return fmt.Errorf("failed to init cosmos app: %w", err)
 	}

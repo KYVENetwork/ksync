@@ -167,6 +167,10 @@ func (engine *Engine) CloseDBs() error {
 	return nil
 }
 
+func (engine *Engine) GetRpcListenAddress() string {
+	return engine.config.RPC.ListenAddress
+}
+
 func (engine *Engine) GetProxyAppAddress() string {
 	return engine.config.ProxyApp
 }

@@ -1,4 +1,4 @@
-package helpers
+package source
 
 import (
 	"fmt"
@@ -15,6 +15,16 @@ const (
 	redNo    = "\033[31m" + "NO" + "\033[0m"
 	greenYes = "\033[32m" + "YES" + "\033[0m"
 )
+
+func FormatOutput(entry *types.Entry, chainId string) (string, string, string) {
+	var blockKey, stateKey, heightKey string
+	if chainId == utils.ChainIdMainnet && entry.Networks.Kyve != nil {
+		blockKey, stateKey, heightKey = FormatKeys(entry.Networks.Kyve.BlockStartKey, entry.Networks.Kyve.LatestBlockKey, entry.Networks.Kyve.StateStartKey, entry.Networks.Kyve.LatestStateKey)
+	} else if chainId == utils.ChainIdKaon && entry.Networks.Kaon != nil {
+		blockKey, stateKey, heightKey = FormatKeys(entry.Networks.Kaon.BlockStartKey, entry.Networks.Kaon.LatestBlockKey, entry.Networks.Kaon.StateStartKey, entry.Networks.Kaon.LatestStateKey)
+	}
+	return blockKey, stateKey, heightKey
+}
 
 func LoadLatestPoolData(sourceRegistry types.SourceRegistry) (*types.SourceRegistry, error) {
 	for _, entry := range sourceRegistry.Entries {
@@ -58,32 +68,6 @@ func LoadLatestPoolData(sourceRegistry types.SourceRegistry) (*types.SourceRegis
 	return &sourceRegistry, nil
 }
 
-func GetSourceRegistryEntry(registryUrl, source string) (*types.Entry, error) {
-	registry, err := GetSourceRegistryWithoutPoolData(registryUrl)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get source registry: %v", err)
-	}
-
-	for _, entry := range registry.Entries {
-		if strings.ToLower(entry.SourceID) == strings.ToLower(source) {
-			return &entry, nil
-		}
-
-		if entry.Networks.Kyve != nil {
-			if strings.ToLower(entry.Networks.Kyve.SourceMetadata.Title) == strings.ToLower(source) {
-				return &entry, nil
-			}
-		}
-
-		if entry.Networks.Kaon != nil {
-			if strings.ToLower(entry.Networks.Kaon.SourceMetadata.Title) == strings.ToLower(source) {
-				return &entry, nil
-			}
-		}
-	}
-	return nil, fmt.Errorf("could not find source registry entry for %v", source)
-}
-
 func GetSourceRegistry(url string) (*types.SourceRegistry, error) {
 	response, err := http.Get(url)
 	if err != nil {
@@ -112,31 +96,6 @@ func GetSourceRegistry(url string) (*types.SourceRegistry, error) {
 	}
 
 	return r, nil
-}
-
-func GetSourceRegistryWithoutPoolData(url string) (*types.SourceRegistry, error) {
-	response, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-
-	if response.StatusCode != 200 {
-		return nil, fmt.Errorf("got status code %d != 200", response.StatusCode)
-	}
-
-	data, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var sourceRegistry types.SourceRegistry
-
-	err = yaml.Unmarshal(data, &sourceRegistry)
-	if err != nil {
-		return nil, err
-	}
-
-	return &sourceRegistry, nil
 }
 
 func FormatKeys(blockStartKey, latestBlockKey, stateStartKey, latestStateKey *string) (string, string, string) {

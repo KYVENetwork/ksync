@@ -3,8 +3,7 @@ package commands
 import (
 	_ "embed"
 	"fmt"
-	"github.com/KYVENetwork/ksync/sources"
-	"github.com/KYVENetwork/ksync/sources/helpers"
+	"github.com/KYVENetwork/ksync/app/source"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
@@ -30,7 +29,7 @@ var infoCmd = &cobra.Command{
 			return fmt.Errorf("chain-id %s not supported", flags.ChainId)
 		}
 
-		sourceRegistry, err := helpers.GetSourceRegistry(utils.DefaultRegistryURL)
+		sourceRegistry, err := source.GetSourceRegistry(utils.DefaultRegistryURL)
 		if err != nil {
 			return fmt.Errorf("failed to get source registry: %w", err)
 		}
@@ -98,7 +97,7 @@ var infoCmd = &cobra.Command{
 				}
 			}
 
-			blockSync, stateSync, heightSync := sources.FormatOutput(&entry, flags.ChainId)
+			blockSync, stateSync, heightSync := source.FormatOutput(&entry, flags.ChainId)
 			t.AppendRows([]table.Row{
 				{
 					title,

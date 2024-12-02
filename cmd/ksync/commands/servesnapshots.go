@@ -2,7 +2,7 @@ package commands
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/servesnapshots"
+	"github.com/KYVENetwork/ksync/sync/servesnapshots"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 )

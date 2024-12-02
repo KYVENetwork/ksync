@@ -2,12 +2,12 @@ package statesync
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/binary"
+	"github.com/KYVENetwork/ksync/app"
 	"github.com/KYVENetwork/ksync/types"
 )
 
 // StartStateSyncExecutor takes the bundle id of the first snapshot chunk and applies the snapshot from there
-func StartStateSyncExecutor(app *binary.CosmosApp, snapshotCollector types.SnapshotCollector, snapshotHeight int64) error {
+func StartStateSyncExecutor(app *app.CosmosApp, snapshotCollector types.SnapshotCollector, snapshotHeight int64) error {
 	if snapshotCollector == nil {
 		return fmt.Errorf("snapshot collector can't be nil")
 	}

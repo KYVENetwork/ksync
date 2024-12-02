@@ -72,6 +72,9 @@ type Engine interface {
 	// CloseDBs closes the relevant blockstore and state DBs
 	CloseDBs() error
 
+	// GetRpcListenAddress gets the address the rpc endpoint is hosted
+	GetRpcListenAddress() string
+
 	// GetProxyAppAddress gets the proxy app address of the TSP connection
 	GetProxyAppAddress() string
 

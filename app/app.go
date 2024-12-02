@@ -1,9 +1,9 @@
-package binary
+package app
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/binary/genesis"
-	"github.com/KYVENetwork/ksync/binary/source"
+	"github.com/KYVENetwork/ksync/app/genesis"
+	"github.com/KYVENetwork/ksync/app/source"
 	"github.com/KYVENetwork/ksync/engines/celestia-core-v34"
 	"github.com/KYVENetwork/ksync/engines/cometbft-v37"
 	"github.com/KYVENetwork/ksync/engines/cometbft-v38"
@@ -47,7 +47,8 @@ func NewCosmosApp(flags types.KsyncFlags) (*CosmosApp, error) {
 		binaryPath:   fullBinaryPath,
 		homePath:     flags.HomePath,
 		flags:        flags,
-		isCosmovisor: strings.HasSuffix(flags.BinaryPath, "cosmovisor")}
+		isCosmovisor: strings.HasSuffix(flags.BinaryPath, "cosmovisor"),
+	}
 
 	if app.GetHomePath() == "" {
 		if err = app.loadHomePath(); err != nil {

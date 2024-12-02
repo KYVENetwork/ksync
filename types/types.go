@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type HeightResponse struct {
+type AbciInfoResponse struct {
 	Result struct {
 		Response struct {
 			LastBlockHeight string `json:"last_block_height"`

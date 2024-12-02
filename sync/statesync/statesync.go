@@ -2,8 +2,8 @@ package statesync
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/binary"
-	"github.com/KYVENetwork/ksync/binary/collector"
+	"github.com/KYVENetwork/ksync/app"
+	"github.com/KYVENetwork/ksync/app/collector"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"strings"
@@ -61,7 +61,7 @@ func getUserConfirmation(y bool, snapshotHeight, targetHeight int64) (bool, erro
 func Start(flags types.KsyncFlags) error {
 	logger.Info().Msg("starting state-sync")
 
-	app, err := binary.NewCosmosApp(flags)
+	app, err := app.NewCosmosApp(flags)
 	if err != nil {
 		return fmt.Errorf("failed to init cosmos app: %w", err)
 	}
