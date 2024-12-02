@@ -1,15 +1,8 @@
 package commands
 
 import (
-	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
-)
-
-var flags types.KsyncFlags
-
-var (
-	logger = utils.KsyncLogger("commands")
 )
 
 // RootCmd is the root command for KSYNC.
@@ -30,7 +23,10 @@ func Execute() {
 	// overwrite help command so we can use -h as a shortcut
 	RootCmd.PersistentFlags().BoolP("help", "", false, "help for this command")
 
+	// reload logger so it has access to flags
+	utils.Logger = utils.NewLogger(utils.ApplicationName)
+
 	if err := RootCmd.Execute(); err != nil {
-		logger.Error().Msg(err.Error())
+		utils.Logger.Error().Msg(err.Error())
 	}
 }

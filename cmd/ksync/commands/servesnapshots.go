@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/sync/servesnapshots"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
@@ -40,7 +41,8 @@ func init() {
 	servesnapshotsCmd.Flags().BoolVarP(&flags.AutoSelectBinaryVersion, "auto-select-binary-version", "a", false, "if provided binary is cosmovisor KSYNC will automatically change the \"current\" symlink to the correct upgrade version")
 	servesnapshotsCmd.Flags().BoolVarP(&flags.Reset, "reset-all", "r", false, "reset this node's validator to genesis state")
 	servesnapshotsCmd.Flags().BoolVar(&flags.OptOut, "opt-out", false, "disable the collection of anonymous usage data")
-	servesnapshotsCmd.Flags().BoolVarP(&flags.Debug, "debug", "d", false, "show logs from tendermint app")
+	servesnapshotsCmd.Flags().BoolVarP(&flags.Debug, "debug", "d", false, "run KSYNC in debug mode")
+	servesnapshotsCmd.Flags().BoolVarP(&flags.AppLogs, "app-logs", "l", false, "show logs from cosmos app")
 
 	RootCmd.AddCommand(servesnapshotsCmd)
 }
@@ -49,6 +51,6 @@ var servesnapshotsCmd = &cobra.Command{
 	Use:   "serve-snapshots",
 	Short: "Serve snapshots for running KYVE state-sync pools",
 	RunE: func(_ *cobra.Command, _ []string) error {
-		return servesnapshots.Start(flags)
+		return servesnapshots.Start()
 	},
 }

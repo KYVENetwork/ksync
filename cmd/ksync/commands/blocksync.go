@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/sync/blocksync"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
@@ -32,7 +33,8 @@ func init() {
 	blockSyncCmd.Flags().BoolVarP(&flags.AutoSelectBinaryVersion, "auto-select-binary-version", "a", false, "if provided binary is cosmovisor KSYNC will automatically change the \"current\" symlink to the correct upgrade version")
 	blockSyncCmd.Flags().BoolVarP(&flags.Reset, "reset-all", "r", false, "reset this node's validator to genesis state")
 	blockSyncCmd.Flags().BoolVar(&flags.OptOut, "opt-out", false, "disable the collection of anonymous usage data")
-	blockSyncCmd.Flags().BoolVarP(&flags.Debug, "debug", "d", false, "show logs from tendermint app")
+	blockSyncCmd.Flags().BoolVarP(&flags.Debug, "debug", "d", false, "run KSYNC in debug mode")
+	blockSyncCmd.Flags().BoolVarP(&flags.AppLogs, "app-logs", "l", false, "show logs from cosmos app")
 	blockSyncCmd.Flags().BoolVarP(&flags.Y, "yes", "y", false, "automatically answer yes for all questions")
 
 	RootCmd.AddCommand(blockSyncCmd)
@@ -42,6 +44,6 @@ var blockSyncCmd = &cobra.Command{
 	Use:   "block-sync",
 	Short: "Start fast syncing blocks with KSYNC",
 	RunE: func(_ *cobra.Command, _ []string) error {
-		return blocksync.Start(flags)
+		return blocksync.Start()
 	},
 }

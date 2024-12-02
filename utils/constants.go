@@ -24,6 +24,7 @@ const (
 )
 
 const (
+	ApplicationName       = "KSYNC"
 	EngineTendermintV34   = "TENDERMINT-V34"
 	EngineCelestiaCoreV34 = "CELESTIA-CORE-V34"
 	EngineCometBFTV37     = "COMETBFT-V37"

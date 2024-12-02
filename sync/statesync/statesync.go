@@ -4,13 +4,10 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/app"
 	"github.com/KYVENetwork/ksync/app/collector"
+	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"strings"
-)
-
-var (
-	logger = utils.KsyncLogger("state-sync")
 )
 
 // PerformStateSyncValidationChecks makes boundary checks for the given snapshot height
@@ -18,7 +15,7 @@ func PerformStateSyncValidationChecks(snapshotCollector types.SnapshotCollector,
 	earliest := snapshotCollector.GetEarliestAvailableHeight()
 	latest := snapshotCollector.GetLatestAvailableHeight()
 
-	logger.Info().Msgf("retrieved snapshot boundaries, earliest complete snapshot height = %d, latest complete snapshot height %d", earliest, latest)
+	utils.Logger.Info().Msgf("retrieved snapshot boundaries, earliest complete snapshot height = %d, latest complete snapshot height %d", earliest, latest)
 
 	if snapshotHeight < earliest {
 		return fmt.Errorf("requested snapshot height is %d but first available snapshot on pool is %d", snapshotHeight, earliest)
@@ -51,17 +48,17 @@ func getUserConfirmation(y bool, snapshotHeight, targetHeight int64) (bool, erro
 	}
 
 	if strings.ToLower(answer) != "y" {
-		logger.Info().Msg("aborted state-sync")
+		utils.Logger.Info().Msg("aborted state-sync")
 		return false, nil
 	}
 
 	return true, nil
 }
 
-func Start(flags types.KsyncFlags) error {
-	logger.Info().Msg("starting state-sync")
+func Start() error {
+	utils.Logger.Info().Msg("starting state-sync")
 
-	app, err := app.NewCosmosApp(flags)
+	app, err := app.NewCosmosApp()
 	if err != nil {
 		return fmt.Errorf("failed to init cosmos app: %w", err)
 	}
@@ -116,6 +113,6 @@ func Start(flags types.KsyncFlags) error {
 		return fmt.Errorf("failed to start state-sync executor: %w", err)
 	}
 
-	logger.Info().Msgf("successfully finished state-sync")
+	utils.Logger.Info().Msgf("successfully finished state-sync")
 	return nil
 }

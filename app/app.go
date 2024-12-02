@@ -8,6 +8,7 @@ import (
 	"github.com/KYVENetwork/ksync/engines/cometbft-v37"
 	"github.com/KYVENetwork/ksync/engines/cometbft-v38"
 	"github.com/KYVENetwork/ksync/engines/tendermint-v34"
+	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"os"
@@ -18,25 +19,22 @@ import (
 	"time"
 )
 
-var (
-	logger = utils.KsyncLogger("app")
-)
-
 type CosmosApp struct {
 	binaryPath   string
 	isCosmovisor bool
 	homePath     string
 
-	flags types.KsyncFlags
-	cmd   *exec.Cmd
+	cmd *exec.Cmd
 
 	Genesis         *genesis.Genesis
 	Source          *source.Source
 	ConsensusEngine types.Engine
 }
 
-func NewCosmosApp(flags types.KsyncFlags) (*CosmosApp, error) {
-	app := &CosmosApp{flags: flags}
+func NewCosmosApp() (*CosmosApp, error) {
+	app := &CosmosApp{}
+
+	utils.Logger = utils.NewLogger(utils.ApplicationName)
 
 	if err := app.LoadBinaryPath(); err != nil {
 		return nil, fmt.Errorf("failed to load binary path: %w", err)
@@ -79,10 +77,6 @@ func (app *CosmosApp) IsCosmovisor() bool {
 	return app.isCosmovisor
 }
 
-func (app *CosmosApp) GetFlags() types.KsyncFlags {
-	return app.flags
-}
-
 func (app *CosmosApp) IsReset() bool {
 	return app.ConsensusEngine.GetHeight() == 0
 }
@@ -97,7 +91,7 @@ func (app *CosmosApp) GetContinuationHeight() int64 {
 }
 
 func (app *CosmosApp) AutoSelectBinaryVersion(height int64) error {
-	if !app.flags.AutoSelectBinaryVersion {
+	if !flags.AutoSelectBinaryVersion {
 		return nil
 	}
 
@@ -131,7 +125,7 @@ func (app *CosmosApp) AutoSelectBinaryVersion(height int64) error {
 		return fmt.Errorf("failed to create symlink to upgrade directory: %w", err)
 	}
 
-	logger.Info().Msgf("selected binary version \"%s\" from height %d for cosmovisor", upgradeName, height)
+	utils.Logger.Info().Msgf("selected binary version \"%s\" from height %d for cosmovisor", upgradeName, height)
 	return app.LoadConsensusEngine()
 }
 
@@ -156,11 +150,11 @@ func (app *CosmosApp) StopAll() {
 	// application down anyway and ensure that everything else
 	// can get closed
 	if err := app.ConsensusEngine.StopProxyApp(); err != nil {
-		logger.Error().Msgf("failed to stop proxy app: %s", err)
+		utils.Logger.Error().Msgf("failed to stop proxy app: %s", err)
 	}
 
 	if err := app.ConsensusEngine.CloseDBs(); err != nil {
-		logger.Error().Msgf("failed to close dbs in engin: %s", err)
+		utils.Logger.Error().Msgf("failed to close dbs in engin: %s", err)
 	}
 
 	app.StopBinary()
@@ -186,6 +180,10 @@ func (app *CosmosApp) StartBinary(snapshotInterval int64) error {
 		app.ConsensusEngine.GetProxyAppAddress(),
 	)
 
+	if flags.Debug {
+		cmd.Args = append(cmd.Args, "--log_level", "debug")
+	}
+
 	if snapshotInterval > 0 {
 		cmd.Args = append(
 			cmd.Args,
@@ -193,7 +191,7 @@ func (app *CosmosApp) StartBinary(snapshotInterval int64) error {
 			strconv.FormatInt(snapshotInterval, 10),
 		)
 
-		if app.flags.Pruning {
+		if flags.Pruning {
 			cmd.Args = append(
 				cmd.Args,
 				"--pruning",
@@ -204,7 +202,7 @@ func (app *CosmosApp) StartBinary(snapshotInterval int64) error {
 				"10",
 			)
 
-			if app.flags.KeepSnapshots {
+			if flags.KeepSnapshots {
 				cmd.Args = append(
 					cmd.Args,
 					"--state-sync.snapshot-keep-recent",
@@ -228,14 +226,14 @@ func (app *CosmosApp) StartBinary(snapshotInterval int64) error {
 		}
 	}
 
-	cmd.Args = append(cmd.Args, strings.Split(app.flags.AppFlags, ",")...)
+	cmd.Args = append(cmd.Args, strings.Split(flags.AppFlags, ",")...)
 
-	if app.flags.Debug {
+	if flags.AppLogs {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	}
 
-	logger.Info().Msg("starting app binary")
+	utils.Logger.Info().Msg("starting app binary")
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start cosmos app: %w", err)
@@ -269,14 +267,18 @@ func (app *CosmosApp) StartBinaryP2P() error {
 		"",
 	)
 
-	cmd.Args = append(cmd.Args, strings.Split(app.flags.AppFlags, ",")...)
+	if flags.Debug {
+		cmd.Args = append(cmd.Args, "--log_level", "debug")
+	}
 
-	if app.flags.Debug {
+	cmd.Args = append(cmd.Args, strings.Split(flags.AppFlags, ",")...)
+
+	if flags.AppLogs {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	}
 
-	logger.Info().Msg("starting app binary in p2p mode")
+	utils.Logger.Info().Msg("starting app binary in p2p mode")
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start cosmos app: %w", err)
@@ -310,15 +312,15 @@ func (app *CosmosApp) StopBinary() {
 	}()
 
 	if _, err := app.cmd.Process.Wait(); err != nil {
-		logger.Error().Msgf("failed to wait for process with id %d to be terminated: %s", app.cmd.Process.Pid, err)
+		utils.Logger.Error().Msgf("failed to wait for process with id %d to be terminated: %s", app.cmd.Process.Pid, err)
 	}
 
-	logger.Info().Msg("stopped app binary")
+	utils.Logger.Info().Msg("stopped app binary")
 	return
 }
 
 func (app *CosmosApp) LoadBinaryPath() error {
-	binaryPath, err := exec.LookPath(app.flags.BinaryPath)
+	binaryPath, err := exec.LookPath(flags.BinaryPath)
 	if err != nil {
 		return err
 	}
@@ -326,13 +328,13 @@ func (app *CosmosApp) LoadBinaryPath() error {
 	app.binaryPath = binaryPath
 	app.isCosmovisor = strings.HasSuffix(binaryPath, "cosmovisor")
 
-	logger.Info().Msgf("loaded cosmos app at path \"%s\" from app binary", binaryPath)
+	utils.Logger.Info().Msgf("loaded cosmos app at path \"%s\" from app binary", binaryPath)
 	return nil
 }
 
 func (app *CosmosApp) LoadHomePath() error {
-	if app.flags.HomePath != "" {
-		app.homePath = app.flags.HomePath
+	if flags.HomePath != "" {
+		app.homePath = flags.HomePath
 		return nil
 	}
 
@@ -358,7 +360,7 @@ func (app *CosmosApp) LoadHomePath() error {
 			}
 
 			app.homePath = strings.Split(line, "\"")[1]
-			logger.Info().Msgf("loaded home path \"%s\" from app binary", app.homePath)
+			utils.Logger.Info().Msgf("loaded home path \"%s\" from app binary", app.homePath)
 			return nil
 		}
 	}
@@ -417,6 +419,6 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 		return err
 	}
 
-	logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", app.ConsensusEngine.GetName())
+	utils.Logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", app.ConsensusEngine.GetName())
 	return nil
 }

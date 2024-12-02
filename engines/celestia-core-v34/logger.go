@@ -4,20 +4,18 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/celestia-core/libs/log"
 	"github.com/KYVENetwork/ksync/utils"
-	klogger "github.com/KYVENetwork/ksync/utils"
 	"github.com/rs/zerolog"
 )
 
-func TmLogger() (logger log.Logger) {
-	logger = KsyncTmLogger{logger: klogger.LogFormatter(utils.EngineCelestiaCoreV34)}
-	return
-}
+var (
+	engineLogger = EngineLogger{logger: utils.NewLogger(utils.EngineCelestiaCoreV34)}
+)
 
-type KsyncTmLogger struct {
+type EngineLogger struct {
 	logger zerolog.Logger
 }
 
-func (l KsyncTmLogger) Debug(msg string, keyvals ...interface{}) {
+func (l EngineLogger) Debug(msg string, keyvals ...interface{}) {
 	logger := l.logger.Debug()
 
 	for i := 0; i < len(keyvals); i = i + 2 {
@@ -27,7 +25,7 @@ func (l KsyncTmLogger) Debug(msg string, keyvals ...interface{}) {
 	logger.Msg(msg)
 }
 
-func (l KsyncTmLogger) Info(msg string, keyvals ...interface{}) {
+func (l EngineLogger) Info(msg string, keyvals ...interface{}) {
 	logger := l.logger.Info()
 
 	for i := 0; i < len(keyvals); i = i + 2 {
@@ -41,7 +39,7 @@ func (l KsyncTmLogger) Info(msg string, keyvals ...interface{}) {
 	logger.Msg(msg)
 }
 
-func (l KsyncTmLogger) Error(msg string, keyvals ...interface{}) {
+func (l EngineLogger) Error(msg string, keyvals ...interface{}) {
 	logger := l.logger.Error()
 
 	for i := 0; i < len(keyvals); i = i + 2 {
@@ -51,7 +49,7 @@ func (l KsyncTmLogger) Error(msg string, keyvals ...interface{}) {
 	logger.Msg(msg)
 }
 
-func (l KsyncTmLogger) With(keyvals ...interface{}) (logger log.Logger) {
-	logger = KsyncTmLogger{logger: klogger.LogFormatter(utils.EngineCelestiaCoreV34, keyvals)}
+func (l EngineLogger) With(keyvals ...interface{}) (logger log.Logger) {
+	logger = EngineLogger{logger: utils.NewLogger(utils.EngineCelestiaCoreV34, keyvals)}
 	return
 }

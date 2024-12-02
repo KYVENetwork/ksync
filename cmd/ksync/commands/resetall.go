@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/app"
+	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 )
@@ -26,7 +27,7 @@ var resetCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		utils.TrackResetEvent(flags.OptOut)
 
-		app, err := app.NewCosmosApp(flags)
+		app, err := app.NewCosmosApp()
 		if err != nil {
 			return fmt.Errorf("failed to init cosmos app: %w", err)
 		}
@@ -35,7 +36,7 @@ var resetCmd = &cobra.Command{
 			return fmt.Errorf("failed to reset cosmos app: %w", err)
 		}
 
-		logger.Info().Msg("successfully reset cosmos app")
+		utils.Logger.Info().Msg("successfully reset cosmos app")
 		return nil
 	},
 }

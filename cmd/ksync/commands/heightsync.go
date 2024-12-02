@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/sync/heightsync"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
@@ -30,7 +31,8 @@ func init() {
 	heightSyncCmd.Flags().BoolVarP(&flags.AutoSelectBinaryVersion, "auto-select-binary-version", "a", false, "if provided binary is cosmovisor KSYNC will automatically change the \"current\" symlink to the correct upgrade version")
 	heightSyncCmd.Flags().BoolVarP(&flags.Reset, "reset-all", "r", false, "reset this node's validator to genesis state")
 	heightSyncCmd.Flags().BoolVar(&flags.OptOut, "opt-out", false, "disable the collection of anonymous usage data")
-	heightSyncCmd.Flags().BoolVarP(&flags.Debug, "debug", "d", false, "show logs from tendermint app")
+	heightSyncCmd.Flags().BoolVarP(&flags.Debug, "debug", "d", false, "run KSYNC in debug mode")
+	heightSyncCmd.Flags().BoolVarP(&flags.AppLogs, "app-logs", "l", false, "show logs from cosmos app")
 	heightSyncCmd.Flags().BoolVarP(&flags.Y, "assumeyes", "y", false, "automatically answer yes for all questions")
 
 	RootCmd.AddCommand(heightSyncCmd)
@@ -40,6 +42,6 @@ var heightSyncCmd = &cobra.Command{
 	Use:   "height-sync",
 	Short: "Sync fast to any height with state- and block-sync",
 	RunE: func(_ *cobra.Command, _ []string) error {
-		return heightsync.Start(flags)
+		return heightsync.Start()
 	},
 }

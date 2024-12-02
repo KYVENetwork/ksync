@@ -4,15 +4,11 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/app"
 	"github.com/KYVENetwork/ksync/app/collector"
+	"github.com/KYVENetwork/ksync/flags"
 	blocksync2 "github.com/KYVENetwork/ksync/sync/blocksync"
 	statesync2 "github.com/KYVENetwork/ksync/sync/statesync"
-	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"strings"
-)
-
-var (
-	logger = utils.KsyncLogger("height-sync")
 )
 
 func getUserConfirmation(y, canApplySnapshot bool, snapshotHeight, continuationHeight, targetHeight int64) (bool, error) {
@@ -33,17 +29,17 @@ func getUserConfirmation(y, canApplySnapshot bool, snapshotHeight, continuationH
 	}
 
 	if strings.ToLower(answer) != "y" {
-		logger.Info().Msg("aborted height-sync")
+		utils.Logger.Info().Msg("aborted height-sync")
 		return false, nil
 	}
 
 	return true, nil
 }
 
-func Start(flags types.KsyncFlags) error {
-	logger.Info().Msg("starting height-sync")
+func Start() error {
+	utils.Logger.Info().Msg("starting height-sync")
 
-	app, err := app.NewCosmosApp(flags)
+	app, err := app.NewCosmosApp()
 	if err != nil {
 		return fmt.Errorf("failed to init cosmos app: %w", err)
 	}
@@ -124,6 +120,6 @@ func Start(flags types.KsyncFlags) error {
 		return fmt.Errorf("failed to start block-sync executor: %w", err)
 	}
 
-	logger.Info().Msgf("successfully finished height-sync")
+	utils.Logger.Info().Msgf("successfully finished height-sync")
 	return nil
 }

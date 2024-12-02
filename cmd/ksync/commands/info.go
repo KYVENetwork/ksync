@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"github.com/KYVENetwork/ksync/app/source"
+	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"

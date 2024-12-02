@@ -17,10 +17,6 @@ import (
 	"time"
 )
 
-var (
-	logger = KsyncLogger("utils")
-)
-
 func GetVersion() string {
 	version, ok := runtimeDebug.ReadBuildInfo()
 	if !ok {
@@ -32,6 +28,9 @@ func GetVersion() string {
 
 // getFromUrl tries to fetch data from url with a custom User-Agent header
 func getFromUrl(url string) ([]byte, error) {
+	// Log debug info
+	Logger.Debug().Str("url", url).Msg("GET")
+
 	// Create a custom http.Client with the desired User-Agent header
 	httpClient := &http.Client{Transport: http.DefaultTransport}
 
@@ -80,7 +79,7 @@ func GetFromUrl(url string) (data []byte, err error) {
 		if err != nil {
 			delaySec := math.Pow(2, float64(i))
 
-			logger.Error().Msgf("failed to fetch from url \"%s\" with error \"%s\", retrying in %d seconds", url, err, int(delaySec))
+			Logger.Error().Msgf("failed to fetch from url \"%s\" with error \"%s\", retrying in %d seconds", url, err, int(delaySec))
 			time.Sleep(time.Duration(delaySec) * time.Second)
 
 			continue
@@ -88,12 +87,12 @@ func GetFromUrl(url string) (data []byte, err error) {
 
 		// only log success message if there were errors previously
 		if i > 0 {
-			logger.Info().Msgf("successfully fetched data from url %s", url)
+			Logger.Info().Msgf("successfully fetched data from url %s", url)
 		}
 		return
 	}
 
-	logger.Error().Msgf("failed to fetch data from url within maximum retry limit of %d", BackoffMaxRetries)
+	Logger.Error().Msgf("failed to fetch data from url within maximum retry limit of %d", BackoffMaxRetries)
 	return
 }
 

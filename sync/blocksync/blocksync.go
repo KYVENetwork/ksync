@@ -4,13 +4,10 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/app"
 	"github.com/KYVENetwork/ksync/app/collector"
+	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"strings"
-)
-
-var (
-	logger = utils.KsyncLogger("block-sync")
 )
 
 // PerformBlockSyncValidationChecks makes boundary checks if app can be block-synced from the given
@@ -19,7 +16,7 @@ func PerformBlockSyncValidationChecks(blockCollector types.BlockCollector, conti
 	earliest := blockCollector.GetEarliestAvailableHeight()
 	latest := blockCollector.GetLatestAvailableHeight()
 
-	logger.Info().Msg(fmt.Sprintf("retrieved block boundaries, earliest block height = %d, latest block height %d", earliest, latest))
+	utils.Logger.Info().Msg(fmt.Sprintf("retrieved block boundaries, earliest block height = %d, latest block height %d", earliest, latest))
 
 	if continuationHeight < earliest {
 		return fmt.Errorf("app is currently at height %d but first available block on pool is %d", continuationHeight, earliest)
@@ -39,15 +36,15 @@ func PerformBlockSyncValidationChecks(blockCollector types.BlockCollector, conti
 	}
 
 	if targetHeight == 0 {
-		logger.Info().Msg(fmt.Sprintf("no target height specified, syncing indefinitely"))
+		utils.Logger.Info().Msg(fmt.Sprintf("no target height specified, syncing indefinitely"))
 	}
 
 	return nil
 }
 
 func getBlockCollector(app *app.CosmosApp) (types.BlockCollector, error) {
-	if app.GetFlags().BlockRpc != "" {
-		blockCollector, err := collector.NewRpcBlockCollector(app.GetFlags().BlockRpc, app.GetFlags().BlockRpcReqTimeout)
+	if flags.BlockRpc != "" {
+		blockCollector, err := collector.NewRpcBlockCollector(flags.BlockRpc, flags.BlockRpcReqTimeout)
 		if err != nil {
 			return nil, fmt.Errorf("failed to init rpc block collector: %w", err)
 		}
@@ -62,8 +59,8 @@ func getBlockCollector(app *app.CosmosApp) (types.BlockCollector, error) {
 		return nil, fmt.Errorf("failed to get block pool id: %w", err)
 	}
 
-	chainRest := utils.GetChainRest(app.GetFlags().ChainId, app.GetFlags().ChainRest)
-	storageRest := strings.TrimSuffix(app.GetFlags().StorageRest, "/")
+	chainRest := utils.GetChainRest(flags.ChainId, flags.ChainRest)
+	storageRest := strings.TrimSuffix(flags.StorageRest, "/")
 
 	blockCollector, err := collector.NewKyveBlockCollector(blockPoolId, chainRest, storageRest)
 	if err != nil {
@@ -91,17 +88,17 @@ func getUserConfirmation(y bool, continuationHeight, targetHeight int64) (bool, 
 	}
 
 	if strings.ToLower(answer) != "y" {
-		logger.Info().Msg("aborted block-sync")
+		utils.Logger.Info().Msg("aborted block-sync")
 		return false, nil
 	}
 
 	return true, nil
 }
 
-func Start(flags types.KsyncFlags) error {
-	logger.Info().Msg("starting block-sync")
+func Start() error {
+	utils.Logger.Info().Msg("starting block-sync")
 
-	app, err := app.NewCosmosApp(flags)
+	app, err := app.NewCosmosApp()
 	if err != nil {
 		return fmt.Errorf("failed to init cosmos app: %w", err)
 	}
@@ -143,6 +140,6 @@ func Start(flags types.KsyncFlags) error {
 		return fmt.Errorf("failed to start block-sync executor: %w", err)
 	}
 
-	logger.Info().Msgf("successfully finished block-sync")
+	utils.Logger.Info().Msgf("successfully finished block-sync")
 	return nil
 }

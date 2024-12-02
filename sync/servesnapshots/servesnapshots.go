@@ -4,25 +4,21 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/app"
 	"github.com/KYVENetwork/ksync/app/collector"
+	"github.com/KYVENetwork/ksync/flags"
 	blocksync2 "github.com/KYVENetwork/ksync/sync/blocksync"
 	statesync2 "github.com/KYVENetwork/ksync/sync/statesync"
-	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"strings"
 )
 
-var (
-	logger = utils.KsyncLogger("serve-snapshots")
-)
-
-func Start(flags types.KsyncFlags) error {
-	logger.Info().Msg("starting serve-snapshots")
+func Start() error {
+	utils.Logger.Info().Msg("starting serve-snapshots")
 
 	if flags.Pruning && flags.SkipWaiting {
 		return fmt.Errorf("pruning has to be disabled with --pruning=false if --skip-waiting is true")
 	}
 
-	app, err := app.NewCosmosApp(flags)
+	app, err := app.NewCosmosApp()
 	if err != nil {
 		return fmt.Errorf("failed to init cosmos app: %w", err)
 	}
@@ -105,6 +101,6 @@ func Start(flags types.KsyncFlags) error {
 		return fmt.Errorf("failed to start block-sync executor: %w", err)
 	}
 
-	logger.Info().Msgf("successfully finished serve-snapshots")
+	utils.Logger.Info().Msgf("successfully finished serve-snapshots")
 	return nil
 }

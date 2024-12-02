@@ -4,20 +4,18 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/cometbft/v38/libs/log"
 	"github.com/KYVENetwork/ksync/utils"
-	klogger "github.com/KYVENetwork/ksync/utils"
 	"github.com/rs/zerolog"
 )
 
-func CometLogger() (logger log.Logger) {
-	logger = KsyncCometLogger{logger: klogger.LogFormatter(utils.EngineCometBFTV38)}
-	return
-}
+var (
+	engineLogger = EngineLogger{logger: utils.NewLogger(utils.EngineCometBFTV38)}
+)
 
-type KsyncCometLogger struct {
+type EngineLogger struct {
 	logger zerolog.Logger
 }
 
-func (l KsyncCometLogger) Debug(msg string, keyvals ...interface{}) {
+func (l EngineLogger) Debug(msg string, keyvals ...interface{}) {
 	logger := l.logger.Debug()
 
 	for i := 0; i < len(keyvals); i = i + 2 {
@@ -27,7 +25,7 @@ func (l KsyncCometLogger) Debug(msg string, keyvals ...interface{}) {
 	logger.Msg(msg)
 }
 
-func (l KsyncCometLogger) Info(msg string, keyvals ...interface{}) {
+func (l EngineLogger) Info(msg string, keyvals ...interface{}) {
 	logger := l.logger.Info()
 
 	for i := 0; i < len(keyvals); i = i + 2 {
@@ -41,7 +39,7 @@ func (l KsyncCometLogger) Info(msg string, keyvals ...interface{}) {
 	logger.Msg(msg)
 }
 
-func (l KsyncCometLogger) Error(msg string, keyvals ...interface{}) {
+func (l EngineLogger) Error(msg string, keyvals ...interface{}) {
 	logger := l.logger.Error()
 
 	for i := 0; i < len(keyvals); i = i + 2 {
@@ -51,7 +49,7 @@ func (l KsyncCometLogger) Error(msg string, keyvals ...interface{}) {
 	logger.Msg(msg)
 }
 
-func (l KsyncCometLogger) With(keyvals ...interface{}) (logger log.Logger) {
-	logger = KsyncCometLogger{logger: klogger.LogFormatter(utils.EngineCometBFTV38, keyvals)}
+func (l EngineLogger) With(keyvals ...interface{}) (logger log.Logger) {
+	logger = EngineLogger{logger: utils.NewLogger(utils.EngineCometBFTV38, keyvals)}
 	return
 }

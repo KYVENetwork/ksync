@@ -30,10 +30,6 @@ import (
 	"time"
 )
 
-var (
-	cometLogger = CometLogger()
-)
-
 type Engine struct {
 	homePath   string
 	areDBsOpen bool
@@ -237,7 +233,7 @@ func (engine *Engine) DoHandshake() error {
 	engine.evidencePool = evidencePool
 	engine.blockExecutor = tmState.NewBlockExecutor(
 		engine.stateStore,
-		cometLogger.With("module", "state"),
+		engineLogger.With("module", "state"),
 		engine.proxyApp.Consensus(),
 		mempool,
 		evidencePool,
@@ -327,7 +323,7 @@ func (engine *Engine) ApplyFirstBlockOverP2P(rawBlock, nextRawBlock []byte) erro
 	nodeInfo, err := MakeNodeInfo(engine.config, ksyncNodeKey, engine.genDoc)
 	transport := cometP2P.NewMultiplexTransport(nodeInfo, *ksyncNodeKey, cometP2P.MConnConfig(engine.config.P2P))
 	bcR := NewBlockchainReactor(block, nextBlock)
-	sw := CreateSwitch(engine.config, transport, bcR, nodeInfo, ksyncNodeKey, cometLogger)
+	sw := CreateSwitch(engine.config, transport, bcR, nodeInfo, ksyncNodeKey, engineLogger)
 
 	// start the transport
 	addr, err := cometP2P.NewNetAddressString(cometP2P.IDAddressString(ksyncNodeKey.ID(), engine.config.P2P.ListenAddress))
@@ -433,7 +429,7 @@ func (engine *Engine) StartRPCServer(port int64) {
 		time.Sleep(1000)
 	}
 
-	rpcLogger := cometLogger.With("module", "rpc-server")
+	rpcLogger := engineLogger.With("module", "rpc-server")
 
 	consensusReactor := cs.NewReactor(cs.NewState(
 		engine.config.Consensus,
@@ -446,12 +442,12 @@ func (engine *Engine) StartRPCServer(port int64) {
 
 	nodeKey, err := cometP2P.LoadNodeKey(engine.config.NodeKeyFile())
 	if err != nil {
-		cometLogger.Error(fmt.Sprintf("failed to get nodeKey: %s", err))
+		engineLogger.Error(fmt.Sprintf("failed to get nodeKey: %s", err))
 		return
 	}
 	nodeInfo, err := MakeNodeInfo(engine.config, nodeKey, engine.genDoc)
 	if err != nil {
-		cometLogger.Error(fmt.Sprintf("failed to get nodeInfo: %s", err))
+		engineLogger.Error(fmt.Sprintf("failed to get nodeInfo: %s", err))
 		return
 	}
 
@@ -487,12 +483,12 @@ func (engine *Engine) StartRPCServer(port int64) {
 	rpcserver.RegisterRPCFuncs(mux, routes, rpcLogger)
 	listener, err := rpcserver.Listen(fmt.Sprintf("tcp://127.0.0.1:%d", port), config)
 	if err != nil {
-		cometLogger.Error(fmt.Sprintf("failed to get rpc listener: %s", err))
+		engineLogger.Error(fmt.Sprintf("failed to get rpc listener: %s", err))
 		return
 	}
 
 	if err := rpcserver.Serve(listener, mux, rpcLogger, config); err != nil {
-		cometLogger.Error(fmt.Sprintf("failed to start rpc server: %s", err))
+		engineLogger.Error(fmt.Sprintf("failed to start rpc server: %s", err))
 		return
 	}
 }
@@ -662,17 +658,17 @@ func (engine *Engine) ResetAll(keepAddrBook bool) error {
 	privValStateFile := engine.config.PrivValidatorStateFile()
 
 	if keepAddrBook {
-		cometLogger.Info("the address book remains intact")
+		engineLogger.Info("the address book remains intact")
 	} else {
 		if err := os.Remove(addrBookFile); err == nil {
-			cometLogger.Info("removed existing address book", "file", addrBookFile)
+			engineLogger.Info("removed existing address book", "file", addrBookFile)
 		} else if !os.IsNotExist(err) {
 			return fmt.Errorf("error removing address book, file: %s, err: %w", addrBookFile, err)
 		}
 	}
 
 	if err := os.RemoveAll(dbDir); err == nil {
-		cometLogger.Info("removed all blockchain history", "dir", dbDir)
+		engineLogger.Info("removed all blockchain history", "dir", dbDir)
 	} else {
 		return fmt.Errorf("error removing all blockchain history, dir: %s, err: %w", dbDir, err)
 	}
@@ -685,7 +681,7 @@ func (engine *Engine) ResetAll(keepAddrBook bool) error {
 	if _, err := os.Stat(privValKeyFile); err == nil {
 		pv := privval.LoadFilePVEmptyState(privValKeyFile, privValStateFile)
 		pv.Reset()
-		cometLogger.Info(
+		engineLogger.Info(
 			"Reset private validator file to genesis state",
 			"keyFile", privValKeyFile,
 			"stateFile", privValStateFile,
@@ -693,7 +689,7 @@ func (engine *Engine) ResetAll(keepAddrBook bool) error {
 	} else {
 		pv := privval.GenFilePV(privValKeyFile, privValStateFile)
 		pv.Save()
-		cometLogger.Info(
+		engineLogger.Info(
 			"Generated private validator file",
 			"keyFile", privValKeyFile,
 			"stateFile", privValStateFile,

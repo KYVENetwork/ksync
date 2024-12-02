@@ -3,6 +3,7 @@ package blocksync
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/app"
+	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"time"
@@ -24,7 +25,7 @@ func StartBlockSyncExecutor(app *app.CosmosApp, blockCollector types.BlockCollec
 
 	continuationHeight := app.GetContinuationHeight()
 
-	go blockCollector.StreamBlocks(blockCh, errorCh, continuationHeight, app.GetFlags().TargetHeight)
+	go blockCollector.StreamBlocks(blockCh, errorCh, continuationHeight, flags.TargetHeight)
 
 	appHeight, err := app.ConsensusEngine.GetAppHeight()
 	if err != nil {
@@ -35,22 +36,22 @@ func StartBlockSyncExecutor(app *app.CosmosApp, blockCollector types.BlockCollec
 		return fmt.Errorf("failed to do handshake: %w", err)
 	}
 
-	if app.GetFlags().RpcServer {
-		go app.ConsensusEngine.StartRPCServer(app.GetFlags().RpcServerPort)
+	if flags.RpcServer {
+		go app.ConsensusEngine.StartRPCServer(flags.RpcServerPort)
 	}
 
 	snapshotPoolHeight := int64(0)
 
 	// if KSYNC has already fetched 3 * snapshot_interval ahead of the snapshot pool we wait
 	// in order to not bloat the KSYNC process
-	if snapshotCollector != nil && !app.GetFlags().SkipWaiting {
+	if snapshotCollector != nil && !flags.SkipWaiting {
 		snapshotPoolHeight, err = snapshotCollector.GetCurrentHeight()
 		if err != nil {
 			return fmt.Errorf("failed to get snapshot pool height: %w", err)
 		}
 
 		if continuationHeight > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotCollector.GetInterval()) {
-			logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to produce new bundles")
+			utils.Logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to produce new bundles")
 		}
 
 		for continuationHeight > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotCollector.GetInterval()) {
@@ -71,6 +72,8 @@ func StartBlockSyncExecutor(app *app.CosmosApp, blockCollector types.BlockCollec
 		case err := <-errorCh:
 			return fmt.Errorf("error in block collector: %w", err)
 		case nextBlock := <-blockCh:
+			utils.Logger.Debug().Int64("height", block.Height).Int64("next_height", nextBlock.Height).Msg("applying blocks to engine")
+
 			if err := app.ConsensusEngine.ApplyBlock(block.Block, nextBlock.Block); err != nil {
 				// before we return we check if this is due to an upgrade, if we are running
 				// with cosmovisor, and it is indeed due to an upgrade we restart the binary
@@ -105,7 +108,7 @@ func StartBlockSyncExecutor(app *app.CosmosApp, blockCollector types.BlockCollec
 
 			if snapshotCollector != nil {
 				// prune unused blocks for serve-snapshots
-				if app.GetFlags().Pruning && block.Height%utils.PruningInterval == 0 {
+				if flags.Pruning && block.Height%utils.PruningInterval == 0 {
 					// Because we sync 3 * snapshot_interval ahead we keep the latest
 					// 6 * snapshot_interval blocks and prune everything before that
 					pruneFromHeight := app.ConsensusEngine.GetBaseHeight()
@@ -116,9 +119,9 @@ func StartBlockSyncExecutor(app *app.CosmosApp, blockCollector types.BlockCollec
 							return fmt.Errorf("failed to prune blocks from %d to %d: %w", pruneFromHeight, pruneToHeight, err)
 						}
 
-						logger.Info().Msgf("successfully pruned blocks from %d to %d", pruneFromHeight, pruneToHeight)
+						utils.Logger.Info().Msgf("successfully pruned blocks from %d to %d", pruneFromHeight, pruneToHeight)
 					} else {
-						logger.Info().Msg("found no blocks to prune. Continuing ...")
+						utils.Logger.Info().Msg("found no blocks to prune. Continuing ...")
 					}
 				}
 
@@ -128,7 +131,7 @@ func StartBlockSyncExecutor(app *app.CosmosApp, blockCollector types.BlockCollec
 				// applied height since in this case the app has not created the snapshot yet.
 				if block.Height%snapshotCollector.GetInterval() == 0 && appHeight < block.Height {
 					for {
-						logger.Info().Msg(fmt.Sprintf("waiting until snapshot at height %d is created by cosmos app", block.Height))
+						utils.Logger.Info().Msg(fmt.Sprintf("waiting until snapshot at height %d is created by cosmos app", block.Height))
 
 						found, err := app.ConsensusEngine.IsSnapshotAvailable(block.Height)
 						if err != nil {
@@ -136,12 +139,12 @@ func StartBlockSyncExecutor(app *app.CosmosApp, blockCollector types.BlockCollec
 						}
 
 						if !found {
-							logger.Info().Msg(fmt.Sprintf("snapshot at height %d was not created yet. Waiting ...", block.Height))
+							utils.Logger.Info().Msg(fmt.Sprintf("snapshot at height %d was not created yet. Waiting ...", block.Height))
 							time.Sleep(10 * time.Second)
 							continue
 						}
 
-						logger.Info().Msg(fmt.Sprintf("snapshot at height %d was successfully created. Continuing ...", block.Height))
+						utils.Logger.Info().Msg(fmt.Sprintf("snapshot at height %d was successfully created. Continuing ...", block.Height))
 						break
 					}
 
@@ -154,10 +157,10 @@ func StartBlockSyncExecutor(app *app.CosmosApp, blockCollector types.BlockCollec
 
 				// if KSYNC has already fetched 3 * snapshot_interval ahead of the snapshot pool we wait
 				// in order to not bloat the KSYNC process. If skipWaiting is true we sync as far as possible
-				if !app.GetFlags().SkipWaiting {
+				if !flags.SkipWaiting {
 					// only log this message once
 					if nextBlock.Height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotCollector.GetInterval()) {
-						logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to produce new bundles")
+						utils.Logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to produce new bundles")
 					}
 
 					for nextBlock.Height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotCollector.GetInterval()) {
@@ -172,7 +175,7 @@ func StartBlockSyncExecutor(app *app.CosmosApp, blockCollector types.BlockCollec
 			}
 
 			// stop with block execution if we have reached our target height
-			if app.GetFlags().TargetHeight > 0 && block.Height >= app.GetFlags().TargetHeight {
+			if flags.TargetHeight > 0 && block.Height >= flags.TargetHeight {
 				return nil
 			}
 

@@ -161,32 +161,3 @@ type Entry struct {
 type SourceRegistry struct {
 	Entries map[string]Entry `yaml:",inline"`
 }
-
-type KsyncFlags struct {
-	Engine                  string
-	BinaryPath              string
-	HomePath                string
-	ChainId                 string
-	ChainRest               string
-	StorageRest             string
-	BlockRpc                string
-	SnapshotPoolId          string
-	BlockPoolId             string
-	StartHeight             int64
-	TargetHeight            int64
-	RpcServer               bool
-	RpcServerPort           int64
-	SnapshotPort            int64
-	BlockRpcReqTimeout      int64
-	Source                  string
-	Pruning                 bool
-	KeepSnapshots           bool
-	SkipWaiting             bool
-	AppFlags                string
-	AutoSelectBinaryVersion bool
-	Reset                   bool
-	KeepAddrBook            bool
-	OptOut                  bool
-	Debug                   bool
-	Y                       bool
-}

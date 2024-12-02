@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 )

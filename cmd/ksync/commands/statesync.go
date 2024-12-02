@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/sync/statesync"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
@@ -29,7 +30,8 @@ func init() {
 	stateSyncCmd.Flags().BoolVarP(&flags.AutoSelectBinaryVersion, "auto-select-binary-version", "a", false, "if provided binary is cosmovisor KSYNC will automatically change the \"current\" symlink to the correct upgrade version")
 	stateSyncCmd.Flags().BoolVarP(&flags.Reset, "reset-all", "r", false, "reset this node's validator to genesis state")
 	stateSyncCmd.Flags().BoolVar(&flags.OptOut, "opt-out", false, "disable the collection of anonymous usage data")
-	stateSyncCmd.Flags().BoolVarP(&flags.Debug, "debug", "d", false, "show logs from tendermint app")
+	stateSyncCmd.Flags().BoolVarP(&flags.Debug, "debug", "d", false, "run KSYNC in debug mode")
+	stateSyncCmd.Flags().BoolVarP(&flags.AppLogs, "app-logs", "l", false, "show logs from cosmos app")
 	stateSyncCmd.Flags().BoolVarP(&flags.Y, "yes", "y", false, "automatically answer yes for all questions")
 
 	RootCmd.AddCommand(stateSyncCmd)
@@ -39,6 +41,6 @@ var stateSyncCmd = &cobra.Command{
 	Use:   "state-sync",
 	Short: "Apply state-sync snapshots",
 	RunE: func(_ *cobra.Command, _ []string) error {
-		return statesync.Start(flags)
+		return statesync.Start()
 	},
 }

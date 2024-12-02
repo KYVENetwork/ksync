@@ -3,6 +3,7 @@ package servesnapshots
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/app"
+	"github.com/KYVENetwork/ksync/flags"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
@@ -26,7 +27,7 @@ func startSnapshotApiServer(app *app.CosmosApp) *ApiServer {
 	r.GET("/get_state/:height", apiServer.GetStateHandler)
 	r.GET("/get_seen_commit/:height", apiServer.GetSeenCommitHandler)
 
-	if err := r.Run(fmt.Sprintf(":%d", app.GetFlags().SnapshotPort)); err != nil {
+	if err := r.Run(fmt.Sprintf(":%d", flags.SnapshotPort)); err != nil {
 		panic(err)
 	}
 

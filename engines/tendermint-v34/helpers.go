@@ -82,7 +82,7 @@ func CreateAndStartProxyAppConns(config *Config) (proxy.AppConns, error) {
 
 func CreateAndStartEventBus() (*tmTypes.EventBus, error) {
 	eventBus := tmTypes.NewEventBus()
-	eventBus.SetLogger(tmLogger.With("module", "events"))
+	eventBus.SetLogger(engineLogger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func DoHandshake(
 	proxyApp proxy.AppConns,
 ) error {
 	handshaker := cs.NewHandshaker(stateStore, state, blockStore, genDoc)
-	handshaker.SetLogger(tmLogger.With("module", "consensus"))
+	handshaker.SetLogger(engineLogger.With("module", "consensus"))
 	handshaker.SetEventBus(eventBus)
 	if err := handshaker.Handshake(proxyApp); err != nil {
 		return fmt.Errorf("error during handshake: %v", err)
@@ -107,7 +107,7 @@ func DoHandshake(
 }
 
 func CreateMempoolAndMempoolReactor(config *Config, proxyApp proxy.AppConns, state sm.State) mempl.Mempool {
-	logger := tmLogger.With("module", "mempool")
+	logger := engineLogger.With("module", "mempool")
 	mp := memplv0.NewCListMempool(
 		config.Mempool,
 		proxyApp.Mempool(),
@@ -126,7 +126,7 @@ func CreateMempoolAndMempoolReactor(config *Config, proxyApp proxy.AppConns, sta
 }
 
 func CreateEvidenceReactor(evidenceDB dbm.DB, stateStore sm.Store, blockStore *store.BlockStore) (*evidence.Reactor, *evidence.Pool, error) {
-	evidenceLogger := tmLogger.With("module", "evidence")
+	evidenceLogger := engineLogger.With("module", "evidence")
 	evidencePool, err := evidence.NewPool(evidenceDB, stateStore, blockStore)
 	if err != nil {
 		return nil, nil, err
