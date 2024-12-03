@@ -37,10 +37,12 @@ func getUserConfirmation(y bool, snapshotHeight, targetHeight int64) (bool, erro
 
 	// if we found a different snapshotHeight as the requested targetHeight it means there was no snapshot
 	// at the requested targetHeight. Ask the user here if KSYNC should sync to the nearest height instead
-	if snapshotHeight != targetHeight {
-		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m could not find snapshot with requested height %d, state-sync to nearest available snapshot with height %d instead? [y/N]: ", targetHeight, snapshotHeight)
-	} else {
+	if targetHeight == 0 {
+		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m no target height specified, state-sync to latest available snapshot with height %d [y/N]: ", snapshotHeight)
+	} else if snapshotHeight == targetHeight {
 		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should snapshot with height %d be applied with state-sync [y/N]: ", snapshotHeight)
+	} else {
+		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m could not find snapshot with requested height %d, state-sync to nearest available snapshot with height %d instead? [y/N]: ", targetHeight, snapshotHeight)
 	}
 
 	if _, err := fmt.Scan(&answer); err != nil {
@@ -113,6 +115,6 @@ func Start() error {
 		return fmt.Errorf("failed to start state-sync executor: %w", err)
 	}
 
-	utils.Logger.Info().Msgf("successfully finished state-sync")
+	utils.Logger.Info().Msgf("successfully finished state-sync by applying snapshot at height %d", snapshotHeight)
 	return nil
 }

@@ -244,7 +244,7 @@ func (app *CosmosApp) StartBinary(snapshotInterval int64) error {
 		return fmt.Errorf("failed to start cosmos app: %w", err)
 	}
 
-	utils.Logger.Debug().Str("binaryPath", app.binaryPath).Strs("args", cmd.Args).Int("processId", cmd.Process.Pid).Msg("started app binary")
+	utils.Logger.Debug().Str("binaryPath", app.binaryPath).Strs("args", cmd.Args).Int("processId", cmd.Process.Pid).Msg("app binary started")
 
 	app.cmd = cmd
 	return nil
@@ -291,7 +291,7 @@ func (app *CosmosApp) StartBinaryP2P() error {
 		return fmt.Errorf("failed to start cosmos app: %w", err)
 	}
 
-	utils.Logger.Debug().Str("binaryPath", app.binaryPath).Strs("args", cmd.Args).Int("processId", cmd.Process.Pid).Msg("started app binary")
+	utils.Logger.Debug().Str("binaryPath", app.binaryPath).Strs("args", cmd.Args).Int("processId", cmd.Process.Pid).Msg("app binary started")
 
 	app.cmd = cmd
 	return nil
@@ -325,7 +325,7 @@ func (app *CosmosApp) StopBinary() {
 		utils.Logger.Error().Msgf("failed to wait for process with id %d to be terminated: %s", app.cmd.Process.Pid, err)
 	}
 
-	utils.Logger.Info().Msg("stopped app binary")
+	utils.Logger.Debug().Int("processId", app.cmd.Process.Pid).Msg("app binary stopped")
 	return
 }
 

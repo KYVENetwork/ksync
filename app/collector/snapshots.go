@@ -90,8 +90,9 @@ func (collector *KyveSnapshotCollector) GetInterval() int64 {
 }
 
 func (collector *KyveSnapshotCollector) GetSnapshotHeight(targetHeight int64) int64 {
-	// if no target height was given the snapshot height is the latest available
-	if targetHeight == 0 {
+	// if no target height was given the snapshot height is the latest available,
+	// also if the target height is greater than the latest available height
+	if targetHeight == 0 || targetHeight > collector.latestAvailableHeight {
 		return collector.latestAvailableHeight
 	}
 
@@ -162,7 +163,7 @@ func (collector *KyveSnapshotCollector) DownloadChunkFromBundleId(bundleId int64
 
 func (collector *KyveSnapshotCollector) FindSnapshotBundleIdForHeight(height int64) (int64, error) {
 	latestBundleId := collector.totalBundles - 1
-	
+
 	// if the height is the latest height we can calculate the location of bundle id for the first
 	// chunk immediately
 	if height == collector.latestAvailableHeight {

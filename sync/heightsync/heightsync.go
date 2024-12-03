@@ -19,7 +19,13 @@ func getUserConfirmation(y, canApplySnapshot bool, snapshotHeight, continuationH
 	answer := ""
 
 	if canApplySnapshot {
-		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by applying snapshot at height %d and syncing the remaining %d blocks [y/N]: ", targetHeight, snapshotHeight, targetHeight-snapshotHeight)
+		if targetHeight == 0 {
+			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m no target height specified, state-sync to height %d and sync indefinitely from there [y/N]: ", snapshotHeight)
+		} else if snapshotHeight == targetHeight {
+			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by applying a snapshot at height %d [y/N]: ", targetHeight, snapshotHeight)
+		} else {
+			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by applying a snapshot at height %d and syncing the remaining %d blocks [y/N]: ", targetHeight, snapshotHeight, targetHeight-snapshotHeight)
+		}
 	} else {
 		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by syncing from height %d [y/N]: ", targetHeight, continuationHeight-1)
 	}
@@ -75,6 +81,7 @@ func Start() error {
 
 	snapshotHeight := snapshotCollector.GetSnapshotHeight(flags.TargetHeight)
 	canApplySnapshot := snapshotHeight > 0 && app.IsReset()
+	canApplyBlocks := flags.TargetHeight > snapshotHeight
 
 	var continuationHeight int64
 
@@ -90,8 +97,10 @@ func Start() error {
 		}
 	}
 
-	if err := blocksync.PerformBlockSyncValidationChecks(blockCollector, continuationHeight, flags.TargetHeight); err != nil {
-		return fmt.Errorf("block-sync validation checks failed: %w", err)
+	if canApplyBlocks {
+		if err := blocksync.PerformBlockSyncValidationChecks(blockCollector, continuationHeight, flags.TargetHeight); err != nil {
+			return fmt.Errorf("block-sync validation checks failed: %w", err)
+		}
 	}
 
 	if confirmation, err := getUserConfirmation(flags.Y, canApplySnapshot, snapshotHeight, continuationHeight, flags.TargetHeight); !confirmation {
@@ -114,12 +123,12 @@ func Start() error {
 		}
 	}
 
-	// we only pass the snapshot collector to the block executor if we are creating
-	// state-sync snapshots with serve-snapshots
-	if err := blocksync.StartBlockSyncExecutor(app, blockCollector, nil); err != nil {
-		return fmt.Errorf("failed to start block-sync executor: %w", err)
+	if canApplyBlocks {
+		if err := blocksync.StartBlockSyncExecutor(app, blockCollector, nil); err != nil {
+			return fmt.Errorf("failed to start block-sync executor: %w", err)
+		}
 	}
 
-	utils.Logger.Info().Msgf("successfully finished height-sync")
+	utils.Logger.Info().Msgf("successfully finished height-sync by reaching target height %d", flags.TargetHeight)
 	return nil
 }

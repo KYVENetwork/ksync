@@ -139,6 +139,6 @@ func Start() error {
 		return fmt.Errorf("failed to start block-sync executor: %w", err)
 	}
 
-	utils.Logger.Info().Msgf("successfully finished block-sync")
+	utils.Logger.Info().Msgf("successfully finished block-sync by reaching target height %d", flags.TargetHeight)
 	return nil
 }
