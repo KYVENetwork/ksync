@@ -17,6 +17,7 @@ func init() {
 	resetCmd.Flags().BoolVar(&flags.KeepAddrBook, "keep-addr-book", true, "keep the address book intact")
 
 	resetCmd.Flags().BoolVar(&flags.OptOut, "opt-out", false, "disable the collection of anonymous usage data")
+	resetCmd.Flags().BoolVarP(&flags.Debug, "debug", "d", false, "run KSYNC in debug mode")
 
 	RootCmd.AddCommand(resetCmd)
 }
@@ -25,8 +26,6 @@ var resetCmd = &cobra.Command{
 	Use:   "reset-all",
 	Short: "Removes all the data and WAL, reset this node's validator to genesis state",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		utils.TrackResetEvent(flags.OptOut)
-
 		app, err := app.NewCosmosApp()
 		if err != nil {
 			return fmt.Errorf("failed to init cosmos app: %w", err)

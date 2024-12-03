@@ -11,7 +11,6 @@ import (
 	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
-	"github.com/rs/zerolog"
 	"os"
 	"os/exec"
 	"strconv"
@@ -35,10 +34,6 @@ type CosmosApp struct {
 
 func NewCosmosApp() (*CosmosApp, error) {
 	app := &CosmosApp{}
-
-	if flags.Debug {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	}
 
 	if err := app.LoadBinaryPath(); err != nil {
 		return nil, fmt.Errorf("failed to load binary path: %w", err)
@@ -442,10 +437,10 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 
 // GetCurrentBinaryExecutionDuration gets the current duration since
 // the app binary was started for the first time
-func (app *CosmosApp) GetCurrentBinaryExecutionDuration() time.Duration {
+func (app *CosmosApp) GetCurrentBinaryExecutionDuration() string {
 	if app.startTime.IsZero() {
-		return time.Duration(0)
+		return time.Duration(0).String()
 	}
 
-	return time.Since(app.startTime)
+	return time.Since(app.startTime).String()
 }

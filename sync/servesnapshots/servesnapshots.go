@@ -101,6 +101,6 @@ func Start() error {
 		return fmt.Errorf("failed to start block-sync executor: %w", err)
 	}
 
-	utils.Logger.Info().Dur("duration", app.GetCurrentBinaryExecutionDuration()).Msgf("successfully finished serve-snapshots")
+	utils.Logger.Info().Str("duration", app.GetCurrentBinaryExecutionDuration()).Msgf("successfully finished serve-snapshots")
 	return nil
 }

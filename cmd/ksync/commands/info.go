@@ -16,6 +16,7 @@ func init() {
 	infoCmd.Flags().StringVarP(&flags.ChainId, "chain-id", "c", utils.DefaultChainId, fmt.Sprintf("KYVE chain id [\"%s\",\"%s\"]", utils.ChainIdMainnet, utils.ChainIdKaon))
 
 	infoCmd.Flags().BoolVar(&flags.OptOut, "opt-out", false, "disable the collection of anonymous usage data")
+	infoCmd.Flags().BoolVarP(&flags.Debug, "debug", "d", false, "run KSYNC in debug mode")
 
 	RootCmd.AddCommand(infoCmd)
 }
@@ -24,8 +25,6 @@ var infoCmd = &cobra.Command{
 	Use:   "info",
 	Short: "Get KSYNC chain support information",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		utils.TrackInfoEvent(flags.ChainId, flags.OptOut)
-
 		if flags.ChainId != utils.ChainIdMainnet && flags.ChainId != utils.ChainIdKaon {
 			return fmt.Errorf("chain-id %s not supported", flags.ChainId)
 		}

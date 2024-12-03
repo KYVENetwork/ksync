@@ -23,6 +23,10 @@ func GetVersion() string {
 		panic("failed to get ksync version")
 	}
 
+	if version.Main.Version == "" {
+		return "dev"
+	}
+
 	return strings.TrimSpace(version.Main.Version)
 }
 

@@ -1,5 +1,7 @@
 package flags
 
+// note that new flags have to be also registered
+// for tracking in metrics/metrics.go
 var (
 	BinaryPath              string
 	HomePath                string
