@@ -183,6 +183,7 @@ func (collector *KyveSnapshotCollector) FindSnapshotBundleIdForHeight(height int
 	}
 
 	// if the height is not the latest height we try to find it with binary search
+	// TODO: consider interpolation search
 	low := int64(0)
 	high := latestBundleId
 

@@ -129,6 +129,6 @@ func Start() error {
 		}
 	}
 
-	utils.Logger.Info().Msgf("successfully finished height-sync by reaching target height %d", flags.TargetHeight)
+	utils.Logger.Info().Dur("duration", app.GetCurrentBinaryExecutionDuration()).Msgf("successfully finished height-sync by reaching target height %d", flags.TargetHeight)
 	return nil
 }

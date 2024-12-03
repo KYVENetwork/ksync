@@ -25,7 +25,8 @@ type CosmosApp struct {
 	isCosmovisor bool
 	homePath     string
 
-	cmd *exec.Cmd
+	cmd       *exec.Cmd
+	startTime time.Time
 
 	Genesis         *genesis.Genesis
 	Source          *source.Source
@@ -170,6 +171,12 @@ func (app *CosmosApp) StartBinary(snapshotInterval int64) error {
 		return nil
 	}
 
+	// we start tracking execution time of KSYNC from here since the binary is started
+	// right after the user prompt and right before syncing blocks or snapshots
+	if app.startTime.IsZero() {
+		app.startTime = time.Now()
+	}
+
 	cmd := exec.Command(app.binaryPath)
 
 	if app.isCosmovisor {
@@ -238,13 +245,13 @@ func (app *CosmosApp) StartBinary(snapshotInterval int64) error {
 		cmd.Stderr = os.Stderr
 	}
 
-	utils.Logger.Info().Msg("starting app binary")
+	utils.Logger.Info().Msg("starting cosmos app from provided binary")
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start cosmos app: %w", err)
 	}
 
-	utils.Logger.Debug().Str("binaryPath", app.binaryPath).Strs("args", cmd.Args).Int("processId", cmd.Process.Pid).Msg("app binary started")
+	utils.Logger.Debug().Strs("args", cmd.Args).Int("processId", cmd.Process.Pid).Msg("app binary started")
 
 	app.cmd = cmd
 	return nil
@@ -285,13 +292,13 @@ func (app *CosmosApp) StartBinaryP2P() error {
 		cmd.Stderr = os.Stderr
 	}
 
-	utils.Logger.Info().Msg("starting app binary in p2p mode")
+	utils.Logger.Info().Msg("starting cosmos app from provided binary in p2p mode")
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start cosmos app: %w", err)
 	}
 
-	utils.Logger.Debug().Str("binaryPath", app.binaryPath).Strs("args", cmd.Args).Int("processId", cmd.Process.Pid).Msg("app binary started")
+	utils.Logger.Debug().Strs("args", cmd.Args).Int("processId", cmd.Process.Pid).Msg("app binary started")
 
 	app.cmd = cmd
 	return nil
@@ -431,4 +438,14 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 
 	utils.Logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", app.ConsensusEngine.GetName())
 	return nil
+}
+
+// GetCurrentBinaryExecutionDuration gets the current duration since
+// the app binary was started for the first time
+func (app *CosmosApp) GetCurrentBinaryExecutionDuration() time.Duration {
+	if app.startTime.IsZero() {
+		return time.Duration(0)
+	}
+
+	return time.Since(app.startTime)
 }

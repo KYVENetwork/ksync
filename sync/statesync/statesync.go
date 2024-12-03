@@ -115,6 +115,6 @@ func Start() error {
 		return fmt.Errorf("failed to start state-sync executor: %w", err)
 	}
 
-	utils.Logger.Info().Msgf("successfully finished state-sync by applying snapshot at height %d", snapshotHeight)
+	utils.Logger.Info().Dur("duration", app.GetCurrentBinaryExecutionDuration()).Msgf("successfully finished state-sync by applying snapshot at height %d", snapshotHeight)
 	return nil
 }
