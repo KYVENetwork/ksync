@@ -23,9 +23,6 @@ func Execute() {
 	// overwrite help command so we can use -h as a shortcut
 	RootCmd.PersistentFlags().BoolP("help", "", false, "help for this command")
 
-	// reload logger so it has access to flags
-	utils.Logger = utils.NewLogger(utils.ApplicationName)
-
 	if err := RootCmd.Execute(); err != nil {
 		utils.Logger.Error().Msg(err.Error())
 	}

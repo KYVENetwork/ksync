@@ -19,7 +19,7 @@ func (l EngineLogger) Debug(msg string, keyvals ...interface{}) {
 	logger := l.logger.Debug()
 
 	for i := 0; i < len(keyvals); i = i + 2 {
-		logger = logger.Str(fmt.Sprintf("%v", keyvals[i]), fmt.Sprintf("%v", keyvals[i+1]))
+		logger = logger.Any(fmt.Sprintf("%s", keyvals[i]), keyvals[i+1])
 	}
 
 	logger.Msg(msg)
@@ -30,9 +30,9 @@ func (l EngineLogger) Info(msg string, keyvals ...interface{}) {
 
 	for i := 0; i < len(keyvals); i = i + 2 {
 		if keyvals[i] == "hash" || keyvals[i] == "appHash" {
-			logger = logger.Str(fmt.Sprintf("%v", keyvals[i]), fmt.Sprintf("%X", keyvals[i+1]))
+			logger = logger.Str(fmt.Sprintf("%s", keyvals[i]), fmt.Sprintf("%X", keyvals[i+1]))
 		} else {
-			logger = logger.Str(fmt.Sprintf("%v", keyvals[i]), fmt.Sprintf("%v", keyvals[i+1]))
+			logger = logger.Any(fmt.Sprintf("%s", keyvals[i]), keyvals[i+1])
 		}
 	}
 
@@ -43,13 +43,12 @@ func (l EngineLogger) Error(msg string, keyvals ...interface{}) {
 	logger := l.logger.Error()
 
 	for i := 0; i < len(keyvals); i = i + 2 {
-		logger = logger.Str(fmt.Sprintf("%v", keyvals[i]), fmt.Sprintf("%v", keyvals[i+1]))
+		logger = logger.Any(fmt.Sprintf("%s", keyvals[i]), keyvals[i+1])
 	}
 
 	logger.Msg(msg)
 }
 
-func (l EngineLogger) With(keyvals ...interface{}) (logger log.Logger) {
-	logger = EngineLogger{logger: utils.NewLogger(utils.EngineTendermintV34, keyvals)}
-	return
+func (l EngineLogger) With(keyvals ...interface{}) log.Logger {
+	return EngineLogger{logger: utils.NewLogger(utils.EngineTendermintV34, keyvals)}
 }

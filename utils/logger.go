@@ -2,7 +2,6 @@ package utils
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/flags"
 	"github.com/rs/zerolog"
 	"io"
 	"os"
@@ -11,6 +10,10 @@ import (
 var (
 	Logger = NewLogger(ApplicationName)
 )
+
+func init() {
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+}
 
 func NewLogger(name string, keyvals ...interface{}) zerolog.Logger {
 	writer := io.MultiWriter(os.Stdout)
@@ -27,9 +30,5 @@ func NewLogger(name string, keyvals ...interface{}) zerolog.Logger {
 		}
 	}
 
-	if flags.Debug {
-		return loggerWith.Timestamp().Logger().Level(zerolog.DebugLevel)
-	}
-
-	return loggerWith.Timestamp().Logger().Level(zerolog.InfoLevel)
+	return loggerWith.Timestamp().Logger()
 }

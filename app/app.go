@@ -11,6 +11,7 @@ import (
 	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
+	"github.com/rs/zerolog"
 	"os"
 	"os/exec"
 	"strconv"
@@ -34,7 +35,9 @@ type CosmosApp struct {
 func NewCosmosApp() (*CosmosApp, error) {
 	app := &CosmosApp{}
 
-	utils.Logger = utils.NewLogger(utils.ApplicationName)
+	if flags.Debug {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
 
 	if err := app.LoadBinaryPath(); err != nil {
 		return nil, fmt.Errorf("failed to load binary path: %w", err)
@@ -120,6 +123,8 @@ func (app *CosmosApp) AutoSelectBinaryVersion(height int64) error {
 			return fmt.Errorf("failed to remove symlink from path %s: %w", symlinkPath, err)
 		}
 	}
+
+	utils.Logger.Debug().Str("upgradePath", upgradePath).Str("symlinkPath", symlinkPath).Msg("created symlink to upgrade directory")
 
 	if err := os.Symlink(upgradePath, symlinkPath); err != nil {
 		return fmt.Errorf("failed to create symlink to upgrade directory: %w", err)
@@ -239,6 +244,8 @@ func (app *CosmosApp) StartBinary(snapshotInterval int64) error {
 		return fmt.Errorf("failed to start cosmos app: %w", err)
 	}
 
+	utils.Logger.Debug().Str("binaryPath", app.binaryPath).Strs("args", cmd.Args).Int("processId", cmd.Process.Pid).Msg("started app binary")
+
 	app.cmd = cmd
 	return nil
 }
@@ -284,6 +291,8 @@ func (app *CosmosApp) StartBinaryP2P() error {
 		return fmt.Errorf("failed to start cosmos app: %w", err)
 	}
 
+	utils.Logger.Debug().Str("binaryPath", app.binaryPath).Strs("args", cmd.Args).Int("processId", cmd.Process.Pid).Msg("started app binary")
+
 	app.cmd = cmd
 	return nil
 }
@@ -306,6 +315,7 @@ func (app *CosmosApp) StopBinary() {
 	// app actually exits
 	go func() {
 		for app.cmd != nil && pId == app.cmd.Process.Pid {
+			utils.Logger.Debug().Int("processId", app.cmd.Process.Pid).Msg("sending SIGTERM signal to binary process")
 			_ = app.cmd.Process.Signal(syscall.SIGTERM)
 			time.Sleep(5 * time.Second)
 		}

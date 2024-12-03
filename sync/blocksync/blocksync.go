@@ -12,7 +12,7 @@ import (
 
 // PerformBlockSyncValidationChecks makes boundary checks if app can be block-synced from the given
 // continuation height to the given target height
-func PerformBlockSyncValidationChecks(blockCollector types.BlockCollector, continuationHeight, targetHeight int64, checkEndHeight bool) error {
+func PerformBlockSyncValidationChecks(blockCollector types.BlockCollector, continuationHeight, targetHeight int64) error {
 	earliest := blockCollector.GetEarliestAvailableHeight()
 	latest := blockCollector.GetLatestAvailableHeight()
 
@@ -30,9 +30,8 @@ func PerformBlockSyncValidationChecks(blockCollector types.BlockCollector, conti
 		return fmt.Errorf("requested target height is %d but app is already at block height %d", targetHeight, continuationHeight)
 	}
 
-	// checkEndHeight can be false if the target height is likely not being created yet
-	if checkEndHeight && targetHeight > 0 && targetHeight > latest {
-		return fmt.Errorf("requested target height is %d but current last available block on pool is %d", targetHeight, latest)
+	if targetHeight > 0 && targetHeight > latest {
+		utils.Logger.Warn().Msgf("target height %d does not exist on pool yet, syncing until height is created on pool and reached", targetHeight)
 	}
 
 	if targetHeight == 0 {
@@ -116,7 +115,7 @@ func Start() error {
 		return err
 	}
 
-	if err := PerformBlockSyncValidationChecks(blockCollector, continuationHeight, flags.TargetHeight, true); err != nil {
+	if err := PerformBlockSyncValidationChecks(blockCollector, continuationHeight, flags.TargetHeight); err != nil {
 		return fmt.Errorf("block-sync validation checks failed: %w", err)
 	}
 

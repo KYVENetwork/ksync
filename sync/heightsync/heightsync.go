@@ -5,8 +5,8 @@ import (
 	"github.com/KYVENetwork/ksync/app"
 	"github.com/KYVENetwork/ksync/app/collector"
 	"github.com/KYVENetwork/ksync/flags"
-	blocksync2 "github.com/KYVENetwork/ksync/sync/blocksync"
-	statesync2 "github.com/KYVENetwork/ksync/sync/statesync"
+	"github.com/KYVENetwork/ksync/sync/blocksync"
+	"github.com/KYVENetwork/ksync/sync/statesync"
 	"github.com/KYVENetwork/ksync/utils"
 	"strings"
 )
@@ -85,12 +85,12 @@ func Start() error {
 	}
 
 	if canApplySnapshot {
-		if err := statesync2.PerformStateSyncValidationChecks(snapshotCollector, snapshotHeight); err != nil {
+		if err := statesync.PerformStateSyncValidationChecks(snapshotCollector, snapshotHeight); err != nil {
 			return fmt.Errorf("state-sync validation checks failed: %w", err)
 		}
 	}
 
-	if err := blocksync2.PerformBlockSyncValidationChecks(blockCollector, continuationHeight, flags.TargetHeight, true); err != nil {
+	if err := blocksync.PerformBlockSyncValidationChecks(blockCollector, continuationHeight, flags.TargetHeight); err != nil {
 		return fmt.Errorf("block-sync validation checks failed: %w", err)
 	}
 
@@ -109,14 +109,14 @@ func Start() error {
 	defer app.StopAll()
 
 	if canApplySnapshot {
-		if err := statesync2.StartStateSyncExecutor(app, snapshotCollector, snapshotHeight); err != nil {
+		if err := statesync.StartStateSyncExecutor(app, snapshotCollector, snapshotHeight); err != nil {
 			return fmt.Errorf("failed to start state-sync executor: %w", err)
 		}
 	}
 
 	// we only pass the snapshot collector to the block executor if we are creating
 	// state-sync snapshots with serve-snapshots
-	if err := blocksync2.StartBlockSyncExecutor(app, blockCollector, nil); err != nil {
+	if err := blocksync.StartBlockSyncExecutor(app, blockCollector, nil); err != nil {
 		return fmt.Errorf("failed to start block-sync executor: %w", err)
 	}
 

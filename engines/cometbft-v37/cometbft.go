@@ -107,6 +107,8 @@ func (engine *Engine) LoadConfig() error {
 		return fmt.Errorf("loading node key file failed: %w", err)
 	}
 	engine.nodeKey = nodeKey
+
+	engineLogger.Debug("loaded config", "configPath", fmt.Sprintf("%s/config.toml", engine.homePath))
 	return nil
 }
 
@@ -139,6 +141,15 @@ func (engine *Engine) OpenDBs() error {
 	engine.evidenceDB = evidenceDB
 
 	engine.areDBsOpen = true
+	engineLogger.Debug(
+		"opened dbs",
+		"blockDB",
+		fmt.Sprintf("%s/%s/blockstore.db", engine.homePath, engine.config.DBPath),
+		"stateDB",
+		fmt.Sprintf("%s/%s/state.db", engine.homePath, engine.config.DBPath),
+		"evidenceDB",
+		fmt.Sprintf("%s/%s/evidence.db", engine.homePath, engine.config.DBPath),
+	)
 	return nil
 }
 
@@ -160,6 +171,15 @@ func (engine *Engine) CloseDBs() error {
 	}
 
 	engine.areDBsOpen = false
+	engineLogger.Debug(
+		"closed dbs",
+		"blockDB",
+		fmt.Sprintf("%s/%s/blockstore.db", engine.homePath, engine.config.DBPath),
+		"stateDB",
+		fmt.Sprintf("%s/%s/state.db", engine.homePath, engine.config.DBPath),
+		"evidenceDB",
+		fmt.Sprintf("%s/%s/evidence.db", engine.homePath, engine.config.DBPath),
+	)
 	return nil
 }
 
@@ -182,6 +202,7 @@ func (engine *Engine) StartProxyApp() error {
 	}
 
 	engine.proxyApp = proxyApp
+	engineLogger.Debug("started proxy app connections", "address", engine.GetProxyAppAddress())
 	return nil
 }
 
@@ -195,6 +216,7 @@ func (engine *Engine) StopProxyApp() error {
 	}
 
 	engine.proxyApp = nil
+	engineLogger.Debug("stopped proxy app connections", "address", engine.GetProxyAppAddress())
 	return nil
 }
 
