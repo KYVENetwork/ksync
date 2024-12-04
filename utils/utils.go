@@ -151,25 +151,6 @@ func ParseSnapshotFromKey(key string) (height int64, chunkIndex int64, err error
 	return
 }
 
-func GetChainRest(chainId, chainRest string) string {
-	if chainRest != "" {
-		// trim trailing slash
-		return strings.TrimSuffix(chainRest, "/")
-	}
-
-	// if no custom rest endpoint was given we take it from the chainId
-	switch chainId {
-	case ChainIdMainnet:
-		return RestEndpointMainnet
-	case ChainIdKaon:
-		return RestEndpointKaon
-	case ChainIdKorellia:
-		return RestEndpointKorellia
-	default:
-		panic(fmt.Sprintf("flag --chain-id has to be either \"%s\", \"%s\" or \"%s\"", ChainIdMainnet, ChainIdKaon, ChainIdKorellia))
-	}
-}
-
 func IsUpgradeHeight(homePath string, height int64) bool {
 	upgradeInfoPath := fmt.Sprintf("%s/data/upgrade-info.json", homePath)
 

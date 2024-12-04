@@ -24,6 +24,7 @@ type CosmosApp struct {
 	binaryPath   string
 	isCosmovisor bool
 	homePath     string
+	chainRest    string
 
 	cmd *exec.Cmd
 
@@ -41,6 +42,10 @@ func NewCosmosApp() (*CosmosApp, error) {
 
 	if err := app.LoadHomePath(); err != nil {
 		return nil, fmt.Errorf("failed to load home path from binary: %w", err)
+	}
+
+	if err := app.LoadChainRest(); err != nil {
+		return nil, fmt.Errorf("failed to load chain rest endpoint: %w", err)
 	}
 
 	if err := app.LoadConsensusEngine(); err != nil {
@@ -70,6 +75,10 @@ func (app *CosmosApp) GetBinaryPath() string {
 
 func (app *CosmosApp) GetHomePath() string {
 	return app.homePath
+}
+
+func (app *CosmosApp) GetChainRest() string {
+	return app.chainRest
 }
 
 func (app *CosmosApp) IsCosmovisor() bool {
@@ -372,6 +381,32 @@ func (app *CosmosApp) LoadHomePath() error {
 	}
 
 	return fmt.Errorf("failed to find home path in binary output")
+}
+
+func (app *CosmosApp) LoadChainRest() (err error) {
+	app.chainRest, err = func() (string, error) {
+		if flags.ChainRest != "" {
+			return strings.TrimSuffix(flags.ChainRest, "/"), nil
+		}
+
+		switch flags.ChainId {
+		case utils.ChainIdMainnet:
+			return utils.RestEndpointMainnet, nil
+		case utils.ChainIdKaon:
+			return utils.RestEndpointKaon, nil
+		case utils.ChainIdKorellia:
+			return utils.RestEndpointKorellia, nil
+		default:
+			return "", fmt.Errorf("flag --chain-id has to be either \"%s\", \"%s\" or \"%s\"", utils.ChainIdMainnet, utils.ChainIdKaon, utils.ChainIdKorellia)
+		}
+	}()
+
+	if err != nil {
+		return err
+	}
+
+	logger.Logger.Info().Msgf("loaded chain rest endpoint \"%s\"", app.GetChainRest())
+	return nil
 }
 
 func (app *CosmosApp) LoadConsensusEngine() error {

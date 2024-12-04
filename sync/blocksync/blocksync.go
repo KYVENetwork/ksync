@@ -9,7 +9,6 @@ import (
 	"github.com/KYVENetwork/ksync/metrics"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
-	"strings"
 )
 
 // PerformBlockSyncValidationChecks makes boundary checks if app can be block-synced from the given
@@ -60,10 +59,7 @@ func getBlockCollector(app *app.CosmosApp) (types.BlockCollector, error) {
 		return nil, fmt.Errorf("failed to get block pool id: %w", err)
 	}
 
-	chainRest := utils.GetChainRest(flags.ChainId, flags.ChainRest)
-	storageRest := strings.TrimSuffix(flags.StorageRest, "/")
-
-	blockCollector, err := collector.NewKyveBlockCollector(blockPoolId, chainRest, storageRest)
+	blockCollector, err := collector.NewKyveBlockCollector(blockPoolId, app.GetChainRest())
 	if err != nil {
 		return nil, fmt.Errorf("failed to init kyve block collector: %w", err)
 	}

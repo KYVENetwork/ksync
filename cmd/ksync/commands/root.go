@@ -12,6 +12,10 @@ import (
 	"syscall"
 )
 
+// subCmd is set in PersistentPreRun and will be
+// set to the subcommand which is executed. From
+// this we can get the information on which subcommand
+// the user executed
 var subCmd *cobra.Command
 
 // RootCmd is the root command for KSYNC.

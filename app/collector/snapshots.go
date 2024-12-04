@@ -11,9 +11,8 @@ import (
 )
 
 type KyveSnapshotCollector struct {
-	poolId      int64
-	chainRest   string
-	storageRest string
+	poolId    int64
+	chainRest string
 
 	earliestAvailableHeight int64
 	latestAvailableHeight   int64
@@ -21,7 +20,7 @@ type KyveSnapshotCollector struct {
 	totalBundles            int64
 }
 
-func NewKyveSnapshotCollector(poolId int64, chainRest, storageRest string) (*KyveSnapshotCollector, error) {
+func NewKyveSnapshotCollector(poolId int64, chainRest string) (*KyveSnapshotCollector, error) {
 	poolResponse, err := utils.GetPool(chainRest, poolId)
 	if err != nil {
 		return nil, fmt.Errorf("fail to get pool with id %d: %w", poolId, err)
@@ -69,7 +68,6 @@ func NewKyveSnapshotCollector(poolId int64, chainRest, storageRest string) (*Kyv
 	return &KyveSnapshotCollector{
 		poolId:                  poolId,
 		chainRest:               chainRest,
-		storageRest:             storageRest,
 		earliestAvailableHeight: startHeight,
 		latestAvailableHeight:   latestAvailableHeight,
 		interval:                config.Interval,
@@ -121,7 +119,7 @@ func (collector *KyveSnapshotCollector) GetSnapshotFromBundleId(bundleId int64) 
 		return nil, fmt.Errorf("failed getting finalized bundle by id %d: %w", bundleId, err)
 	}
 
-	data, err := utils.GetDataFromFinalizedBundle(*chunkBundleFinalized, collector.storageRest)
+	data, err := utils.GetDataFromFinalizedBundle(*chunkBundleFinalized)
 	if err != nil {
 		return nil, fmt.Errorf("failed getting data from finalized bundle: %w", err)
 	}
@@ -144,7 +142,7 @@ func (collector *KyveSnapshotCollector) DownloadChunkFromBundleId(bundleId int64
 		return nil, fmt.Errorf("failed getting finalized bundle by id %d: %w", bundleId, err)
 	}
 
-	data, err := utils.GetDataFromFinalizedBundle(*chunkBundleFinalized, collector.storageRest)
+	data, err := utils.GetDataFromFinalizedBundle(*chunkBundleFinalized)
 	if err != nil {
 		return nil, fmt.Errorf("failed getting data from finalized bundle: %w", err)
 	}

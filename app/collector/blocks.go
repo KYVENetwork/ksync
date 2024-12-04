@@ -108,12 +108,11 @@ type KyveBlockCollector struct {
 	poolId                  int64
 	runtime                 string
 	chainRest               string
-	storageRest             string
 	earliestAvailableHeight int64
 	latestAvailableHeight   int64
 }
 
-func NewKyveBlockCollector(poolId int64, chainRest, storageRest string) (*KyveBlockCollector, error) {
+func NewKyveBlockCollector(poolId int64, chainRest string) (*KyveBlockCollector, error) {
 	poolResponse, err := utils.GetPool(chainRest, poolId)
 	if err != nil {
 		return nil, fmt.Errorf("fail to get pool with id %d: %w", poolId, err)
@@ -141,7 +140,6 @@ func NewKyveBlockCollector(poolId int64, chainRest, storageRest string) (*KyveBl
 		poolId:                  poolId,
 		runtime:                 poolResponse.Pool.Data.Runtime,
 		chainRest:               chainRest,
-		storageRest:             storageRest,
 		earliestAvailableHeight: startHeight,
 		latestAvailableHeight:   currentHeight,
 	}, nil
@@ -161,7 +159,7 @@ func (collector *KyveBlockCollector) GetBlock(height int64) ([]byte, error) {
 		return nil, fmt.Errorf("failed to get finalized bundle for block height %d: %w", height, err)
 	}
 
-	deflated, err := utils.GetDataFromFinalizedBundle(*finalizedBundle, collector.storageRest)
+	deflated, err := utils.GetDataFromFinalizedBundle(*finalizedBundle)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get data from finalized bundle with storage id %s: %w", finalizedBundle.StorageId, err)
 	}
@@ -227,7 +225,7 @@ BundleCollector:
 				continue
 			}
 
-			deflated, err := utils.GetDataFromFinalizedBundle(finalizedBundle, collector.storageRest)
+			deflated, err := utils.GetDataFromFinalizedBundle(finalizedBundle)
 			if err != nil {
 				errorCh <- fmt.Errorf("failed to get data from finalized bundle with storage id %s: %w", finalizedBundle.StorageId, err)
 				return

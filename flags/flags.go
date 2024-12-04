@@ -6,8 +6,8 @@ var (
 	BinaryPath              string
 	HomePath                string
 	ChainId                 string
-	ChainRest               string // TODO: getter function in CMD?
-	StorageRest             string // TODO: getter function in CMD?
+	ChainRest               string
+	StorageRest             string
 	BlockRpc                string
 	SnapshotPoolId          string
 	BlockPoolId             string

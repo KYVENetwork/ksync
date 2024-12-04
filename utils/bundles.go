@@ -3,8 +3,10 @@ package utils
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/tendermint/tendermint/libs/json"
+	"strings"
 )
 
 func GetPool(restEndpoint string, poolId int64) (*types.PoolResponse, error) {
@@ -73,9 +75,9 @@ func GetFinalizedBundleById(restEndpoint string, poolId int64, bundleId int64) (
 
 // GetDataFromFinalizedBundle downloads the data from the provided bundle, verify if the checksum on the KYVE
 // chain matches and finally decompresses it before returning
-func GetDataFromFinalizedBundle(bundle types.FinalizedBundle, storageRest string) ([]byte, error) {
+func GetDataFromFinalizedBundle(bundle types.FinalizedBundle) ([]byte, error) {
 	// retrieve bundle from storage provider
-	data, err := RetrieveDataFromStorageProvider(bundle, storageRest)
+	data, err := RetrieveDataFromStorageProvider(bundle)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve data from storage provider with storage id %s: %w", bundle.StorageId, err)
 	}
@@ -94,9 +96,9 @@ func GetDataFromFinalizedBundle(bundle types.FinalizedBundle, storageRest string
 	return deflated, nil
 }
 
-func RetrieveDataFromStorageProvider(bundle types.FinalizedBundle, storageRest string) ([]byte, error) {
-	if storageRest != "" {
-		return GetFromUrl(fmt.Sprintf("%s/%s", storageRest, bundle.StorageId))
+func RetrieveDataFromStorageProvider(bundle types.FinalizedBundle) ([]byte, error) {
+	if flags.StorageRest != "" {
+		return GetFromUrl(fmt.Sprintf("%s/%s", strings.TrimSuffix(flags.StorageRest, "/"), bundle.StorageId))
 	}
 
 	switch bundle.StorageProviderId {

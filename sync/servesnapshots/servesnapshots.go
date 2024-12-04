@@ -9,8 +9,6 @@ import (
 	"github.com/KYVENetwork/ksync/metrics"
 	"github.com/KYVENetwork/ksync/sync/blocksync"
 	"github.com/KYVENetwork/ksync/sync/statesync"
-	"github.com/KYVENetwork/ksync/utils"
-	"strings"
 )
 
 func Start() error {
@@ -45,15 +43,12 @@ func Start() error {
 		return fmt.Errorf("failed to get block pool id: %w", err)
 	}
 
-	chainRest := utils.GetChainRest(flags.ChainId, flags.ChainRest)
-	storageRest := strings.TrimSuffix(flags.StorageRest, "/")
-
-	snapshotCollector, err := collector.NewKyveSnapshotCollector(snapshotPoolId, chainRest, storageRest)
+	snapshotCollector, err := collector.NewKyveSnapshotCollector(snapshotPoolId, app.GetChainRest())
 	if err != nil {
 		return fmt.Errorf("failed to init kyve snapshot collector: %w", err)
 	}
 
-	blockCollector, err := collector.NewKyveBlockCollector(blockPoolId, chainRest, storageRest)
+	blockCollector, err := collector.NewKyveBlockCollector(blockPoolId, app.GetChainRest())
 	if err != nil {
 		return fmt.Errorf("failed to init kyve block collector: %w", err)
 	}
