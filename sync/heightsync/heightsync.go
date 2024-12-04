@@ -115,6 +115,13 @@ func Start() error {
 	}
 
 	if canApplyBlocks {
+		// TODO: dydx needs restart here (and in serve-snapshots), other chains too?
+		if app.Genesis.GetChainId() == "dydx-mainnet-1" {
+			if err := app.RestartAll(0); err != nil {
+				return fmt.Errorf("failed to restart app: %w", err)
+			}
+		}
+
 		if err := blocksync.StartBlockSyncExecutor(app, blockCollector, nil); err != nil {
 			return fmt.Errorf("failed to start block-sync executor: %w", err)
 		}

@@ -278,7 +278,7 @@ func (engine *Engine) ApplyBlock(rawBlock, nextRawBlock []byte) error {
 
 	// get block data
 	blockParts := block.MakePartSet(tmTypes.BlockPartSizeBytes)
-	blockId := block.LastBlockID
+	blockId := nextBlock.LastBlockID
 
 	// verify block
 	if err := engine.blockExecutor.ValidateBlock(engine.state, block); err != nil {

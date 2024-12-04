@@ -171,6 +171,11 @@ func (app *CosmosApp) StopAll() {
 	app.StopBinary()
 }
 
+func (app *CosmosApp) RestartAll(snapshotInterval int64) error {
+	app.StopAll()
+	return app.StartAll(snapshotInterval)
+}
+
 func (app *CosmosApp) StartBinary(snapshotInterval int64) error {
 	if app.cmd != nil {
 		return nil

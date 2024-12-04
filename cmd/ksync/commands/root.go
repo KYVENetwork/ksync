@@ -5,6 +5,7 @@ import (
 	"github.com/KYVENetwork/ksync/metrics"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 // RootCmd is the root command for KSYNC.
@@ -38,4 +39,8 @@ func Execute() {
 
 	metrics.SendTrack(errorRuntime)
 	metrics.WaitForInterrupt()
+
+	if errorRuntime != nil {
+		os.Exit(1)
+	}
 }

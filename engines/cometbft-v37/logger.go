@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	engineLogger = EngineLogger{logger: logger.NewLogger(utils.EngineCometBFTV38)}
+	engineLogger = EngineLogger{logger: logger.NewLogger(utils.EngineCometBFTV37)}
 )
 
 type EngineLogger struct {
@@ -51,5 +51,5 @@ func (l EngineLogger) Error(msg string, keyvals ...interface{}) {
 }
 
 func (l EngineLogger) With(keyvals ...interface{}) log.Logger {
-	return EngineLogger{logger: logger.NewLogger(utils.EngineCometBFTV38, keyvals)}
+	return EngineLogger{logger: logger.NewLogger(utils.EngineCometBFTV37, keyvals)}
 }
