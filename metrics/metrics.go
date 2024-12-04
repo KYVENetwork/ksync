@@ -207,6 +207,7 @@ func Send(cmd *cobra.Command, runtimeError error) {
 	userId, err := getUserId()
 	if err != nil {
 		logger.Logger.Debug().Err(err).Msg("failed to get user id")
+		return
 	}
 
 	event := "ksync"
