@@ -208,14 +208,11 @@ func getProperties(errorRuntime error) analytics.Properties {
 	properties.Set("error_interrupt", interrupt)
 
 	// set status properties (all must start with "status_")
-	if command == "block-sync" {
+	if command == "block-sync" || command == "height-sync" || command == "serve-blocks" || command == "serve-snapshots" {
 		reachedTargetHeight := flags.TargetHeight > 0 && latestHeight == flags.TargetHeight && errorRuntime == nil
 		properties.Set("status_reached_target_height", reachedTargetHeight)
 	} else if command == "state-sync" {
 		reachedTargetHeight := latestHeight > 0 && errorRuntime == nil
-		properties.Set("status_reached_target_height", reachedTargetHeight)
-	} else if command == "height-sync" {
-		reachedTargetHeight := flags.TargetHeight > 0 && latestHeight == flags.TargetHeight && errorRuntime == nil
 		properties.Set("status_reached_target_height", reachedTargetHeight)
 	} else {
 		properties.Set("status_reached_target_height", false)

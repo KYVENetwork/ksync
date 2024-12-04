@@ -329,7 +329,7 @@ func (app *CosmosApp) StopBinary() {
 	go func() {
 		for app.cmd != nil && pId == app.cmd.Process.Pid {
 			logger.Logger.Debug().Int("processId", app.cmd.Process.Pid).Msg("sending SIGTERM signal to binary process")
-			_ = app.cmd.Process.Signal(syscall.SIGTERM) // TODO: panics here
+			_ = app.cmd.Process.Signal(syscall.SIGTERM)
 			time.Sleep(5 * time.Second)
 		}
 	}()
