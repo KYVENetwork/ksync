@@ -10,6 +10,7 @@ import (
 	"github.com/KYVENetwork/ksync/engines/tendermint-v34"
 	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/logger"
+	"github.com/KYVENetwork/ksync/metrics"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"os"
@@ -307,9 +308,16 @@ func (app *CosmosApp) StopBinary() {
 		return
 	}
 
+	// if KSYNC received an interrupt we can be sure that the subprocess
+	// received it too so we don't need to stop it
+	if metrics.GetInterrupt() {
+		return
+	}
+
 	// ensure that we don't stop any other process in the goroutine below
 	// after this method returns
 	pId := app.cmd.Process.Pid
+	logger.Logger.Debug().Int("processId", pId).Msg("stopping app binary")
 
 	defer func() {
 		app.cmd = nil
@@ -321,7 +329,7 @@ func (app *CosmosApp) StopBinary() {
 	go func() {
 		for app.cmd != nil && pId == app.cmd.Process.Pid {
 			logger.Logger.Debug().Int("processId", app.cmd.Process.Pid).Msg("sending SIGTERM signal to binary process")
-			_ = app.cmd.Process.Signal(syscall.SIGTERM)
+			_ = app.cmd.Process.Signal(syscall.SIGTERM) // TODO: panics here
 			time.Sleep(5 * time.Second)
 		}
 	}()

@@ -6,12 +6,13 @@ import (
 	"github.com/KYVENetwork/ksync/logger"
 	"github.com/google/uuid"
 	"github.com/segmentio/analytics-go"
-	"github.com/spf13/cobra"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	runtimeDebug "runtime/debug"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -20,6 +21,8 @@ const (
 )
 
 var (
+	command                  = "ksync"
+	interrupt                = false
 	startTime                = time.Now()
 	sourceId                 string
 	userConfirmationInput    string
@@ -30,6 +33,10 @@ var (
 	successfulRequests       int64
 	failedRequests           int64
 )
+
+func SetCommand(_command string) {
+	command = _command
+}
 
 func SetSourceId(_sourceId string) {
 	sourceId = _sourceId
@@ -68,6 +75,10 @@ func IncreaseFailedRequests() {
 // since this time was not spent on actually syncing the node
 func GetSyncDuration() time.Duration {
 	return time.Since(startTime.Add(userConfirmationDuration))
+}
+
+func GetInterrupt() bool {
+	return interrupt
 }
 
 func getVersion() string {
@@ -141,7 +152,7 @@ func getContext() *analytics.Context {
 	}
 }
 
-func getProperties(runtimeError error) analytics.Properties {
+func getProperties(errorRuntime error) analytics.Properties {
 	properties := analytics.NewProperties()
 
 	// set flag properties (all flags must start with "flag_"
@@ -188,20 +199,59 @@ func getProperties(runtimeError error) analytics.Properties {
 	}
 
 	// set error properties
-	if runtimeError == nil {
-		properties.Set("runtime_error", "")
+	if errorRuntime == nil {
+		properties.Set("error_runtime", "")
 	} else {
-		properties.Set("runtime_error", runtimeError.Error())
+		properties.Set("error_runtime", errorRuntime.Error())
 	}
+
+	properties.Set("error_interrupt", interrupt)
 
 	return properties
 }
 
-func Send(cmd *cobra.Command, runtimeError error) {
+// CatchInterrupt catches interrupt signals from Ctrl+C ensures
+// that metrics are sent before KSYNC exits
+func CatchInterrupt() {
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-c
+		logger.Logger.Info().Msg("received interrupt signal, shutting down KSYNC")
+		Send(fmt.Errorf("INTERRUPT"))
+
+		os.Exit(1)
+	}()
+}
+
+// WaitForInterrupt waits indefinitely until KSYNC gets exited in
+// CatchInterrupt after the metrics have been sent. If there was
+// no interrupt we do not wait
+func WaitForInterrupt() {
+	if interrupt {
+		<-(chan int)(nil)
+	}
+}
+
+func Send(errorRuntime error) {
 	// if the user opts out we return immediately
 	if flags.OptOut {
 		logger.Logger.Debug().Msg("opting-out of metric collection")
 		return
+	}
+
+	// if KSYNC received an interrupt before we do not send another
+	// track message
+	if interrupt {
+		return
+	}
+
+	// if the runtime error indicates an interrupt we set the interrupt
+	// value for later
+	if errorRuntime != nil && errorRuntime.Error() == "INTERRUPT" {
+		errorRuntime = nil
+		interrupt = true
 	}
 
 	userId, err := getUserId()
@@ -210,23 +260,22 @@ func Send(cmd *cobra.Command, runtimeError error) {
 		return
 	}
 
-	event := "ksync"
-	if cmd != nil {
-		event = cmd.Use
-	}
-
 	message := analytics.Track{
 		UserId:     userId,
-		Event:      event,
+		Event:      command,
 		Context:    getContext(),
-		Properties: getProperties(runtimeError),
+		Properties: getProperties(errorRuntime),
 	}
 
 	client := analytics.New(SegmentWriteKey)
-	defer client.Close()
 
 	if err := client.Enqueue(message); err != nil {
 		logger.Logger.Debug().Err(err).Msg("failed to enqueue track message")
+		return
+	}
+
+	if err := client.Close(); err != nil {
+		logger.Logger.Debug().Err(err).Msg("failed to close client")
 		return
 	}
 

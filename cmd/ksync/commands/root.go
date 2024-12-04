@@ -1,22 +1,11 @@
 package commands
 
 import (
-	"fmt"
 	"github.com/KYVENetwork/ksync/flags"
-	"github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/metrics"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
-	"os"
-	"os/signal"
-	"syscall"
 )
-
-// subCmd is set in PersistentPreRun and will be
-// set to the subcommand which is executed. From
-// this we can get the information on which subcommand
-// the user executed
-var subCmd *cobra.Command
 
 // RootCmd is the root command for KSYNC.
 var RootCmd = &cobra.Command{
@@ -27,24 +16,12 @@ var RootCmd = &cobra.Command{
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		}
 
-		subCmd = cmd
+		metrics.SetCommand(cmd.Use)
 	},
 }
 
 func Execute() {
-	// catch interrupt signals from Ctrl+C and send metrics before exiting
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-
-	go func() {
-		<-c
-		logger.Logger.Info().Msg("received interrupt signal, shutting down KSYNC")
-		metrics.Send(subCmd, fmt.Errorf("INTERRUPT"))
-
-		// we can exit now since the interrupt signal stops
-		// any running subprocesses KSYNC has started
-		os.Exit(0)
-	}()
+	metrics.CatchInterrupt()
 
 	blockSyncCmd.Flags().SortFlags = false
 	heightSyncCmd.Flags().SortFlags = false
@@ -57,6 +34,8 @@ func Execute() {
 	// overwrite help command so we can use -h as a shortcut for home
 	RootCmd.PersistentFlags().BoolP("help", "", false, "help for this command")
 
-	runtimeError := RootCmd.Execute()
-	metrics.Send(subCmd, runtimeError)
+	errorRuntime := RootCmd.Execute()
+
+	metrics.Send(errorRuntime)
+	metrics.WaitForInterrupt()
 }
