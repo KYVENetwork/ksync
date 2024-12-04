@@ -35,7 +35,7 @@ func Execute() {
 	go func() {
 		<-c
 		logger.Logger.Info().Msg("received interrupt signal, shutting down KSYNC")
-		metrics.Send(subCmd.Use, fmt.Errorf("INTERRUPT"))
+		metrics.Send(subCmd, fmt.Errorf("INTERRUPT"))
 
 		// we can exit now since the interrupt signal stops
 		// any running subprocesses KSYNC has started
@@ -54,5 +54,5 @@ func Execute() {
 	RootCmd.PersistentFlags().BoolP("help", "", false, "help for this command")
 
 	runtimeError := RootCmd.Execute()
-	metrics.Send(subCmd.Use, runtimeError)
+	metrics.Send(subCmd, runtimeError)
 }

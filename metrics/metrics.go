@@ -6,6 +6,7 @@ import (
 	"github.com/KYVENetwork/ksync/logger"
 	"github.com/google/uuid"
 	"github.com/segmentio/analytics-go"
+	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -196,7 +197,7 @@ func getProperties(runtimeError error) analytics.Properties {
 	return properties
 }
 
-func Send(event string, runtimeError error) {
+func Send(cmd *cobra.Command, runtimeError error) {
 	// if the user opts out we return immediately
 	if flags.OptOut {
 		logger.Logger.Debug().Msg("opting-out of metric collection")
@@ -206,6 +207,11 @@ func Send(event string, runtimeError error) {
 	userId, err := getUserId()
 	if err != nil {
 		logger.Logger.Debug().Err(err).Msg("failed to get user id")
+	}
+
+	event := "ksync"
+	if cmd != nil {
+		event = cmd.Use
 	}
 
 	message := analytics.Track{
