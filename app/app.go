@@ -141,9 +141,22 @@ func (app *CosmosApp) AutoSelectBinaryVersion(height int64) error {
 }
 
 func (app *CosmosApp) StartAll(snapshotInterval int64) error {
+	// we close the dbs again before starting the actual cosmos app
+	// because on some versions the cosmos app accesses the blockstore.db,
+	// although it should not do that. So else this would lead to a
+	// "failed to initialize database: resource temporarily unavailable"
+	// in the cosmos app
+	if err := app.ConsensusEngine.CloseDBs(); err != nil {
+		return fmt.Errorf("failed to close dbs in engine: %w", err)
+	}
+
 	if err := app.StartBinary(snapshotInterval); err != nil {
 		return fmt.Errorf("failed to start app: %w", err)
 	}
+
+	// TODO: we have to wait until the app binary has properly booted
+	// before we can open the dbs again. Maybe request the abci endpoint
+	// before returning in StartBinary
 
 	if err := app.ConsensusEngine.OpenDBs(); err != nil {
 		return fmt.Errorf("failed to open dbs in engine: %w", err)
@@ -165,7 +178,7 @@ func (app *CosmosApp) StopAll() {
 	}
 
 	if err := app.ConsensusEngine.CloseDBs(); err != nil {
-		logger.Logger.Error().Msgf("failed to close dbs in engin: %s", err)
+		logger.Logger.Error().Msgf("failed to close dbs in engine: %s", err)
 	}
 
 	app.StopBinary()
