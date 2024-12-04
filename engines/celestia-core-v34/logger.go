@@ -3,12 +3,13 @@ package celestia_core_v34
 import (
 	"fmt"
 	"github.com/KYVENetwork/celestia-core/libs/log"
+	"github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/rs/zerolog"
 )
 
 var (
-	engineLogger = EngineLogger{logger: utils.NewLogger(utils.EngineCelestiaCoreV34)}
+	engineLogger = EngineLogger{logger: logger.NewLogger(utils.EngineCelestiaCoreV34)}
 )
 
 type EngineLogger struct {
@@ -50,5 +51,5 @@ func (l EngineLogger) Error(msg string, keyvals ...interface{}) {
 }
 
 func (l EngineLogger) With(keyvals ...interface{}) log.Logger {
-	return EngineLogger{logger: utils.NewLogger(utils.EngineCelestiaCoreV34, keyvals)}
+	return EngineLogger{logger: logger.NewLogger(utils.EngineCelestiaCoreV34, keyvals)}
 }

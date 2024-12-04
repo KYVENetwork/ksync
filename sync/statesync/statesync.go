@@ -5,6 +5,8 @@ import (
 	"github.com/KYVENetwork/ksync/app"
 	"github.com/KYVENetwork/ksync/app/collector"
 	"github.com/KYVENetwork/ksync/flags"
+	"github.com/KYVENetwork/ksync/logger"
+	"github.com/KYVENetwork/ksync/metrics"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"strings"
@@ -15,7 +17,7 @@ func PerformStateSyncValidationChecks(snapshotCollector types.SnapshotCollector,
 	earliest := snapshotCollector.GetEarliestAvailableHeight()
 	latest := snapshotCollector.GetLatestAvailableHeight()
 
-	utils.Logger.Info().Msgf("retrieved snapshot boundaries, earliest complete snapshot height = %d, latest complete snapshot height %d", earliest, latest)
+	logger.Logger.Info().Msgf("retrieved snapshot boundaries, earliest complete snapshot height = %d, latest complete snapshot height %d", earliest, latest)
 
 	if snapshotHeight < earliest {
 		return fmt.Errorf("requested snapshot height is %d but first available snapshot on pool is %d", snapshotHeight, earliest)
@@ -33,8 +35,6 @@ func getUserConfirmation(y bool, snapshotHeight, targetHeight int64) (bool, erro
 		return true, nil
 	}
 
-	answer := ""
-
 	// if we found a different snapshotHeight as the requested targetHeight it means there was no snapshot
 	// at the requested targetHeight. Ask the user here if KSYNC should sync to the nearest height instead
 	if targetHeight == 0 {
@@ -45,20 +45,11 @@ func getUserConfirmation(y bool, snapshotHeight, targetHeight int64) (bool, erro
 		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m could not find snapshot with requested height %d, state-sync to nearest available snapshot with height %d instead? [y/N]: ", targetHeight, snapshotHeight)
 	}
 
-	if _, err := fmt.Scan(&answer); err != nil {
-		return false, fmt.Errorf("failed to read in user input: %w", err)
-	}
-
-	if strings.ToLower(answer) != "y" {
-		utils.Logger.Info().Msg("aborted state-sync")
-		return false, nil
-	}
-
-	return true, nil
+	return utils.GetUserConfirmationInput()
 }
 
 func Start() error {
-	utils.Logger.Info().Msg("starting state-sync")
+	logger.Logger.Info().Msg("starting state-sync")
 
 	app, err := app.NewCosmosApp()
 	if err != nil {
@@ -89,6 +80,8 @@ func Start() error {
 	}
 
 	snapshotHeight := snapshotCollector.GetSnapshotHeight(flags.TargetHeight)
+	metrics.SetSnapshotHeight(snapshotHeight)
+
 	if snapshotHeight == 0 {
 		return fmt.Errorf("no snapshot could be found, target height %d too low", flags.TargetHeight)
 	}
@@ -115,6 +108,6 @@ func Start() error {
 		return fmt.Errorf("failed to start state-sync executor: %w", err)
 	}
 
-	utils.Logger.Info().Str("duration", app.GetCurrentBinaryExecutionDuration()).Msgf("successfully finished state-sync by applying snapshot at height %d", snapshotHeight)
+	logger.Logger.Info().Str("duration", metrics.GetSyncDuration().String()).Msgf("successfully finished state-sync by applying snapshot at height %d", snapshotHeight)
 	return nil
 }

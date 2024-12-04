@@ -2,13 +2,14 @@ package tendermint_v34
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/rs/zerolog"
 	"github.com/tendermint/tendermint/libs/log"
 )
 
 var (
-	engineLogger = EngineLogger{logger: utils.NewLogger(utils.EngineTendermintV34)}
+	engineLogger = EngineLogger{logger: logger.NewLogger(utils.EngineTendermintV34)}
 )
 
 type EngineLogger struct {
@@ -50,5 +51,5 @@ func (l EngineLogger) Error(msg string, keyvals ...interface{}) {
 }
 
 func (l EngineLogger) With(keyvals ...interface{}) log.Logger {
-	return EngineLogger{logger: utils.NewLogger(utils.EngineTendermintV34, keyvals)}
+	return EngineLogger{logger: logger.NewLogger(utils.EngineTendermintV34, keyvals)}
 }

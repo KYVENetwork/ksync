@@ -3,6 +3,7 @@ package blocksync
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/app"
+	"github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/tendermint/tendermint/libs/json"
@@ -55,7 +56,7 @@ func bootstrapApp(app *app.CosmosApp, blockCollector types.BlockCollector, snaps
 		return nil
 	}
 
-	utils.Logger.Info().Msg("genesis file is larger than 100MB, syncing first block over P2P mode")
+	logger.Logger.Info().Msg("genesis file is larger than 100MB, syncing first block over P2P mode")
 
 	app.StopAll()
 
@@ -73,7 +74,7 @@ func bootstrapApp(app *app.CosmosApp, blockCollector types.BlockCollector, snaps
 		return fmt.Errorf("failed to start cosmos app in p2p mode: %w", err)
 	}
 
-	utils.Logger.Info().Msg("bootstrapping node, depending on the size of the genesis file, this step can take several minutes")
+	logger.Logger.Info().Msg("bootstrapping node, depending on the size of the genesis file, this step can take several minutes")
 
 	// wait until binary has properly started by testing if the /abci
 	// endpoint is up
@@ -84,7 +85,7 @@ func bootstrapApp(app *app.CosmosApp, blockCollector types.BlockCollector, snaps
 		time.Sleep(5 * time.Second)
 	}
 
-	utils.Logger.Info().Msg("loaded genesis file and completed ABCI handshake between app and tendermint")
+	logger.Logger.Info().Msg("loaded genesis file and completed ABCI handshake between app and tendermint")
 
 	// start p2p executors and try to execute the first block on the app
 	if err := app.ConsensusEngine.ApplyFirstBlockOverP2P(block, nextBlock); err != nil {
@@ -119,6 +120,6 @@ func bootstrapApp(app *app.CosmosApp, blockCollector types.BlockCollector, snaps
 		}
 	}
 
-	utils.Logger.Info().Msg("successfully bootstrapped node. Continuing with syncing blocks with DB mode")
+	logger.Logger.Info().Msg("successfully bootstrapped node. Continuing with syncing blocks with DB mode")
 	return nil
 }

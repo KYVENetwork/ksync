@@ -9,6 +9,7 @@ import (
 	"github.com/KYVENetwork/ksync/engines/cometbft-v38"
 	"github.com/KYVENetwork/ksync/engines/tendermint-v34"
 	"github.com/KYVENetwork/ksync/flags"
+	"github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"os"
@@ -24,8 +25,7 @@ type CosmosApp struct {
 	isCosmovisor bool
 	homePath     string
 
-	cmd       *exec.Cmd
-	startTime time.Time
+	cmd *exec.Cmd
 
 	Genesis         *genesis.Genesis
 	Source          *source.Source
@@ -120,13 +120,13 @@ func (app *CosmosApp) AutoSelectBinaryVersion(height int64) error {
 		}
 	}
 
-	utils.Logger.Debug().Str("upgradePath", upgradePath).Str("symlinkPath", symlinkPath).Msg("created symlink to upgrade directory")
+	logger.Logger.Debug().Str("upgradePath", upgradePath).Str("symlinkPath", symlinkPath).Msg("created symlink to upgrade directory")
 
 	if err := os.Symlink(upgradePath, symlinkPath); err != nil {
 		return fmt.Errorf("failed to create symlink to upgrade directory: %w", err)
 	}
 
-	utils.Logger.Info().Msgf("selected binary version \"%s\" from height %d for cosmovisor", upgradeName, height)
+	logger.Logger.Info().Msgf("selected binary version \"%s\" from height %d for cosmovisor", upgradeName, height)
 	return app.LoadConsensusEngine()
 }
 
@@ -151,11 +151,11 @@ func (app *CosmosApp) StopAll() {
 	// application down anyway and ensure that everything else
 	// can get closed
 	if err := app.ConsensusEngine.StopProxyApp(); err != nil {
-		utils.Logger.Error().Msgf("failed to stop proxy app: %s", err)
+		logger.Logger.Error().Msgf("failed to stop proxy app: %s", err)
 	}
 
 	if err := app.ConsensusEngine.CloseDBs(); err != nil {
-		utils.Logger.Error().Msgf("failed to close dbs in engin: %s", err)
+		logger.Logger.Error().Msgf("failed to close dbs in engin: %s", err)
 	}
 
 	app.StopBinary()
@@ -164,12 +164,6 @@ func (app *CosmosApp) StopAll() {
 func (app *CosmosApp) StartBinary(snapshotInterval int64) error {
 	if app.cmd != nil {
 		return nil
-	}
-
-	// we start tracking execution time of KSYNC from here since the binary is started
-	// right after the user prompt and right before syncing blocks or snapshots
-	if app.startTime.IsZero() {
-		app.startTime = time.Now()
 	}
 
 	cmd := exec.Command(app.binaryPath)
@@ -240,13 +234,13 @@ func (app *CosmosApp) StartBinary(snapshotInterval int64) error {
 		cmd.Stderr = os.Stderr
 	}
 
-	utils.Logger.Info().Msg("starting cosmos app from provided binary")
+	logger.Logger.Info().Msg("starting cosmos app from provided binary")
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start cosmos app: %w", err)
 	}
 
-	utils.Logger.Debug().Strs("args", cmd.Args).Int("processId", cmd.Process.Pid).Msg("app binary started")
+	logger.Logger.Debug().Strs("args", cmd.Args).Int("processId", cmd.Process.Pid).Msg("app binary started")
 
 	app.cmd = cmd
 	return nil
@@ -287,13 +281,13 @@ func (app *CosmosApp) StartBinaryP2P() error {
 		cmd.Stderr = os.Stderr
 	}
 
-	utils.Logger.Info().Msg("starting cosmos app from provided binary in p2p mode")
+	logger.Logger.Info().Msg("starting cosmos app from provided binary in p2p mode")
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start cosmos app: %w", err)
 	}
 
-	utils.Logger.Debug().Strs("args", cmd.Args).Int("processId", cmd.Process.Pid).Msg("app binary started")
+	logger.Logger.Debug().Strs("args", cmd.Args).Int("processId", cmd.Process.Pid).Msg("app binary started")
 
 	app.cmd = cmd
 	return nil
@@ -317,17 +311,17 @@ func (app *CosmosApp) StopBinary() {
 	// app actually exits
 	go func() {
 		for app.cmd != nil && pId == app.cmd.Process.Pid {
-			utils.Logger.Debug().Int("processId", app.cmd.Process.Pid).Msg("sending SIGTERM signal to binary process")
+			logger.Logger.Debug().Int("processId", app.cmd.Process.Pid).Msg("sending SIGTERM signal to binary process")
 			_ = app.cmd.Process.Signal(syscall.SIGTERM)
 			time.Sleep(5 * time.Second)
 		}
 	}()
 
 	if _, err := app.cmd.Process.Wait(); err != nil {
-		utils.Logger.Error().Msgf("failed to wait for process with id %d to be terminated: %s", app.cmd.Process.Pid, err)
+		logger.Logger.Error().Msgf("failed to wait for process with id %d to be terminated: %s", app.cmd.Process.Pid, err)
 	}
 
-	utils.Logger.Debug().Int("processId", app.cmd.Process.Pid).Msg("app binary stopped")
+	logger.Logger.Debug().Int("processId", app.cmd.Process.Pid).Msg("app binary stopped")
 	return
 }
 
@@ -340,7 +334,7 @@ func (app *CosmosApp) LoadBinaryPath() error {
 	app.binaryPath = binaryPath
 	app.isCosmovisor = strings.HasSuffix(binaryPath, "cosmovisor")
 
-	utils.Logger.Info().Msgf("loaded cosmos app at path \"%s\" from app binary", binaryPath)
+	logger.Logger.Info().Msgf("loaded cosmos app at path \"%s\" from app binary", binaryPath)
 	return nil
 }
 
@@ -372,7 +366,7 @@ func (app *CosmosApp) LoadHomePath() error {
 			}
 
 			app.homePath = strings.Split(line, "\"")[1]
-			utils.Logger.Info().Msgf("loaded home path \"%s\" from app binary", app.homePath)
+			logger.Logger.Info().Msgf("loaded home path \"%s\" from app binary", app.homePath)
 			return nil
 		}
 	}
@@ -431,16 +425,6 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 		return err
 	}
 
-	utils.Logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", app.ConsensusEngine.GetName())
+	logger.Logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", app.ConsensusEngine.GetName())
 	return nil
-}
-
-// GetCurrentBinaryExecutionDuration gets the current duration since
-// the app binary was started for the first time
-func (app *CosmosApp) GetCurrentBinaryExecutionDuration() string {
-	if app.startTime.IsZero() {
-		return time.Duration(0).String()
-	}
-
-	return time.Since(app.startTime).String()
 }

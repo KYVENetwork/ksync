@@ -13,8 +13,6 @@ const (
 	RestEndpointBundlr       = "https://arweave.net"
 	RestEndpointKYVEStorage  = "https://storage.kyve.network"
 	RestEndpointTurboStorage = "https://arweave.net"
-
-	SegmentKey = "quSEhAvH5fqlHyop9r9mDGxgd97ro3vQ"
 )
 
 const (
@@ -46,22 +44,6 @@ const (
 	BackoffMaxRetries           = 10
 	RequestTimeoutMS            = 100
 	RequestBlocksTimeoutMS      = 250
-)
-
-// TODO: implement metrics
-const (
-	SYNC_STARTED    = "SYNC_STARTED"
-	SYNC_COMPLETED  = "SYNC_COMPLETED"
-	BLOCK_SYNC      = "BLOCK_SYNC"
-	STATE_SYNC      = "STATE_SYNC"
-	HEIGHT_SYNC     = "HEIGHT_SYNC"
-	SERVE_SNAPSHOTS = "SERVE_SNAPSHOTS"
-	INFO            = "INFO"
-	RESET           = "RESET"
-	PRUNE           = "PRUNE"
-	BACKUP          = "BACKUP"
-	VERSION         = "VERSION"
-	ENGINES         = "ENGINES"
 )
 
 const (

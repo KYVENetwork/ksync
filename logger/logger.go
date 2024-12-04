@@ -1,4 +1,4 @@
-package utils
+package logger
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	Logger = NewLogger(ApplicationName)
+	Logger = NewLogger("KSYNC")
 )
 
 func init() {

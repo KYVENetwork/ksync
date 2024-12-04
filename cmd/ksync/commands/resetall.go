@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/app"
 	"github.com/KYVENetwork/ksync/flags"
-	"github.com/KYVENetwork/ksync/utils"
+	"github.com/KYVENetwork/ksync/logger"
 	"github.com/spf13/cobra"
 )
 
@@ -35,7 +35,7 @@ var resetCmd = &cobra.Command{
 			return fmt.Errorf("failed to reset cosmos app: %w", err)
 		}
 
-		utils.Logger.Info().Msg("successfully reset cosmos app")
+		logger.Logger.Info().Msg("successfully reset cosmos app")
 		return nil
 	},
 }

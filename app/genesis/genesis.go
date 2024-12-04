@@ -3,6 +3,7 @@ package genesis
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/KYVENetwork/ksync/metrics"
 	"os"
 	"strconv"
 )
@@ -29,6 +30,7 @@ func NewGenesis(homePath string) (*Genesis, error) {
 		return nil, fmt.Errorf("failed to load values from genesis file: %w", err)
 	}
 
+	metrics.SetSourceId(genesis.GetChainId())
 	return genesis, nil
 }
 

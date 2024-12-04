@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/app"
 	"github.com/KYVENetwork/ksync/flags"
+	"github.com/KYVENetwork/ksync/logger"
+	"github.com/KYVENetwork/ksync/metrics"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"time"
@@ -51,7 +53,7 @@ func StartBlockSyncExecutor(app *app.CosmosApp, blockCollector types.BlockCollec
 		}
 
 		if continuationHeight > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotCollector.GetInterval()) {
-			utils.Logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to produce new bundles")
+			logger.Logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to produce new bundles")
 		}
 
 		for continuationHeight > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotCollector.GetInterval()) {
@@ -72,7 +74,7 @@ func StartBlockSyncExecutor(app *app.CosmosApp, blockCollector types.BlockCollec
 		case err := <-errorCh:
 			return fmt.Errorf("error in block collector: %w", err)
 		case nextBlock := <-blockCh:
-			utils.Logger.Debug().Int64("height", block.Height).Int64("next_height", nextBlock.Height).Msg("applying blocks to engine")
+			logger.Logger.Debug().Int64("height", block.Height).Int64("next_height", nextBlock.Height).Msg("applying blocks to engine")
 
 			if err := app.ConsensusEngine.ApplyBlock(block.Block, nextBlock.Block); err != nil {
 				// before we return we check if this is due to an upgrade, if we are running
@@ -119,9 +121,9 @@ func StartBlockSyncExecutor(app *app.CosmosApp, blockCollector types.BlockCollec
 							return fmt.Errorf("failed to prune blocks from %d to %d: %w", pruneFromHeight, pruneToHeight, err)
 						}
 
-						utils.Logger.Info().Msgf("successfully pruned blocks from %d to %d", pruneFromHeight, pruneToHeight)
+						logger.Logger.Info().Msgf("successfully pruned blocks from %d to %d", pruneFromHeight, pruneToHeight)
 					} else {
-						utils.Logger.Info().Msg("found no blocks to prune. Continuing ...")
+						logger.Logger.Info().Msg("found no blocks to prune. Continuing ...")
 					}
 				}
 
@@ -131,7 +133,7 @@ func StartBlockSyncExecutor(app *app.CosmosApp, blockCollector types.BlockCollec
 				// applied height since in this case the app has not created the snapshot yet.
 				if block.Height%snapshotCollector.GetInterval() == 0 && appHeight < block.Height {
 					for {
-						utils.Logger.Info().Msg(fmt.Sprintf("waiting until snapshot at height %d is created by cosmos app", block.Height))
+						logger.Logger.Info().Msg(fmt.Sprintf("waiting until snapshot at height %d is created by cosmos app", block.Height))
 
 						found, err := app.ConsensusEngine.IsSnapshotAvailable(block.Height)
 						if err != nil {
@@ -139,12 +141,12 @@ func StartBlockSyncExecutor(app *app.CosmosApp, blockCollector types.BlockCollec
 						}
 
 						if !found {
-							utils.Logger.Info().Msg(fmt.Sprintf("snapshot at height %d was not created yet. Waiting ...", block.Height))
+							logger.Logger.Info().Msg(fmt.Sprintf("snapshot at height %d was not created yet. Waiting ...", block.Height))
 							time.Sleep(10 * time.Second)
 							continue
 						}
 
-						utils.Logger.Info().Msg(fmt.Sprintf("snapshot at height %d was successfully created. Continuing ...", block.Height))
+						logger.Logger.Info().Msg(fmt.Sprintf("snapshot at height %d was successfully created. Continuing ...", block.Height))
 						break
 					}
 
@@ -160,7 +162,7 @@ func StartBlockSyncExecutor(app *app.CosmosApp, blockCollector types.BlockCollec
 				if !flags.SkipWaiting {
 					// only log this message once
 					if nextBlock.Height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotCollector.GetInterval()) {
-						utils.Logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to produce new bundles")
+						logger.Logger.Info().Msg("synced too far ahead of snapshot pool. Waiting for snapshot pool to produce new bundles")
 					}
 
 					for nextBlock.Height > snapshotPoolHeight+(utils.SnapshotPruningAheadFactor*snapshotCollector.GetInterval()) {
@@ -173,6 +175,8 @@ func StartBlockSyncExecutor(app *app.CosmosApp, blockCollector types.BlockCollec
 					}
 				}
 			}
+
+			metrics.SetLatestHeight(block.Height)
 
 			// stop with block execution if we have reached our target height
 			if flags.TargetHeight > 0 && block.Height >= flags.TargetHeight {

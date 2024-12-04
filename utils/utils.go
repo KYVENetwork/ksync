@@ -6,6 +6,8 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"github.com/KYVENetwork/ksync/logger"
+	"github.com/KYVENetwork/ksync/metrics"
 	"io"
 	"math"
 	"net/http"
@@ -33,7 +35,7 @@ func GetVersion() string {
 // getFromUrl tries to fetch data from url with a custom User-Agent header
 func getFromUrl(url string) ([]byte, error) {
 	// Log debug info
-	Logger.Debug().Str("url", url).Msg("GET")
+	logger.Logger.Debug().Str("url", url).Msg("GET")
 
 	// Create a custom http.Client with the desired User-Agent header
 	httpClient := &http.Client{Transport: http.DefaultTransport}
@@ -81,22 +83,25 @@ func GetFromUrl(url string) (data []byte, err error) {
 	for i := 0; i < BackoffMaxRetries; i++ {
 		data, err = getFromUrl(url)
 		if err != nil {
+			metrics.IncreaseFailedRequests()
 			delaySec := math.Pow(2, float64(i))
 
-			Logger.Error().Msgf("failed to fetch from url \"%s\" with error \"%s\", retrying in %d seconds", url, err, int(delaySec))
+			logger.Logger.Error().Msgf("failed to fetch from url \"%s\" with error \"%s\", retrying in %d seconds", url, err, int(delaySec))
 			time.Sleep(time.Duration(delaySec) * time.Second)
 
 			continue
 		}
 
+		metrics.IncreaseSuccessfulRequests()
+
 		// only log success message if there were errors previously
 		if i > 0 {
-			Logger.Info().Msgf("successfully fetched data from url %s", url)
+			logger.Logger.Info().Msgf("successfully fetched data from url %s", url)
 		}
 		return
 	}
 
-	Logger.Error().Msgf("failed to fetch data from url within maximum retry limit of %d", BackoffMaxRetries)
+	logger.Logger.Error().Msgf("failed to fetch data from url within maximum retry limit of %d", BackoffMaxRetries)
 	return
 }
 
@@ -182,4 +187,23 @@ func IsUpgradeHeight(homePath string, height int64) bool {
 	}
 
 	return upgrade.Height == height
+}
+
+func GetUserConfirmationInput() (bool, error) {
+	startTime := time.Now()
+	answer := ""
+
+	if _, err := fmt.Scan(&answer); err != nil {
+		return false, fmt.Errorf("failed to read in user input: %w", err)
+	}
+
+	metrics.SetUserConfirmationInput(answer)
+	metrics.SetUserConfirmationDuration(time.Since(startTime))
+
+	if strings.ToLower(answer) != "y" {
+		logger.Logger.Info().Msg("abort")
+		return false, nil
+	}
+
+	return true, nil
 }

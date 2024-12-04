@@ -3,12 +3,13 @@ package cometbft_v37
 import (
 	"fmt"
 	"github.com/KYVENetwork/cometbft/v37/libs/log"
+	"github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/rs/zerolog"
 )
 
 var (
-	engineLogger = EngineLogger{logger: utils.NewLogger(utils.EngineCometBFTV38)}
+	engineLogger = EngineLogger{logger: logger.NewLogger(utils.EngineCometBFTV38)}
 )
 
 type EngineLogger struct {
@@ -50,5 +51,5 @@ func (l EngineLogger) Error(msg string, keyvals ...interface{}) {
 }
 
 func (l EngineLogger) With(keyvals ...interface{}) log.Logger {
-	return EngineLogger{logger: utils.NewLogger(utils.EngineCometBFTV38, keyvals)}
+	return EngineLogger{logger: logger.NewLogger(utils.EngineCometBFTV38, keyvals)}
 }

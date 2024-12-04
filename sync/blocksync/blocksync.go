@@ -5,6 +5,8 @@ import (
 	"github.com/KYVENetwork/ksync/app"
 	"github.com/KYVENetwork/ksync/app/collector"
 	"github.com/KYVENetwork/ksync/flags"
+	"github.com/KYVENetwork/ksync/logger"
+	"github.com/KYVENetwork/ksync/metrics"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"strings"
@@ -16,7 +18,7 @@ func PerformBlockSyncValidationChecks(blockCollector types.BlockCollector, conti
 	earliest := blockCollector.GetEarliestAvailableHeight()
 	latest := blockCollector.GetLatestAvailableHeight()
 
-	utils.Logger.Info().Msg(fmt.Sprintf("retrieved block boundaries, earliest block height = %d, latest block height %d", earliest, latest))
+	logger.Logger.Info().Msg(fmt.Sprintf("retrieved block boundaries, earliest block height = %d, latest block height %d", earliest, latest))
 
 	if continuationHeight < earliest {
 		return fmt.Errorf("app is currently at height %d but first available block on pool is %d", continuationHeight, earliest)
@@ -31,11 +33,11 @@ func PerformBlockSyncValidationChecks(blockCollector types.BlockCollector, conti
 	}
 
 	if targetHeight > 0 && targetHeight > latest {
-		utils.Logger.Warn().Msgf("target height %d does not exist on pool yet, syncing until height is created on pool and reached", targetHeight)
+		logger.Logger.Warn().Msgf("target height %d does not exist on pool yet, syncing until height is created on pool and reached", targetHeight)
 	}
 
 	if targetHeight == 0 {
-		utils.Logger.Info().Msg(fmt.Sprintf("no target height specified, syncing indefinitely"))
+		logger.Logger.Info().Msg(fmt.Sprintf("no target height specified, syncing indefinitely"))
 	}
 
 	return nil
@@ -74,28 +76,17 @@ func getUserConfirmation(y bool, continuationHeight, targetHeight int64) (bool, 
 		return true, nil
 	}
 
-	answer := ""
-
 	if targetHeight > 0 {
-		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should %d blocks from height %d to %d be synced [y/N]: ", targetHeight-continuationHeight+1, continuationHeight-1, targetHeight)
+		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should %d blocks from height %d to %d be synced [y/N]: ", targetHeight-(continuationHeight-1), continuationHeight-1, targetHeight)
 	} else {
 		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should blocks from height %d be synced [y/N]: ", continuationHeight-1)
 	}
 
-	if _, err := fmt.Scan(&answer); err != nil {
-		return false, fmt.Errorf("failed to read in user input: %s", err)
-	}
-
-	if strings.ToLower(answer) != "y" {
-		utils.Logger.Info().Msg("aborted block-sync")
-		return false, nil
-	}
-
-	return true, nil
+	return utils.GetUserConfirmationInput()
 }
 
 func Start() error {
-	utils.Logger.Info().Msg("starting block-sync")
+	logger.Logger.Info().Msg("starting block-sync")
 
 	app, err := app.NewCosmosApp()
 	if err != nil {
@@ -109,6 +100,7 @@ func Start() error {
 	}
 
 	continuationHeight := app.GetContinuationHeight()
+	metrics.SetContinuationHeight(continuationHeight)
 
 	blockCollector, err := getBlockCollector(app)
 	if err != nil {
@@ -139,6 +131,6 @@ func Start() error {
 		return fmt.Errorf("failed to start block-sync executor: %w", err)
 	}
 
-	utils.Logger.Info().Str("duration", app.GetCurrentBinaryExecutionDuration()).Msgf("successfully finished block-sync by reaching target height %d", flags.TargetHeight)
+	logger.Logger.Info().Str("duration", metrics.GetSyncDuration().String()).Msgf("successfully finished block-sync by reaching target height %d", flags.TargetHeight)
 	return nil
 }

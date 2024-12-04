@@ -5,6 +5,8 @@ import (
 	"github.com/KYVENetwork/ksync/app"
 	"github.com/KYVENetwork/ksync/app/collector"
 	"github.com/KYVENetwork/ksync/flags"
+	"github.com/KYVENetwork/ksync/logger"
+	"github.com/KYVENetwork/ksync/metrics"
 	"github.com/KYVENetwork/ksync/sync/blocksync"
 	"github.com/KYVENetwork/ksync/sync/statesync"
 	"github.com/KYVENetwork/ksync/utils"
@@ -16,34 +18,23 @@ func getUserConfirmation(y, canApplySnapshot bool, snapshotHeight, continuationH
 		return true, nil
 	}
 
-	answer := ""
-
 	if canApplySnapshot {
 		if targetHeight == 0 {
 			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m no target height specified, state-sync to height %d and sync indefinitely from there [y/N]: ", snapshotHeight)
 		} else if snapshotHeight == targetHeight {
 			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by applying a snapshot at height %d [y/N]: ", targetHeight, snapshotHeight)
 		} else {
-			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by applying a snapshot at height %d and syncing the remaining %d blocks [y/N]: ", targetHeight, snapshotHeight, targetHeight-snapshotHeight)
+			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by applying a snapshot at height %d and syncing the remaining %d blocks [y/N]: ", targetHeight, snapshotHeight, targetHeight-(continuationHeight-1))
 		}
 	} else {
 		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by syncing from height %d [y/N]: ", targetHeight, continuationHeight-1)
 	}
 
-	if _, err := fmt.Scan(&answer); err != nil {
-		return false, fmt.Errorf("failed to read in user input: %w", err)
-	}
-
-	if strings.ToLower(answer) != "y" {
-		utils.Logger.Info().Msg("aborted height-sync")
-		return false, nil
-	}
-
-	return true, nil
+	return utils.GetUserConfirmationInput()
 }
 
 func Start() error {
-	utils.Logger.Info().Msg("starting height-sync")
+	logger.Logger.Info().Msg("starting height-sync")
 
 	app, err := app.NewCosmosApp()
 	if err != nil {
@@ -80,16 +71,20 @@ func Start() error {
 	}
 
 	snapshotHeight := snapshotCollector.GetSnapshotHeight(flags.TargetHeight)
+	metrics.SetSnapshotHeight(snapshotHeight)
+
 	canApplySnapshot := snapshotHeight > 0 && app.IsReset()
-	canApplyBlocks := flags.TargetHeight > snapshotHeight
+	canApplyBlocks := flags.TargetHeight == 0 || flags.TargetHeight > snapshotHeight
 
 	var continuationHeight int64
 
 	if canApplySnapshot {
-		continuationHeight = snapshotHeight
+		continuationHeight = snapshotHeight + 1
 	} else {
 		continuationHeight = app.GetContinuationHeight()
 	}
+
+	metrics.SetContinuationHeight(continuationHeight)
 
 	if canApplySnapshot {
 		if err := statesync.PerformStateSyncValidationChecks(snapshotCollector, snapshotHeight); err != nil {
@@ -129,6 +124,6 @@ func Start() error {
 		}
 	}
 
-	utils.Logger.Info().Str("duration", app.GetCurrentBinaryExecutionDuration()).Msgf("successfully finished height-sync by reaching target height %d", flags.TargetHeight)
+	logger.Logger.Info().Str("duration", metrics.GetSyncDuration().String()).Msgf("successfully finished height-sync by reaching target height %d", flags.TargetHeight)
 	return nil
 }
