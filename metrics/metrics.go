@@ -155,7 +155,7 @@ func getContext() *analytics.Context {
 func getProperties(errorRuntime error) analytics.Properties {
 	properties := analytics.NewProperties()
 
-	// set flag properties (all flags must start with "flag_"
+	// set flag properties (all must start with "flag_")
 	properties.Set("flag_binary_path", flags.BinaryPath)
 	properties.Set("flag_home_path", flags.HomePath)
 	properties.Set("flag_chain_id", flags.ChainId)
@@ -180,7 +180,7 @@ func getProperties(errorRuntime error) analytics.Properties {
 	properties.Set("flag_debug", flags.Debug)
 	properties.Set("flag_y", flags.Y)
 
-	// set metric properties (all flags must start with "metric_"
+	// set metric properties (all must start with "metric_")
 	properties.Set("metrics_total_duration", time.Since(startTime).Milliseconds())
 	properties.Set("metrics_source_id", sourceId)
 	properties.Set("metrics_user_confirmation_input", userConfirmationInput)
@@ -198,7 +198,7 @@ func getProperties(errorRuntime error) analytics.Properties {
 		properties.Set("metrics_blocks_synced", 0)
 	}
 
-	// set error properties
+	// set error properties (all must start with "error_")
 	if errorRuntime == nil {
 		properties.Set("error_runtime", "")
 	} else {
@@ -206,6 +206,23 @@ func getProperties(errorRuntime error) analytics.Properties {
 	}
 
 	properties.Set("error_interrupt", interrupt)
+
+	// set status properties (all must start with "status_")
+	if command == "block-sync" {
+		reachedTargetHeight := flags.TargetHeight > 0 && latestHeight == flags.TargetHeight && errorRuntime == nil
+		properties.Set("status_reached_target_height", reachedTargetHeight)
+	} else if command == "state-sync" {
+		reachedTargetHeight := latestHeight > 0 && errorRuntime == nil
+		properties.Set("status_reached_target_height", reachedTargetHeight)
+	} else if command == "height-sync" {
+		reachedTargetHeight := flags.TargetHeight > 0 && latestHeight == flags.TargetHeight && errorRuntime == nil
+		properties.Set("status_reached_target_height", reachedTargetHeight)
+	} else {
+		properties.Set("status_reached_target_height", false)
+	}
+
+	userConfirmationAborted := userConfirmationDuration.Milliseconds() > 0 && strings.ToLower(userConfirmationInput) != "y"
+	properties.Set("status_user_confirmation_aborted", userConfirmationAborted)
 
 	return properties
 }
@@ -219,22 +236,22 @@ func CatchInterrupt() {
 	go func() {
 		<-c
 		logger.Logger.Info().Msg("received interrupt signal, shutting down KSYNC")
-		Send(fmt.Errorf("INTERRUPT"))
+		SendTrack(fmt.Errorf("INTERRUPT"))
 
 		os.Exit(1)
 	}()
 }
 
 // WaitForInterrupt waits indefinitely until KSYNC gets exited in
-// CatchInterrupt after the metrics have been sent. If there was
-// no interrupt we do not wait
+// CatchInterrupt after the metrics have been sent. We wait or else
+// KSYNC may exit before the metrics have been properly send
 func WaitForInterrupt() {
 	if interrupt {
 		<-(chan int)(nil)
 	}
 }
 
-func Send(errorRuntime error) {
+func SendTrack(errorRuntime error) {
 	// if the user opts out we return immediately
 	if flags.OptOut {
 		logger.Logger.Debug().Msg("opting-out of metric collection")

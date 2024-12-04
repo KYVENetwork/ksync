@@ -36,6 +36,6 @@ func Execute() {
 
 	errorRuntime := RootCmd.Execute()
 
-	metrics.Send(errorRuntime)
+	metrics.SendTrack(errorRuntime)
 	metrics.WaitForInterrupt()
 }
