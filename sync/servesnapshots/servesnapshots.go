@@ -100,7 +100,7 @@ func Start() error {
 	if canApplyBlocks {
 		// TODO: dydx needs restart here (and in height-sync), other chains too?
 		if app.Genesis.GetChainId() == "dydx-mainnet-1" {
-			if err := app.RestartAll(0); err != nil {
+			if err := app.RestartAll(snapshotCollector.GetInterval()); err != nil {
 				return fmt.Errorf("failed to restart app: %w", err)
 			}
 		}
