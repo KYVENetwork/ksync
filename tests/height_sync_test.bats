@@ -8,6 +8,11 @@
   [ "$status" -eq 0 ]
 }
 
+@test "KYVE Cosmovisor: try to height-sync with an upgrade betweeen snapshot and target height" {
+  run ./build/ksync height-sync --opt-out -b cosmovisor -c kaon-1 -t 2061120 -d -a -y
+  [ "$status" -eq 0 ]
+}
+
 @test "dYdX: height sync to specific height" {
   run ./build/ksync height-sync --opt-out -b $HOME/bins/dydxprotocold-v2.0.1 -c kaon-1 -t 5935178 -r -d -y
   [ "$status" -eq 0 ]
@@ -25,5 +30,15 @@
 
 @test "Andromeda: height-sync to specific height" {
   run ./build/ksync height-sync --opt-out -b $HOME/bins/andromedad-1-v0.1.1-beta-patch -c kaon-1 -t 2700020 -r -d -y
+  [ "$status" -eq 0 ]
+}
+
+@test "Noble: height-sync to specific height" {
+  run ./build/ksync height-sync --opt-out -b $HOME/bins/nobled-v8.0.3 -t 16557020 -r -d -y
+  [ "$status" -eq 0 ]
+}
+
+@test "Noble: height-sync to specific height on snapshot height" {
+  run ./build/ksync height-sync --opt-out -b $HOME/bins/nobled-v8.0.3 -t 16554000 -r -d -y
   [ "$status" -eq 0 ]
 }
