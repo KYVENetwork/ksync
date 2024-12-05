@@ -197,12 +197,11 @@ func (engine *Engine) StartProxyApp() error {
 		return fmt.Errorf("proxy app already started")
 	}
 
-	proxyApp, err := CreateAndStartProxyAppConns(engine.config)
-	if err != nil {
-		return err
+	engine.proxyApp = proxy.NewAppConns(proxy.NewRemoteClientCreator(engine.config.ProxyApp, engine.config.ABCI, false))
+	if err := engine.proxyApp.Start(); err != nil {
+		return fmt.Errorf("failed to start proxy app: %w", err)
 	}
 
-	engine.proxyApp = proxyApp
 	engineLogger.Debug("started proxy app connections", "address", engine.GetProxyAppAddress())
 	return nil
 }
@@ -229,13 +228,17 @@ func (engine *Engine) DoHandshake() error {
 		return fmt.Errorf("failed to load state from genDoc: %w", err)
 	}
 
-	eventBus, err := CreateAndStartEventBus()
-	if err != nil {
+	eventBus := tmTypes.NewEventBus()
+	eventBus.SetLogger(engineLogger.With("module", "events"))
+	if err := eventBus.Start(); err != nil {
 		return fmt.Errorf("failed to start event bus: %w", err)
 	}
 
-	if err := DoHandshake(engine.stateStore, state, engine.blockStore, engine.genDoc, eventBus, engine.proxyApp); err != nil {
-		return fmt.Errorf("failed to do handshake: %w", err)
+	handshaker := cs.NewHandshaker(engine.stateStore, state, engine.blockStore, engine.genDoc)
+	handshaker.SetLogger(engineLogger.With("module", "consensus"))
+	handshaker.SetEventBus(eventBus)
+	if _, err := handshaker.Handshake(engine.proxyApp); err != nil {
+		return fmt.Errorf("error during handshake: %v", err)
 	}
 
 	state, err = engine.stateStore.Load()
@@ -245,20 +248,20 @@ func (engine *Engine) DoHandshake() error {
 
 	engine.state = state
 
-	mempool := CreateMempoolAndMempoolReactor(engine.config, engine.proxyApp, state)
+	mp := CreateMempoolAndMempoolReactor(engine.config, engine.proxyApp, state)
 
-	_, evidencePool, err := CreateEvidenceReactor(engine.evidenceDB, engine.stateStore, engine.blockStore)
+	evidencePool, err := evidence.NewPool(engine.evidenceDB, engine.stateStore, engine.blockStore)
 	if err != nil {
-		return fmt.Errorf("failed to create evidence reactor: %w", err)
+		return fmt.Errorf("failed to create evidence pool: %w", err)
 	}
 
-	engine.mempool = &mempool
+	engine.mempool = &mp
 	engine.evidencePool = evidencePool
 	engine.blockExecutor = tmState.NewBlockExecutor(
 		engine.stateStore,
 		engineLogger.With("module", "state"),
 		engine.proxyApp.Consensus(),
-		mempool,
+		mp,
 		evidencePool,
 	)
 

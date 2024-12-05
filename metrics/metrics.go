@@ -94,6 +94,15 @@ func getVersion() string {
 	return strings.TrimSpace(version.Main.Version)
 }
 
+func getGoVersion() string {
+	version, ok := runtimeDebug.ReadBuildInfo()
+	if !ok {
+		panic("failed to get go version")
+	}
+
+	return version.GoVersion
+}
+
 func getUserId() (string, error) {
 	// we identify a KSYNC user by their local id file which is stored
 	// under "$HOME/.ksync/id". If the id file was not created yet
@@ -218,8 +227,16 @@ func getProperties(errorRuntime error) analytics.Properties {
 		properties.Set("status_reached_target_height", false)
 	}
 
+	snapshotApplied := snapshotHeight > 0 && errorRuntime == nil
+	properties.Set("status_snapshot_applied", snapshotApplied)
+
 	userConfirmationAborted := userConfirmationDuration.Milliseconds() > 0 && strings.ToLower(userConfirmationInput) != "y"
 	properties.Set("status_user_confirmation_aborted", userConfirmationAborted)
+
+	// set build properties (all must start with "build_")
+	properties.Set("build_go_version", getGoVersion())
+	properties.Set("build_os_name", runtime.GOOS)
+	properties.Set("build_os_arch", runtime.GOARCH)
 
 	return properties
 }

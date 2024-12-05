@@ -143,9 +143,8 @@ func (app *CosmosApp) AutoSelectBinaryVersion(height int64) error {
 func (app *CosmosApp) StartAll(snapshotInterval int64) error {
 	// we close the dbs again before starting the actual cosmos app
 	// because on some versions the cosmos app accesses the blockstore.db,
-	// although it should not do that. So else this would lead to a
-	// "failed to initialize database: resource temporarily unavailable"
-	// in the cosmos app
+	// during the boot phase, although it should not do that. So if we would not
+	// close the dbs before starting the cosmos app binary it would panic
 	if err := app.ConsensusEngine.CloseDBs(); err != nil {
 		return fmt.Errorf("failed to close dbs in engine: %w", err)
 	}
@@ -154,16 +153,15 @@ func (app *CosmosApp) StartAll(snapshotInterval int64) error {
 		return fmt.Errorf("failed to start app: %w", err)
 	}
 
-	// TODO: we have to wait until the app binary has properly booted
-	// before we can open the dbs again. Maybe request the abci endpoint
-	// before returning in StartBinary
+	// we start the proxy app before opening the dbs since
+	// when the proxy app completes we can be sure that the
+	// app binary has fully booted
+	if err := app.ConsensusEngine.StartProxyApp(); err != nil {
+		return fmt.Errorf("failed to start proxy app: %w", err)
+	}
 
 	if err := app.ConsensusEngine.OpenDBs(); err != nil {
 		return fmt.Errorf("failed to open dbs in engine: %w", err)
-	}
-
-	if err := app.ConsensusEngine.StartProxyApp(); err != nil {
-		return fmt.Errorf("failed to start proxy app: %w", err)
 	}
 
 	return nil

@@ -1,17 +1,13 @@
 package cometbft_v37
 
 import (
-	"fmt"
 	cfg "github.com/KYVENetwork/cometbft/v37/config"
-	cs "github.com/KYVENetwork/cometbft/v37/consensus"
-	"github.com/KYVENetwork/cometbft/v37/evidence"
 	mempl "github.com/KYVENetwork/cometbft/v37/mempool"
 	memplv0 "github.com/KYVENetwork/cometbft/v37/mempool/v0"
 	"github.com/KYVENetwork/cometbft/v37/proxy"
 	"github.com/KYVENetwork/cometbft/v37/state"
 	sm "github.com/KYVENetwork/cometbft/v37/state"
 	"github.com/KYVENetwork/cometbft/v37/store"
-	cometTypes "github.com/KYVENetwork/cometbft/v37/types"
 	dbm "github.com/cometbft/cometbft-db"
 	"github.com/spf13/viper"
 	"path/filepath"
@@ -72,40 +68,6 @@ func GetBlockstoreDBs(config *Config) (dbm.DB, *store.BlockStore, error) {
 	return blockStoreDB, blockStore, nil
 }
 
-func CreateAndStartProxyAppConns(config *Config) (proxy.AppConns, error) {
-	proxyApp := proxy.NewAppConns(proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()), proxy.NopMetrics())
-	if err := proxyApp.Start(); err != nil {
-		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
-	}
-	return proxyApp, nil
-}
-
-func CreateAndStartEventBus() (*cometTypes.EventBus, error) {
-	eventBus := cometTypes.NewEventBus()
-	eventBus.SetLogger(engineLogger.With("module", "events"))
-	if err := eventBus.Start(); err != nil {
-		return nil, err
-	}
-	return eventBus, nil
-}
-
-func DoHandshake(
-	stateStore sm.Store,
-	state sm.State,
-	blockStore sm.BlockStore,
-	genDoc *GenesisDoc,
-	eventBus cometTypes.BlockEventPublisher,
-	proxyApp proxy.AppConns,
-) error {
-	handshaker := cs.NewHandshaker(stateStore, state, blockStore, genDoc)
-	handshaker.SetLogger(engineLogger.With("module", "consensus"))
-	handshaker.SetEventBus(eventBus)
-	if err := handshaker.Handshake(proxyApp); err != nil {
-		return fmt.Errorf("error during handshake: %v", err)
-	}
-	return nil
-}
-
 func CreateMempool(config *Config, proxyApp proxy.AppConns, state sm.State) mempl.Mempool {
 	logger := engineLogger.With("module", "mempool")
 	mp := memplv0.NewCListMempool(
@@ -123,15 +85,4 @@ func CreateMempool(config *Config, proxyApp proxy.AppConns, state sm.State) memp
 	}
 
 	return mp
-}
-
-func CreateEvidenceReactor(evidenceDB dbm.DB, stateStore sm.Store, blockStore *store.BlockStore) (*evidence.Reactor, *evidence.Pool, error) {
-	evidenceLogger := engineLogger.With("module", "evidence")
-	evidencePool, err := evidence.NewPool(evidenceDB, stateStore, blockStore)
-	if err != nil {
-		return nil, nil, err
-	}
-	evidenceReactor := evidence.NewReactor(evidencePool)
-	evidenceReactor.SetLogger(evidenceLogger)
-	return evidenceReactor, evidencePool, nil
 }

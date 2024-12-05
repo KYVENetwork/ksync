@@ -23,7 +23,6 @@
   [ "$status" -eq 0 ]
 }
 
-// TODO: failed to initialize database: resource temporarily unavailable
 @test "Andromeda: height-sync to specific height" {
   run ./build/ksync height-sync --opt-out -b $HOME/bins/andromedad-1-v0.1.1-beta-patch -c kaon-1 -t 2700020 -r -d -y
   [ "$status" -eq 0 ]
