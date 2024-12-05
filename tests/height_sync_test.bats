@@ -8,8 +8,8 @@
   [ "$status" -eq 0 ]
 }
 
-@test "KYVE Cosmovisor: try to height-sync with an upgrade betweeen snapshot and target height" {
-  run ./build/ksync height-sync --opt-out -b cosmovisor -c kaon-1 -t 2061120 -d -a -y
+@test "KYVE Cosmovisor: try to height-sync with an upgrade between snapshot and target height" {
+  run ./build/ksync height-sync --opt-out -b cosmovisor -c kaon-1 -t 2061120 -r -d -a -y
   [ "$status" -eq 0 ]
 }
 
