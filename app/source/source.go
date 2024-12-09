@@ -2,6 +2,7 @@ package source
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
 	"gopkg.in/yaml.v2"
@@ -11,16 +12,13 @@ import (
 )
 
 type Source struct {
-	sourceId       string
-	chainId        string
-	registryUrl    string
-	blockPoolId    string
-	snapshotPoolId string
+	sourceId    string
+	registryUrl string
 
 	sourceRegistry types.SourceRegistry
 }
 
-func NewSource(sourceId, chainId string) (*Source, error) {
+func NewSource(sourceId string) (*Source, error) {
 	response, err := http.Get(utils.DefaultRegistryURL)
 	if err != nil {
 		return nil, err
@@ -44,18 +42,13 @@ func NewSource(sourceId, chainId string) (*Source, error) {
 
 	return &Source{
 		sourceId:       sourceId,
-		chainId:        chainId,
 		sourceRegistry: sourceRegistry,
 	}, nil
 }
 
-func (source *Source) GetRegistryUrl() string {
-	return source.registryUrl
-}
-
 func (source *Source) GetSourceBlockPoolId() (int64, error) {
-	if source.blockPoolId != "" {
-		return strconv.ParseInt(source.blockPoolId, 10, 64)
+	if flags.BlockPoolId != "" {
+		return strconv.ParseInt(flags.BlockPoolId, 10, 64)
 	}
 
 	entry, found := source.sourceRegistry.Entries[source.sourceId]
@@ -63,9 +56,9 @@ func (source *Source) GetSourceBlockPoolId() (int64, error) {
 		return 0, fmt.Errorf("source with id \"%s\" not found in registry", source.sourceId)
 	}
 
-	if source.chainId == utils.ChainIdMainnet {
+	if flags.ChainId == utils.ChainIdMainnet {
 		return int64(*entry.Networks.Kyve.Integrations.KSYNC.BlockSyncPool), nil
-	} else if source.chainId == utils.ChainIdKaon {
+	} else if flags.ChainId == utils.ChainIdKaon {
 		return int64(*entry.Networks.Kaon.Integrations.KSYNC.BlockSyncPool), nil
 	}
 
@@ -73,8 +66,8 @@ func (source *Source) GetSourceBlockPoolId() (int64, error) {
 }
 
 func (source *Source) GetSourceSnapshotPoolId() (int64, error) {
-	if source.snapshotPoolId != "" {
-		return strconv.ParseInt(source.snapshotPoolId, 10, 64)
+	if flags.SnapshotPoolId != "" {
+		return strconv.ParseInt(flags.SnapshotPoolId, 10, 64)
 	}
 
 	entry, found := source.sourceRegistry.Entries[source.sourceId]
@@ -82,9 +75,9 @@ func (source *Source) GetSourceSnapshotPoolId() (int64, error) {
 		return 0, fmt.Errorf("source with id \"%s\" not found in registry", source.sourceId)
 	}
 
-	if source.chainId == utils.ChainIdMainnet {
+	if flags.ChainId == utils.ChainIdMainnet {
 		return int64(*entry.Networks.Kyve.Integrations.KSYNC.StateSyncPool), nil
-	} else if source.chainId == utils.ChainIdKaon {
+	} else if flags.ChainId == utils.ChainIdKaon {
 		return int64(*entry.Networks.Kaon.Integrations.KSYNC.StateSyncPool), nil
 	}
 

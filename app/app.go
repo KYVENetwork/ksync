@@ -60,7 +60,7 @@ func NewCosmosApp() (*CosmosApp, error) {
 
 	app.Genesis = appGenesis
 
-	appSource, err := source.NewSource(app.Genesis.GetChainId(), flags.ChainId)
+	appSource, err := source.NewSource(app.Genesis.GetChainId())
 	if err != nil {
 		return nil, fmt.Errorf("failed to init source: %w", err)
 	}
