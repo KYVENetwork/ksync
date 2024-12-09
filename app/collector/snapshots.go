@@ -30,10 +30,6 @@ func NewKyveSnapshotCollector(poolId int64, chainRest string) (*KyveSnapshotColl
 		return nil, fmt.Errorf("found invalid runtime on snapshot pool %d: Expected = %s Found = %s", poolId, utils.RuntimeTendermintSsync, poolResponse.Pool.Data.Runtime)
 	}
 
-	if poolResponse.Pool.Data.CurrentKey == "" {
-		return nil, fmt.Errorf("pool %d is empty and has not yet archived any data", poolId)
-	}
-
 	var config types.TendermintSSyncConfig
 	if err := json.Unmarshal([]byte(poolResponse.Pool.Data.Config), &config); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal snapshot pool config %s: %w", poolResponse.Pool.Data.Config, err)
