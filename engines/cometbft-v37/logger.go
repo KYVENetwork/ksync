@@ -3,46 +3,53 @@ package cometbft_v37
 import (
 	"fmt"
 	"github.com/KYVENetwork/cometbft/v37/libs/log"
-	klogger "github.com/KYVENetwork/ksync/utils"
+	"github.com/KYVENetwork/ksync/logger"
+	"github.com/KYVENetwork/ksync/utils"
 	"github.com/rs/zerolog"
 )
 
-func CometLogger() (logger log.Logger) {
-	logger = KsyncCometLogger{logger: klogger.LogFormatter("")}
-	return
-}
+var (
+	engineLogger = EngineLogger{logger: logger.NewLogger(utils.EngineCometBFTV37)}
+)
 
-type KsyncCometLogger struct {
+type EngineLogger struct {
 	logger zerolog.Logger
 }
 
-func (l KsyncCometLogger) Debug(msg string, keyvals ...interface{}) {}
+func (l EngineLogger) Debug(msg string, keyvals ...interface{}) {
+	logger := l.logger.Debug()
 
-func (l KsyncCometLogger) Info(msg string, keyvals ...interface{}) {
+	for i := 0; i < len(keyvals); i = i + 2 {
+		logger = logger.Any(fmt.Sprintf("%s", keyvals[i]), keyvals[i+1])
+	}
+
+	logger.Msg(msg)
+}
+
+func (l EngineLogger) Info(msg string, keyvals ...interface{}) {
 	logger := l.logger.Info()
 
 	for i := 0; i < len(keyvals); i = i + 2 {
 		if keyvals[i] == "hash" || keyvals[i] == "appHash" {
-			logger = logger.Str(fmt.Sprintf("%v", keyvals[i]), fmt.Sprintf("%x", keyvals[i+1]))
+			logger = logger.Str(fmt.Sprintf("%v", keyvals[i]), fmt.Sprintf("%X", keyvals[i+1]))
 		} else {
-			logger = logger.Str(fmt.Sprintf("%v", keyvals[i]), fmt.Sprintf("%v", keyvals[i+1]))
+			logger = logger.Any(fmt.Sprintf("%s", keyvals[i]), keyvals[i+1])
 		}
 	}
 
 	logger.Msg(msg)
 }
 
-func (l KsyncCometLogger) Error(msg string, keyvals ...interface{}) {
+func (l EngineLogger) Error(msg string, keyvals ...interface{}) {
 	logger := l.logger.Error()
 
 	for i := 0; i < len(keyvals); i = i + 2 {
-		logger = logger.Str(fmt.Sprintf("%v", keyvals[i]), fmt.Sprintf("%v", keyvals[i+1]))
+		logger = logger.Any(fmt.Sprintf("%s", keyvals[i]), keyvals[i+1])
 	}
 
 	logger.Msg(msg)
 }
 
-func (l KsyncCometLogger) With(keyvals ...interface{}) (logger log.Logger) {
-	logger = KsyncCometLogger{logger: klogger.LogFormatter(keyvals)}
-	return
+func (l EngineLogger) With(keyvals ...interface{}) log.Logger {
+	return EngineLogger{logger: logger.NewLogger(utils.EngineCometBFTV37, keyvals)}
 }

@@ -3,7 +3,6 @@ package tendermint_v34
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/utils"
-	abciClient "github.com/tendermint/tendermint/abci/client"
 	abciTypes "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
 	cs "github.com/tendermint/tendermint/consensus"
@@ -26,21 +25,16 @@ import (
 	"net/http"
 	"time"
 
-	db "github.com/tendermint/tm-db"
+	db "github.com/cometbft/cometbft-db"
 	"net/url"
 	"os"
 	"strconv"
 )
 
-var (
-	tmLogger = TmLogger()
-)
-
 type Engine struct {
-	HomePath      string
-	RpcServerPort int64
-	areDBsOpen    bool
-	config        *cfg.Config
+	homePath   string
+	areDBsOpen bool
+	config     *cfg.Config
 
 	blockDB    db.DB
 	blockStore *tmStore.BlockStore
@@ -48,15 +42,33 @@ type Engine struct {
 	stateDB    db.DB
 	stateStore tmState.Store
 
+	evidenceDB db.DB
+
 	genDoc           *GenesisDoc
 	privValidatorKey crypto.PubKey
+	nodeKey          *tmP2P.NodeKey
 
 	state         tmState.State
-	prevBlock     *Block
 	proxyApp      proxy.AppConns
-	mempool       *mempool.CListMempool
+	mempool       *mempool.Mempool
 	evidencePool  *evidence.Pool
 	blockExecutor *tmState.BlockExecutor
+}
+
+func NewEngine(homePath string) (*Engine, error) {
+	engine := &Engine{
+		homePath: homePath,
+	}
+
+	if err := engine.LoadConfig(); err != nil {
+		return nil, err
+	}
+
+	if err := engine.OpenDBs(); err != nil {
+		return nil, err
+	}
+
+	return engine, nil
 }
 
 func (engine *Engine) GetName() string {
@@ -68,32 +80,18 @@ func (engine *Engine) LoadConfig() error {
 		return nil
 	}
 
-	config, err := LoadConfig(engine.HomePath)
+	config, err := LoadConfig(engine.homePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
 	}
 
 	engine.config = config
-	return nil
-}
-
-func (engine *Engine) OpenDBs() error {
-	if engine.areDBsOpen {
-		return nil
-	}
-
-	if err := engine.LoadConfig(); err != nil {
-		return err
-	}
-
-	if err := utils.FormatGenesisFile(engine.config.GenesisFile()); err != nil {
-		return fmt.Errorf("failed to format genesis file: %w", err)
-	}
 
 	genDoc, err := nm.DefaultGenesisDocProviderFunc(engine.config)()
 	if err != nil {
 		return fmt.Errorf("failed to load state and genDoc: %w", err)
 	}
+
 	engine.genDoc = genDoc
 
 	privValidatorKey, err := privval.LoadFilePVEmptyState(
@@ -104,6 +102,21 @@ func (engine *Engine) OpenDBs() error {
 		return fmt.Errorf("failed to load validator key file: %w", err)
 	}
 	engine.privValidatorKey = privValidatorKey
+
+	nodeKey, err := tmP2P.LoadNodeKey(engine.config.NodeKeyFile())
+	if err != nil {
+		return fmt.Errorf("loading node key file failed: %w", err)
+	}
+	engine.nodeKey = nodeKey
+
+	engineLogger.Debug("loaded config", "configPath", fmt.Sprintf("%s/config.toml", engine.homePath))
+	return nil
+}
+
+func (engine *Engine) OpenDBs() error {
+	if engine.areDBsOpen {
+		return nil
+	}
 
 	blockDB, blockStore, err := GetBlockstoreDBs(engine.config)
 	if err != nil {
@@ -121,7 +134,23 @@ func (engine *Engine) OpenDBs() error {
 	engine.stateDB = stateDB
 	engine.stateStore = stateStore
 
+	evidenceDB, err := DefaultDBProvider(&DBContext{ID: "evidence", Config: engine.config})
+	if err != nil {
+		return fmt.Errorf("failed to open evidenceDB: %w", err)
+	}
+
+	engine.evidenceDB = evidenceDB
+
 	engine.areDBsOpen = true
+	engineLogger.Debug(
+		"opened dbs",
+		"blockDB",
+		fmt.Sprintf("%s/%s/blockstore.db", engine.homePath, engine.config.DBPath),
+		"stateDB",
+		fmt.Sprintf("%s/%s/state.db", engine.homePath, engine.config.DBPath),
+		"evidenceDB",
+		fmt.Sprintf("%s/%s/evidence.db", engine.homePath, engine.config.DBPath),
+	)
 	return nil
 }
 
@@ -138,12 +167,25 @@ func (engine *Engine) CloseDBs() error {
 		return fmt.Errorf("failed to close stateDB: %w", err)
 	}
 
+	if err := engine.evidenceDB.Close(); err != nil {
+		return fmt.Errorf("failed to close evidenceDB: %w", err)
+	}
+
 	engine.areDBsOpen = false
+	engineLogger.Debug(
+		"closed dbs",
+		"blockDB",
+		fmt.Sprintf("%s/%s/blockstore.db", engine.homePath, engine.config.DBPath),
+		"stateDB",
+		fmt.Sprintf("%s/%s/state.db", engine.homePath, engine.config.DBPath),
+		"evidenceDB",
+		fmt.Sprintf("%s/%s/evidence.db", engine.homePath, engine.config.DBPath),
+	)
 	return nil
 }
 
-func (engine *Engine) GetHomePath() string {
-	return engine.HomePath
+func (engine *Engine) GetRpcListenAddress() string {
+	return engine.config.RPC.ListenAddress
 }
 
 func (engine *Engine) GetProxyAppAddress() string {
@@ -155,12 +197,12 @@ func (engine *Engine) StartProxyApp() error {
 		return fmt.Errorf("proxy app already started")
 	}
 
-	proxyApp, err := CreateAndStartProxyAppConns(engine.config)
-	if err != nil {
-		return err
+	engine.proxyApp = proxy.NewAppConns(proxy.NewRemoteClientCreator(engine.config.ProxyApp, engine.config.ABCI, false))
+	if err := engine.proxyApp.Start(); err != nil {
+		return fmt.Errorf("failed to start proxy app: %w", err)
 	}
 
-	engine.proxyApp = proxyApp
+	engineLogger.Debug("started proxy app connections", "address", engine.GetProxyAppAddress())
 	return nil
 }
 
@@ -174,52 +216,29 @@ func (engine *Engine) StopProxyApp() error {
 	}
 
 	engine.proxyApp = nil
+	engineLogger.Debug("stopped proxy app connections", "address", engine.GetProxyAppAddress())
 	return nil
 }
 
-func (engine *Engine) GetChainId() (string, error) {
-	if err := engine.LoadConfig(); err != nil {
-		return "", fmt.Errorf("failed to load config: %w", err)
-	}
-
-	genDoc, err := nm.DefaultGenesisDocProviderFunc(engine.config)()
-	if err != nil {
-		return "", fmt.Errorf("failed to load genDoc: %w", err)
-	}
-
-	return genDoc.ChainID, nil
-}
-
-func (engine *Engine) GetContinuationHeight() (int64, error) {
-	height := engine.blockStore.Height()
-
-	initialHeight, err := utils.GetInitialHeightFromGenesisFile(engine.GetGenesisPath())
-	if err != nil {
-		return 0, fmt.Errorf("failed to load initial height from genesis file: %w", err)
-	}
-
-	continuationHeight := height + 1
-
-	if continuationHeight < initialHeight {
-		continuationHeight = initialHeight
-	}
-
-	return continuationHeight, nil
-}
-
 func (engine *Engine) DoHandshake() error {
-	state, err := tmState.NewStore(engine.stateDB).LoadFromDBOrGenesisDoc(engine.genDoc)
+	state, err := tmState.NewStore(engine.stateDB, tmState.StoreOptions{
+		DiscardABCIResponses: false,
+	}).LoadFromDBOrGenesisDoc(engine.genDoc)
 	if err != nil {
 		return fmt.Errorf("failed to load state from genDoc: %w", err)
 	}
 
-	eventBus, err := CreateAndStartEventBus()
-	if err != nil {
+	eventBus := tmTypes.NewEventBus()
+	eventBus.SetLogger(engineLogger.With("module", "events"))
+	if err := eventBus.Start(); err != nil {
 		return fmt.Errorf("failed to start event bus: %w", err)
 	}
 
-	if err := DoHandshake(engine.stateStore, state, engine.blockStore, engine.genDoc, eventBus, engine.proxyApp); err != nil {
-		return fmt.Errorf("failed to do handshake: %w", err)
+	handshaker := cs.NewHandshaker(engine.stateStore, state, engine.blockStore, engine.genDoc)
+	handshaker.SetLogger(engineLogger.With("module", "consensus"))
+	handshaker.SetEventBus(eventBus)
+	if err := handshaker.Handshake(engine.proxyApp); err != nil {
+		return fmt.Errorf("error during handshake: %w", err)
 	}
 
 	state, err = engine.stateStore.Load()
@@ -229,115 +248,74 @@ func (engine *Engine) DoHandshake() error {
 
 	engine.state = state
 
-	_, mempool := CreateMempoolAndMempoolReactor(engine.config, engine.proxyApp, state)
+	mp := CreateMempoolAndMempoolReactor(engine.config, engine.proxyApp, state)
 
-	_, evidencePool, err := CreateEvidenceReactor(engine.config, engine.stateStore, engine.blockStore)
+	evidencePool, err := evidence.NewPool(engine.evidenceDB, engine.stateStore, engine.blockStore)
 	if err != nil {
-		return fmt.Errorf("failed to create evidence reactor: %w", err)
+		return fmt.Errorf("failed to create evidence pool: %w", err)
 	}
 
-	engine.mempool = mempool
+	engine.mempool = &mp
 	engine.evidencePool = evidencePool
 	engine.blockExecutor = tmState.NewBlockExecutor(
 		engine.stateStore,
-		tmLogger.With("module", "state"),
+		engineLogger.With("module", "state"),
 		engine.proxyApp.Consensus(),
-		mempool,
+		mp,
 		evidencePool,
 	)
 
 	return nil
 }
 
-func (engine *Engine) ApplyBlock(runtime *string, value []byte) error {
-	var block *Block
+func (engine *Engine) ApplyBlock(rawBlock, nextRawBlock []byte) error {
+	var block, nextBlock *Block
 
-	if runtime == nil {
-		// if runtime is nil we sync from another tendermint node
-		var blockResponse BlockResponse
-		err := json.Unmarshal(value, &blockResponse)
-		if err != nil {
-			return fmt.Errorf("failed to unmarshal block response: %w", err)
-		}
-		block = &blockResponse.Result.Block
-	} else if *runtime == utils.KSyncRuntimeTendermint {
-		var parsed TendermintValue
-
-		if err := json.Unmarshal(value, &parsed); err != nil {
-			return fmt.Errorf("failed to unmarshal value: %w", err)
-		}
-
-		block = parsed.Block.Block
-	} else if *runtime == utils.KSyncRuntimeTendermintBsync {
-		if err := json.Unmarshal(value, &block); err != nil {
-			return fmt.Errorf("failed to unmarshal value: %w", err)
-		}
-	} else {
-		return fmt.Errorf("runtime %s unknown", runtime)
+	if err := json.Unmarshal(rawBlock, &block); err != nil {
+		return fmt.Errorf("failed to unmarshal block: %w", err)
 	}
 
-	// if the previous block is not defined we continue
-	if engine.prevBlock == nil {
-		engine.prevBlock = block
-		return nil
+	if err := json.Unmarshal(nextRawBlock, &nextBlock); err != nil {
+		return fmt.Errorf("failed to unmarshal next block: %w", err)
 	}
 
 	// get block data
-	blockParts := engine.prevBlock.MakePartSet(tmTypes.BlockPartSizeBytes)
-	blockId := tmTypes.BlockID{Hash: engine.prevBlock.Hash(), PartSetHeader: blockParts.Header()}
+	blockParts := block.MakePartSet(tmTypes.BlockPartSizeBytes)
+	blockId := tmTypes.BlockID{Hash: block.Hash(), PartSetHeader: blockParts.Header()}
 
 	// verify block
-	if err := engine.blockExecutor.ValidateBlock(engine.state, engine.prevBlock); err != nil {
-		return fmt.Errorf("block validation failed at height %d: %w", engine.prevBlock.Height, err)
+	if err := engine.blockExecutor.ValidateBlock(engine.state, block); err != nil {
+		return fmt.Errorf("block validation failed at height %d: %w", block.Height, err)
 	}
 
 	// verify commits
-	if err := engine.state.Validators.VerifyCommitLight(engine.state.ChainID, blockId, engine.prevBlock.Height, block.LastCommit); err != nil {
-		return fmt.Errorf("light commit verification failed at height %d: %w", engine.prevBlock.Height, err)
+	if err := engine.state.Validators.VerifyCommitLight(engine.state.ChainID, blockId, block.Height, nextBlock.LastCommit); err != nil {
+		return fmt.Errorf("light commit verification failed at height %d: %w", block.Height, err)
 	}
 
 	// store block
-	engine.blockStore.SaveBlock(engine.prevBlock, blockParts, block.LastCommit)
+	engine.blockStore.SaveBlock(block, blockParts, nextBlock.LastCommit)
 
 	// execute block against app
-	state, _, err := engine.blockExecutor.ApplyBlock(engine.state, blockId, engine.prevBlock)
+	state, _, err := engine.blockExecutor.ApplyBlock(engine.state, blockId, block)
 	if err != nil {
-		return fmt.Errorf("failed to apply block at height %d: %w", engine.prevBlock.Height, err)
+		return fmt.Errorf("failed to apply block at height %d: %w", block.Height, err)
 	}
 
-	// update values for next round
+	// update state for next round
 	engine.state = state
-	engine.prevBlock = block
-
 	return nil
 }
 
-func (engine *Engine) ApplyFirstBlockOverP2P(runtime string, value, nextValue []byte) error {
+func (engine *Engine) ApplyFirstBlockOverP2P(rawBlock, nextRawBlock []byte) error {
 	var block, nextBlock *Block
 
-	if runtime == utils.KSyncRuntimeTendermint {
-		var parsed, nextParsed TendermintValue
+	if err := json.Unmarshal(rawBlock, &block); err != nil {
+		return fmt.Errorf("failed to unmarshal block: %w", err)
+	}
 
-		if err := json.Unmarshal(value, &parsed); err != nil {
-			return fmt.Errorf("failed to unmarshal value: %w", err)
-		}
-
-		if err := json.Unmarshal(nextValue, &nextParsed); err != nil {
-			return fmt.Errorf("failed to unmarshal next value: %w", err)
-		}
-
-		block = parsed.Block.Block
-		nextBlock = nextParsed.Block.Block
-	} else if runtime == utils.KSyncRuntimeTendermintBsync {
-		if err := json.Unmarshal(value, &block); err != nil {
-			return fmt.Errorf("failed to unmarshal value: %w", err)
-		}
-
-		if err := json.Unmarshal(nextValue, &nextBlock); err != nil {
-			return fmt.Errorf("failed to unmarshal next value: %w", err)
-		}
-	} else {
-		return fmt.Errorf("runtime %s unknown", runtime)
+	if err := json.Unmarshal(nextRawBlock, &nextBlock); err != nil {
+		return fmt.Errorf("failed to unmarshal next block: %w", err)
 	}
 
 	peerAddress := engine.config.P2P.ListenAddress
@@ -367,7 +345,7 @@ func (engine *Engine) ApplyFirstBlockOverP2P(runtime string, value, nextValue []
 	nodeInfo, err := MakeNodeInfo(engine.config, ksyncNodeKey, engine.genDoc)
 	transport := tmP2P.NewMultiplexTransport(nodeInfo, *ksyncNodeKey, tmP2P.MConnConfig(engine.config.P2P))
 	bcR := NewBlockchainReactor(block, nextBlock)
-	sw := CreateSwitch(engine.config, transport, bcR, nodeInfo, ksyncNodeKey, tmLogger)
+	sw := CreateSwitch(engine.config, transport, bcR, nodeInfo, ksyncNodeKey, engineLogger)
 
 	// start the transport
 	addr, err := tmP2P.NewNetAddressString(tmP2P.IDAddressString(nodeKey.ID(), engine.config.P2P.ListenAddress))
@@ -404,20 +382,6 @@ func (engine *Engine) ApplyFirstBlockOverP2P(runtime string, value, nextValue []
 	return nil
 }
 
-func (engine *Engine) GetGenesisPath() string {
-	return engine.config.GenesisFile()
-}
-
-func (engine *Engine) GetGenesisHeight() (int64, error) {
-	defaultDocProvider := nm.DefaultGenesisDocProviderFunc(engine.config)
-	genDoc, err := defaultDocProvider()
-	if err != nil {
-		return 0, err
-	}
-
-	return genDoc.InitialHeight, nil
-}
-
 func (engine *Engine) GetHeight() int64 {
 	return engine.blockStore.Height()
 }
@@ -427,38 +391,18 @@ func (engine *Engine) GetBaseHeight() int64 {
 }
 
 func (engine *Engine) GetAppHeight() (int64, error) {
-	socketClient := abciClient.NewSocketClient(engine.config.ProxyApp, false)
-
-	if err := socketClient.Start(); err != nil {
-		return 0, fmt.Errorf("failed to start socket client: %w", err)
-	}
-
-	info, err := socketClient.InfoSync(abciTypes.RequestInfo{})
+	info, err := engine.proxyApp.Query().InfoSync(abciTypes.RequestInfo{})
 	if err != nil {
 		return 0, fmt.Errorf("failed to query info: %w", err)
-	}
-
-	if err := socketClient.Stop(); err != nil {
-		return 0, fmt.Errorf("failed to stop socket client: %w", err)
 	}
 
 	return info.LastBlockHeight, nil
 }
 
 func (engine *Engine) GetSnapshots() ([]byte, error) {
-	socketClient := abciClient.NewSocketClient(engine.config.ProxyApp, false)
-
-	if err := socketClient.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start socket client: %w", err)
-	}
-
-	res, err := socketClient.ListSnapshotsSync(abciTypes.RequestListSnapshots{})
+	res, err := engine.proxyApp.Snapshot().ListSnapshotsSync(abciTypes.RequestListSnapshots{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list snapshots: %w", err)
-	}
-
-	if err := socketClient.Stop(); err != nil {
-		return nil, fmt.Errorf("failed to stop socket client: %w", err)
 	}
 
 	if len(res.Snapshots) == 0 {
@@ -469,19 +413,9 @@ func (engine *Engine) GetSnapshots() ([]byte, error) {
 }
 
 func (engine *Engine) IsSnapshotAvailable(height int64) (bool, error) {
-	socketClient := abciClient.NewSocketClient(engine.config.ProxyApp, false)
-
-	if err := socketClient.Start(); err != nil {
-		return false, fmt.Errorf("failed to start socket client: %w", err)
-	}
-
-	res, err := socketClient.ListSnapshotsSync(abciTypes.RequestListSnapshots{})
+	res, err := engine.proxyApp.Snapshot().ListSnapshotsSync(abciTypes.RequestListSnapshots{})
 	if err != nil {
 		return false, fmt.Errorf("failed to list snapshots: %w", err)
-	}
-
-	if err := socketClient.Stop(); err != nil {
-		return false, fmt.Errorf("failed to stop socket client: %w", err)
 	}
 
 	for _, snapshot := range res.Snapshots {
@@ -494,23 +428,13 @@ func (engine *Engine) IsSnapshotAvailable(height int64) (bool, error) {
 }
 
 func (engine *Engine) GetSnapshotChunk(height, format, chunk int64) ([]byte, error) {
-	socketClient := abciClient.NewSocketClient(engine.config.ProxyApp, false)
-
-	if err := socketClient.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start socket client: %w", err)
-	}
-
-	res, err := socketClient.LoadSnapshotChunkSync(abciTypes.RequestLoadSnapshotChunk{
+	res, err := engine.proxyApp.Snapshot().LoadSnapshotChunkSync(abciTypes.RequestLoadSnapshotChunk{
 		Height: uint64(height),
 		Format: uint32(format),
 		Chunk:  uint32(chunk),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to load snapshot chunk: %w", err)
-	}
-
-	if err := socketClient.Stop(); err != nil {
-		return nil, fmt.Errorf("failed to stop socket client: %w", err)
 	}
 
 	return json.Marshal(res.Chunk)
@@ -521,31 +445,31 @@ func (engine *Engine) GetBlock(height int64) ([]byte, error) {
 	return json.Marshal(block)
 }
 
-func (engine *Engine) StartRPCServer() {
+func (engine *Engine) StartRPCServer(port int64) {
 	// wait until all reactors have been booted
 	for engine.blockExecutor == nil {
 		time.Sleep(1000)
 	}
 
-	rpcLogger := tmLogger.With("module", "rpc-server")
+	rpcLogger := engineLogger.With("module", "rpc-server")
 
 	consensusReactor := cs.NewReactor(cs.NewState(
 		engine.config.Consensus,
 		engine.state.Copy(),
 		engine.blockExecutor,
 		engine.blockStore,
-		engine.mempool,
+		*engine.mempool,
 		engine.evidencePool,
 	), false, cs.ReactorMetrics(cs.NopMetrics()))
 
 	nodeKey, err := tmP2P.LoadNodeKey(engine.config.NodeKeyFile())
 	if err != nil {
-		tmLogger.Error(fmt.Sprintf("failed to get nodeKey: %s", err))
+		engineLogger.Error(fmt.Sprintf("failed to get nodeKey: %s", err))
 		return
 	}
 	nodeInfo, err := MakeNodeInfo(engine.config, nodeKey, engine.genDoc)
 	if err != nil {
-		tmLogger.Error(fmt.Sprintf("failed to get nodeInfo: %s", err))
+		engineLogger.Error(fmt.Sprintf("failed to get nodeInfo: %s", err))
 		return
 	}
 
@@ -579,14 +503,14 @@ func (engine *Engine) StartRPCServer() {
 	config := rpcserver.DefaultConfig()
 
 	rpcserver.RegisterRPCFuncs(mux, routes, rpcLogger)
-	listener, err := rpcserver.Listen(fmt.Sprintf("tcp://127.0.0.1:%d", engine.RpcServerPort), config)
+	listener, err := rpcserver.Listen(fmt.Sprintf("tcp://127.0.0.1:%d", port), config)
 	if err != nil {
-		tmLogger.Error(fmt.Sprintf("failed to get rpc listener: %s", err))
+		engineLogger.Error(fmt.Sprintf("failed to get rpc listener: %s", err))
 		return
 	}
 
 	if err := rpcserver.Serve(listener, mux, rpcLogger, config); err != nil {
-		tmLogger.Error(fmt.Sprintf("failed to start rpc server: %s", err))
+		engineLogger.Error(fmt.Sprintf("failed to start rpc server: %s", err))
 		return
 	}
 }
@@ -648,97 +572,90 @@ func (engine *Engine) GetSeenCommit(height int64) ([]byte, error) {
 	return json.Marshal(block.LastCommit)
 }
 
-func (engine *Engine) OfferSnapshot(value []byte) (string, uint32, error) {
-	var bundle TendermintSsyncBundle
+func (engine *Engine) OfferSnapshot(rawSnapshot, rawState []byte) error {
+	var snapshot *abciTypes.Snapshot
 
-	if err := json.Unmarshal(value, &bundle); err != nil {
-		return abciTypes.ResponseOfferSnapshot_UNKNOWN.String(), 0, fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
+	if err := json.Unmarshal(rawSnapshot, &snapshot); err != nil {
+		return fmt.Errorf("failed to unmarshal snapshot: %w", err)
 	}
 
-	socketClient := abciClient.NewSocketClient(engine.config.ProxyApp, false)
+	var state *tmState.State
 
-	if err := socketClient.Start(); err != nil {
-		return abciTypes.ResponseOfferSnapshot_UNKNOWN.String(), 0, fmt.Errorf("failed to start socket client: %w", err)
+	if err := json.Unmarshal(rawState, &state); err != nil {
+		return fmt.Errorf("failed to unmarshal state: %w", err)
 	}
 
-	res, err := socketClient.OfferSnapshotSync(abciTypes.RequestOfferSnapshot{
-		Snapshot: bundle[0].Value.Snapshot,
-		AppHash:  bundle[0].Value.State.AppHash,
+	res, err := engine.proxyApp.Snapshot().OfferSnapshotSync(abciTypes.RequestOfferSnapshot{
+		Snapshot: snapshot,
+		AppHash:  state.AppHash,
 	})
-
 	if err != nil {
-		return abciTypes.ResponseOfferSnapshot_UNKNOWN.String(), 0, err
+		return err
 	}
 
-	if err := socketClient.Stop(); err != nil {
-		return abciTypes.ResponseOfferSnapshot_UNKNOWN.String(), 0, fmt.Errorf("failed to stop socket client: %w", err)
+	if res.Result.String() != abciTypes.ResponseOfferSnapshot_ACCEPT.String() {
+		return fmt.Errorf(res.Result.String())
 	}
 
-	return res.Result.String(), bundle[0].Value.Snapshot.Chunks, nil
+	return nil
 }
 
-func (engine *Engine) ApplySnapshotChunk(chunkIndex uint32, value []byte) (string, error) {
-	var bundle TendermintSsyncBundle
-
-	if err := json.Unmarshal(value, &bundle); err != nil {
-		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
-	}
-
-	nodeKey, err := tmP2P.LoadNodeKey(engine.config.NodeKeyFile())
-	if err != nil {
-		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("loading node key file failed: %w", err)
-	}
-
-	socketClient := abciClient.NewSocketClient(engine.config.ProxyApp, false)
-
-	if err := socketClient.Start(); err != nil {
-		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("failed to start socket client: %w", err)
-	}
-
-	res, err := socketClient.ApplySnapshotChunkSync(abciTypes.RequestApplySnapshotChunk{
-		Index:  chunkIndex,
-		Chunk:  bundle[0].Value.Chunk,
-		Sender: string(nodeKey.ID()),
+func (engine *Engine) ApplySnapshotChunk(chunkIndex int64, chunk []byte) error {
+	res, err := engine.proxyApp.Snapshot().ApplySnapshotChunkSync(abciTypes.RequestApplySnapshotChunk{
+		Index:  uint32(chunkIndex),
+		Chunk:  chunk,
+		Sender: string(engine.nodeKey.ID()),
 	})
-
 	if err != nil {
-		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), err
+		return err
 	}
 
-	if err := socketClient.Stop(); err != nil {
-		return abciTypes.ResponseApplySnapshotChunk_UNKNOWN.String(), fmt.Errorf("failed to stop socket client: %w", err)
+	if res.Result.String() != abciTypes.ResponseApplySnapshotChunk_ACCEPT.String() {
+		return fmt.Errorf(res.Result.String())
 	}
 
-	return res.Result.String(), nil
+	return nil
 }
 
-func (engine *Engine) BootstrapState(value []byte) error {
-	var bundle TendermintSsyncBundle
+func (engine *Engine) BootstrapState(rawState, rawSeenCommit, rawBlock []byte) error {
+	var state *tmState.State
 
-	if err := json.Unmarshal(value, &bundle); err != nil {
-		return fmt.Errorf("failed to unmarshal tendermint-ssync bundle: %w", err)
+	if err := json.Unmarshal(rawState, &state); err != nil {
+		return fmt.Errorf("failed to unmarshal state: %w", err)
+	}
+
+	var seenCommit *tmTypes.Commit
+
+	if err := json.Unmarshal(rawSeenCommit, &seenCommit); err != nil {
+		return fmt.Errorf("failed to unmarshal seen commit: %w", err)
+	}
+
+	var block *tmTypes.Block
+
+	if err := json.Unmarshal(rawBlock, &block); err != nil {
+		return fmt.Errorf("failed to unmarshal block: %w", err)
 	}
 
 	// if TimeIotaMs is zero we set it to 1 else the app would panic.
 	// in rare circumstances this can be zero if the snapshot got
 	// created with the engine cometbft-v0.37 or cometbft-v0.38 but the
 	// height is still for tendermint-v0.34
-	if bundle[0].Value.State.ConsensusParams.Block.TimeIotaMs == 0 {
-		bundle[0].Value.State.ConsensusParams.Block.TimeIotaMs = 1
+	if state.ConsensusParams.Block.TimeIotaMs == 0 {
+		state.ConsensusParams.Block.TimeIotaMs = 1
 	}
 
-	err := engine.stateStore.Bootstrap(*bundle[0].Value.State)
+	err := engine.stateStore.Bootstrap(*state)
 	if err != nil {
-		return fmt.Errorf("failed to bootstrap state: %s\"", err)
+		return fmt.Errorf("failed to bootstrap state: %w", err)
 	}
 
-	err = engine.blockStore.SaveSeenCommit(bundle[0].Value.State.LastBlockHeight, bundle[0].Value.SeenCommit)
+	err = engine.blockStore.SaveSeenCommit(state.LastBlockHeight, seenCommit)
 	if err != nil {
 		return fmt.Errorf("failed to save seen commit: %s\"", err)
 	}
 
-	blockParts := bundle[0].Value.Block.MakePartSet(tmTypes.BlockPartSizeBytes)
-	engine.blockStore.SaveBlock(bundle[0].Value.Block, blockParts, bundle[0].Value.SeenCommit)
+	blockParts := block.MakePartSet(tmTypes.BlockPartSizeBytes)
+	engine.blockStore.SaveBlock(block, blockParts, seenCommit)
 
 	return nil
 }
@@ -761,7 +678,7 @@ func (engine *Engine) PruneBlocks(toHeight int64) error {
 }
 
 func (engine *Engine) ResetAll(keepAddrBook bool) error {
-	config, err := LoadConfig(engine.HomePath)
+	config, err := LoadConfig(engine.homePath)
 	if err != nil {
 		return fmt.Errorf("failed to load config.toml: %w", err)
 	}
@@ -772,17 +689,17 @@ func (engine *Engine) ResetAll(keepAddrBook bool) error {
 	privValStateFile := config.PrivValidatorStateFile()
 
 	if keepAddrBook {
-		tmLogger.Info("the address book remains intact")
+		engineLogger.Info("the address book remains intact")
 	} else {
 		if err := os.Remove(addrBookFile); err == nil {
-			tmLogger.Info("removed existing address book", "file", addrBookFile)
+			engineLogger.Info("removed existing address book", "file", addrBookFile)
 		} else if !os.IsNotExist(err) {
 			return fmt.Errorf("error removing address book, file: %s, err: %w", addrBookFile, err)
 		}
 	}
 
 	if err := os.RemoveAll(dbDir); err == nil {
-		tmLogger.Info("removed all blockchain history", "dir", dbDir)
+		engineLogger.Info("removed all blockchain history", "dir", dbDir)
 	} else {
 		return fmt.Errorf("error removing all blockchain history, dir: %s, err: %w", dbDir, err)
 	}
@@ -795,7 +712,7 @@ func (engine *Engine) ResetAll(keepAddrBook bool) error {
 	if _, err := os.Stat(privValKeyFile); err == nil {
 		pv := privval.LoadFilePVEmptyState(privValKeyFile, privValStateFile)
 		pv.Reset()
-		tmLogger.Info(
+		engineLogger.Info(
 			"Reset private validator file to genesis state",
 			"keyFile", privValKeyFile,
 			"stateFile", privValStateFile,
@@ -803,11 +720,19 @@ func (engine *Engine) ResetAll(keepAddrBook bool) error {
 	} else {
 		pv := privval.GenFilePV(privValKeyFile, privValStateFile)
 		pv.Save()
-		tmLogger.Info(
+		engineLogger.Info(
 			"Generated private validator file",
 			"keyFile", privValKeyFile,
 			"stateFile", privValStateFile,
 		)
+	}
+
+	if err := engine.CloseDBs(); err != nil {
+		return fmt.Errorf("failed to close dbs: %w", err)
+	}
+
+	if err := engine.OpenDBs(); err != nil {
+		return fmt.Errorf("failed to open dbs: %w", err)
 	}
 
 	return nil
