@@ -445,7 +445,7 @@ func (engine *Engine) GetSnapshotChunk(height, format, chunk int64) ([]byte, err
 		return nil, fmt.Errorf("failed to load snapshot chunk: %w", err)
 	}
 
-	return res.Chunk, nil
+	return json.Marshal(res.Chunk)
 }
 
 func (engine *Engine) GetBlock(height int64) ([]byte, error) {
