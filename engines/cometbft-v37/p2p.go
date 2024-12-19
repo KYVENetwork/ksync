@@ -9,16 +9,11 @@ import (
 	bcproto "github.com/KYVENetwork/cometbft/v37/proto/cometbft/v37/blocksync"
 	sm "github.com/KYVENetwork/cometbft/v37/state"
 	"github.com/KYVENetwork/cometbft/v37/version"
-	log "github.com/KYVENetwork/ksync/utils"
 	"reflect"
 )
 
 const (
 	BlocksyncChannel = byte(0x40)
-)
-
-var (
-	logger = log.KsyncLogger("p2p")
 )
 
 type BlockchainReactor struct {
@@ -51,7 +46,7 @@ func (bcR *BlockchainReactor) GetChannels() []*p2p.ChannelDescriptor {
 }
 
 func (bcR *BlockchainReactor) sendStatusToPeer(src p2p.Peer) (queued bool) {
-	logger.Info().Int64("base", bcR.block.Height).Int64("height", bcR.block.Height+1).Msg("Sent status to peer")
+	bcR.Logger.Info("Sent status to peer", "base", bcR.block.Height, "height", bcR.block.Height+1)
 
 	return src.SendEnvelope(p2p.Envelope{
 		ChannelID: BlocksyncChannel,
@@ -66,11 +61,11 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 	if msg.Height == bcR.block.Height {
 		bl, err := bcR.block.ToProto()
 		if err != nil {
-			logger.Error().Str("could not convert msg to protobuf", err.Error())
+			bcR.Logger.Error("could not convert msg to protobuf", err.Error())
 			return false
 		}
 
-		logger.Info().Msg(fmt.Sprintf("sent block with height %d to peer", bcR.block.Height))
+		bcR.Logger.Info(fmt.Sprintf("sent block with height %d to peer", bcR.block.Height))
 
 		return src.TrySendEnvelope(p2p.Envelope{
 			ChannelID: BlocksyncChannel,
@@ -81,11 +76,11 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 	if msg.Height == bcR.nextBlock.Height {
 		bl, err := bcR.nextBlock.ToProto()
 		if err != nil {
-			logger.Error().Str("could not convert msg to protobuf", err.Error())
+			bcR.Logger.Error("could not convert msg to protobuf", err.Error())
 			return false
 		}
 
-		logger.Info().Msg(fmt.Sprintf("sent block with height %d to peer", bcR.nextBlock.Height))
+		bcR.Logger.Info(fmt.Sprintf("sent block with height %d to peer", bcR.nextBlock.Height))
 
 		return src.TrySendEnvelope(p2p.Envelope{
 			ChannelID: BlocksyncChannel,
@@ -93,7 +88,7 @@ func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest, src p2p
 		})
 	}
 
-	logger.Error().Msg(fmt.Sprintf("peer asked for different block, expected = %d,%d, requested %d", bcR.block.Height, bcR.nextBlock.Height, msg.Height))
+	bcR.Logger.Error(fmt.Sprintf("peer asked for different block, expected = %d,%d, requested %d", bcR.block.Height, bcR.nextBlock.Height, msg.Height))
 	return false
 }
 
@@ -106,15 +101,15 @@ func (bcR *BlockchainReactor) ReceiveEnvelope(e p2p.Envelope) {
 
 	switch msg := e.Message.(type) {
 	case *bcproto.StatusRequest:
-		logger.Info().Msg("Incoming status request")
+		bcR.Logger.Info("Incoming status request")
 		bcR.sendStatusToPeer(e.Src)
 	case *bcproto.BlockRequest:
-		logger.Info().Int64("height", msg.Height).Msg("Incoming block request")
+		bcR.Logger.Info("Incoming block request", "height", msg.Height)
 		bcR.sendBlockToPeer(msg, e.Src)
 	case *bcproto.StatusResponse:
-		logger.Info().Int64("base", msg.Base).Int64("height", msg.Height).Msgf("Incoming status response")
+		bcR.Logger.Info("Incoming status response", "base", msg.Base, "height", msg.Height)
 	default:
-		logger.Error().Msg(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
+		bcR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
 	}
 }
 

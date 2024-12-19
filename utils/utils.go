@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
-	"crypto/tls"
+	"encoding/json"
 	"fmt"
+	"github.com/KYVENetwork/ksync/logger"
+	"github.com/KYVENetwork/ksync/metrics"
 	"io"
 	"math"
 	"net/http"
@@ -17,27 +19,26 @@ import (
 	"time"
 )
 
-var (
-	logger = KsyncLogger("utils")
-)
-
 func GetVersion() string {
 	version, ok := runtimeDebug.ReadBuildInfo()
 	if !ok {
 		panic("failed to get ksync version")
 	}
 
+	if version.Main.Version == "" {
+		return "dev"
+	}
+
 	return strings.TrimSpace(version.Main.Version)
 }
 
 // getFromUrl tries to fetch data from url with a custom User-Agent header
-func getFromUrl(url string, transport *http.Transport) ([]byte, error) {
-	// Create a custom http.Client with the desired User-Agent header
-	client := &http.Client{Transport: http.DefaultTransport}
+func getFromUrl(url string) ([]byte, error) {
+	// Log debug info
+	logger.Logger.Debug().Str("url", url).Msg("GET")
 
-	if transport != nil {
-		client = &http.Client{Transport: transport}
-	}
+	// Create a custom http.Client with the desired User-Agent header
+	httpClient := &http.Client{Transport: http.DefaultTransport}
 
 	// Create a new GET request
 	request, err := http.NewRequest("GET", url, nil)
@@ -52,13 +53,13 @@ func getFromUrl(url string, transport *http.Transport) ([]byte, error) {
 		if strings.HasPrefix(version, "v") {
 			version = strings.TrimPrefix(version, "v")
 		}
-		request.Header.Set("User-Agent", fmt.Sprintf("ksync/%v (%v / %v / %v)", version, runtime.GOOS, runtime.GOARCH, runtime.Version()))
+		request.Header.Set("User-Agent", fmt.Sprintf("ksync/%s (%s / %s / %s)", version, runtime.GOOS, runtime.GOARCH, runtime.Version()))
 	} else {
-		request.Header.Set("User-Agent", fmt.Sprintf("ksync/dev (%v / %v / %v)", runtime.GOOS, runtime.GOARCH, runtime.Version()))
+		request.Header.Set("User-Agent", fmt.Sprintf("ksync/dev (%s / %s / %s)", runtime.GOOS, runtime.GOARCH, runtime.Version()))
 	}
 
 	// Perform the request
-	response, err := client.Do(request)
+	response, err := httpClient.Do(request)
 	if err != nil {
 		return nil, err
 	}
@@ -76,58 +77,32 @@ func getFromUrl(url string, transport *http.Transport) ([]byte, error) {
 	return data, nil
 }
 
-// getFromUrlWithBackoff tries to fetch data from url with exponential backoff
-func getFromUrlWithBackoff(url string, transport *http.Transport) (data []byte, err error) {
+// GetFromUrl tries to fetch data from url with exponential backoff, we usually
+// always want a request to succeed so it is implemented by default
+func GetFromUrl(url string) (data []byte, err error) {
 	for i := 0; i < BackoffMaxRetries; i++ {
-		data, err = getFromUrl(url, transport)
+		data, err = getFromUrl(url)
 		if err != nil {
+			metrics.IncreaseFailedRequests()
 			delaySec := math.Pow(2, float64(i))
-			delay := time.Duration(delaySec) * time.Second
 
-			logger.Error().Msg(fmt.Sprintf("failed to fetch from url \"%s\" with error \"%s\", retrying in %d seconds", url, err, int(delaySec)))
-			time.Sleep(delay)
+			logger.Logger.Error().Msgf("failed to fetch from url \"%s\" with error \"%s\", retrying in %d seconds", url, err, int(delaySec))
+			time.Sleep(time.Duration(delaySec) * time.Second)
 
 			continue
 		}
 
+		metrics.IncreaseSuccessfulRequests()
+
 		// only log success message if there were errors previously
 		if i > 0 {
-			logger.Info().Msg(fmt.Sprintf("successfully fetch data from url %s", url))
+			logger.Logger.Info().Msgf("successfully fetched data from url %s", url)
 		}
 		return
 	}
 
-	logger.Error().Msg(fmt.Sprintf("failed to fetch data from url within maximum retry limit of %d", BackoffMaxRetries))
+	logger.Logger.Error().Msgf("failed to fetch data from url within maximum retry limit of %d", BackoffMaxRetries)
 	return
-}
-
-// GetFromUrl tries to fetch data from url with a custom User-Agent header
-func GetFromUrl(url string) ([]byte, error) {
-	return getFromUrl(url, nil)
-}
-
-type GetFromUrlOptions struct {
-	SkipTLSVerification bool
-	WithBackoff         bool
-}
-
-// GetFromUrlWithOptions tries to fetch data from url with a custom User-Agent header and custom options
-func GetFromUrlWithOptions(url string, options GetFromUrlOptions) ([]byte, error) {
-	var transport *http.Transport
-	if options.SkipTLSVerification {
-		transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-	}
-	if options.WithBackoff {
-		return getFromUrlWithBackoff(url, transport)
-	}
-	return getFromUrl(url, transport)
-}
-
-// GetFromUrlWithBackoff tries to fetch data from url with exponential backoff
-func GetFromUrlWithBackoff(url string) (data []byte, err error) {
-	return GetFromUrlWithOptions(url, GetFromUrlOptions{SkipTLSVerification: true, WithBackoff: true})
 }
 
 func CreateSha256Checksum(input []byte) (hash string) {
@@ -149,30 +124,6 @@ func DecompressGzip(input []byte) ([]byte, error) {
 	}
 
 	return out.Bytes(), nil
-}
-
-func IsFileGreaterThanOrEqualTo100MB(filePath string) (bool, error) {
-	fileInfo, err := os.Stat(filePath)
-	if err != nil {
-		return false, err
-	}
-
-	// Get file size in bytes
-	fileSize := fileInfo.Size()
-
-	// Convert to MB
-	fileSizeMB := float64(fileSize) / (1024 * 1024)
-
-	// Check if the file size is >= 100MB
-	if fileSizeMB >= 100.0 {
-		return true, nil
-	}
-
-	return false, nil
-}
-
-func ParseBlockHeightFromKey(key string) (int64, error) {
-	return strconv.ParseInt(key, 10, 64)
 }
 
 func ParseSnapshotFromKey(key string) (height int64, chunkIndex int64, err error) {
@@ -200,21 +151,40 @@ func ParseSnapshotFromKey(key string) (height int64, chunkIndex int64, err error
 	return
 }
 
-func GetChainRest(chainId, chainRest string) string {
-	if chainRest != "" {
-		// trim trailing slash
-		return strings.TrimSuffix(chainRest, "/")
+func IsUpgradeHeight(homePath string, height int64) bool {
+	upgradeInfoPath := fmt.Sprintf("%s/data/upgrade-info.json", homePath)
+
+	upgradeInfo, err := os.ReadFile(upgradeInfoPath)
+	if err != nil {
+		return false
 	}
 
-	// if no custom rest endpoint was given we take it from the chainId
-	switch chainId {
-	case ChainIdMainnet:
-		return RestEndpointMainnet
-	case ChainIdKaon:
-		return RestEndpointKaon
-	case ChainIdKorellia:
-		return RestEndpointKorellia
-	default:
-		panic(fmt.Sprintf("flag --chain-id has to be either \"%s\", \"%s\" or \"%s\"", ChainIdMainnet, ChainIdKaon, ChainIdKorellia))
+	var upgrade struct {
+		Height int64 `json:"height"`
 	}
+
+	if err := json.Unmarshal(upgradeInfo, &upgrade); err != nil {
+		return false
+	}
+
+	return upgrade.Height == height
+}
+
+func GetUserConfirmationInput() (bool, error) {
+	startTime := time.Now()
+	answer := ""
+
+	if _, err := fmt.Scan(&answer); err != nil {
+		return false, fmt.Errorf("failed to read in user input: %w", err)
+	}
+
+	metrics.SetUserConfirmationInput(answer)
+	metrics.SetUserConfirmationDuration(time.Since(startTime))
+
+	if strings.ToLower(answer) != "y" {
+		logger.Logger.Info().Msg("abort")
+		return false, nil
+	}
+
+	return true, nil
 }

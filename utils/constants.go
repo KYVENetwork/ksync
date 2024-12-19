@@ -13,36 +13,23 @@ const (
 	RestEndpointBundlr       = "https://arweave.net"
 	RestEndpointKYVEStorage  = "https://storage.kyve.network"
 	RestEndpointTurboStorage = "https://arweave.net"
-
-	SegmentKey = "quSEhAvH5fqlHyop9r9mDGxgd97ro3vQ"
 )
 
 const (
-	KSyncRuntimeTendermint      = "@kyvejs/tendermint"
-	KSyncRuntimeTendermintBsync = "@kyvejs/tendermint-bsync"
-	KSyncRuntimeTendermintSsync = "@kyvejs/tendermint-ssync"
+	RuntimeTendermint      = "@kyvejs/tendermint"
+	RuntimeTendermintBsync = "@kyvejs/tendermint-bsync"
+	RuntimeTendermintSsync = "@kyvejs/tendermint-ssync"
 )
 
 const (
-	EngineTendermintV34   = "tendermint-v0.34"
-	EngineCometBFTV37     = "cometbft-v0.37"
-	EngineCometBFTV38     = "cometbft-v0.38"
-	EngineCelestiaCoreV34 = "celestia-core-v0.34"
-
-	EngineTendermintV34Legacy   = "tendermint-v34"
-	EngineCometBFTV37Legacy     = "cometbft-v37"
-	EngineCometBFTV38Legacy     = "cometbft-v38"
-	EngineCelestiaCoreV34Legacy = "celestia-core-v34"
-
-	EngineTendermintLegacy   = "tendermint"
-	EngineCometBFTLegacy     = "cometbft"
-	EngineCelestiaCoreLegacy = "tendermint-celestiacore"
+	EngineTendermintV34   = "TENDERMINT-V34"
+	EngineCelestiaCoreV34 = "CELESTIA-CORE-V34"
+	EngineCometBFTV37     = "COMETBFT-V37"
+	EngineCometBFTV38     = "COMETBFT-V38"
 )
 
 const (
-	DefaultEngine             = EngineTendermintV34
 	DefaultChainId            = ChainIdMainnet
-	DefaultBackupPath         = "~/.ksync/backups"
 	DefaultRpcServerPort      = 7777
 	DefaultSnapshotServerPort = 7878
 )
@@ -54,23 +41,8 @@ const (
 	SnapshotPruningAheadFactor  = 3
 	SnapshotPruningWindowFactor = 6
 	BackoffMaxRetries           = 10
-	RequestTimeoutMS            = 250
+	RequestTimeoutMS            = 100
 	RequestBlocksTimeoutMS      = 250
-)
-
-const (
-	SYNC_STARTED    = "SYNC_STARTED"
-	SYNC_COMPLETED  = "SYNC_COMPLETED"
-	BLOCK_SYNC      = "BLOCK_SYNC"
-	STATE_SYNC      = "STATE_SYNC"
-	HEIGHT_SYNC     = "HEIGHT_SYNC"
-	SERVE_SNAPSHOTS = "SERVE_SNAPSHOTS"
-	INFO            = "INFO"
-	RESET           = "RESET"
-	PRUNE           = "PRUNE"
-	BACKUP          = "BACKUP"
-	VERSION         = "VERSION"
-	ENGINES         = "ENGINES"
 )
 
 const (

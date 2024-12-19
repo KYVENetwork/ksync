@@ -2,22 +2,22 @@ package commands
 
 import (
 	"fmt"
-	"github.com/KYVENetwork/ksync/engines"
-	"github.com/KYVENetwork/ksync/utils"
+	"github.com/KYVENetwork/ksync/app"
+	"github.com/KYVENetwork/ksync/flags"
+	"github.com/KYVENetwork/ksync/logger"
 	"github.com/spf13/cobra"
 )
 
 func init() {
-	resetCmd.Flags().StringVarP(&engine, "engine", "e", "", fmt.Sprintf("consensus engine of the binary by default %s is used, list all engines with \"ksync engines\"", utils.DefaultEngine))
-
-	resetCmd.Flags().StringVar(&homePath, "home", "", "home directory")
+	resetCmd.Flags().StringVar(&flags.HomePath, "home", "", "home directory")
 	if err := resetCmd.MarkFlagRequired("home"); err != nil {
 		panic(fmt.Errorf("flag 'home' should be required: %w", err))
 	}
 
-	resetCmd.Flags().BoolVar(&keepAddrBook, "keep-addr-book", true, "keep the address book intact")
+	resetCmd.Flags().BoolVar(&flags.KeepAddrBook, "keep-addr-book", true, "keep the address book intact")
 
-	resetCmd.Flags().BoolVar(&optOut, "opt-out", false, "disable the collection of anonymous usage data")
+	resetCmd.Flags().BoolVar(&flags.OptOut, "opt-out", false, "disable the collection of anonymous usage data")
+	resetCmd.Flags().BoolVarP(&flags.Debug, "debug", "d", false, "run KSYNC in debug mode")
 
 	RootCmd.AddCommand(resetCmd)
 }
@@ -26,13 +26,16 @@ var resetCmd = &cobra.Command{
 	Use:   "reset-all",
 	Short: "Removes all the data and WAL, reset this node's validator to genesis state",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		utils.TrackResetEvent(optOut)
-
-		if err := engines.EngineFactory(engine, homePath, rpcServerPort).ResetAll(keepAddrBook); err != nil {
-			return fmt.Errorf("failed to reset tendermint application: %w", err)
+		app, err := app.NewCosmosApp()
+		if err != nil {
+			return fmt.Errorf("failed to init cosmos app: %w", err)
 		}
 
-		logger.Info().Msg("successfully reset tendermint application")
+		if err := app.ConsensusEngine.ResetAll(true); err != nil {
+			return fmt.Errorf("failed to reset cosmos app: %w", err)
+		}
+
+		logger.Logger.Info().Msg("successfully reset cosmos app")
 		return nil
 	},
 }

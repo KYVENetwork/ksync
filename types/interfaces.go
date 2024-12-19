@@ -1,9 +1,66 @@
 package types
 
+// BlockCollector is an interface defining common behaviour for each
+// type of collecting blocks, since blocks can be either obtained
+// with requesting the rpc endpoint of the source chain or with
+// downloading archived bundles from KYVE
+type BlockCollector interface {
+	// GetEarliestAvailableHeight gets the earliest available block in a block pool
+	GetEarliestAvailableHeight() int64
+
+	// GetLatestAvailableHeight gets the latest available block in a block pool
+	GetLatestAvailableHeight() int64
+
+	// GetBlock gets the block for the given height
+	GetBlock(height int64) ([]byte, error)
+
+	// StreamBlocks takes a continuationHeight and a targetHeight and streams
+	// all blocks in order into a given block channel. This method exits once
+	// the target height is reached or runs indefinitely depending on the
+	// exitOnTargetHeight value
+	StreamBlocks(blockCh chan<- *BlockItem, errorCh chan<- error, continuationHeight, targetHeight int64)
+}
+
+// SnapshotCollector is an interface defining behaviour for
+// collecting snapshots
+type SnapshotCollector interface {
+	// GetEarliestAvailableHeight gets the earliest available snapshot height in
+	// a snapshot pool
+	GetEarliestAvailableHeight() int64
+
+	// GetLatestAvailableHeight gets the latest available snapshot height in
+	// a snapshot pool
+	GetLatestAvailableHeight() int64
+
+	// GetInterval gets the snapshot interval
+	GetInterval() int64
+
+	// GetCurrentHeight gets the current height of the latest snapshot. This snapshot
+	// is not guaranteed to be fully available and chunks can still be missing
+	GetCurrentHeight() (int64, error)
+
+	// GetSnapshotHeight gets the exact height of the nearest snapshot before the target
+	// height
+	GetSnapshotHeight(targetHeight int64) int64
+
+	// GetSnapshotFromBundleId gets the snapshot from the given bundle
+	GetSnapshotFromBundleId(bundleId int64) (*SnapshotDataItem, error)
+
+	// DownloadChunkFromBundleId downloads the snapshot chunk from the given bundle
+	DownloadChunkFromBundleId(bundleId int64) ([]byte, error)
+
+	// FindSnapshotBundleIdForHeight searches and returns the bundle id which contains the first
+	// snapshot chunk for the given height.
+	// Since we do not know how many chunks a bundle has but expect that the snapshots are ordered by height
+	// we can apply a binary search to minimize the amount of requests we have to make. This method fails
+	// if there is no bundle which contains the snapshot at the target height
+	FindSnapshotBundleIdForHeight(height int64) (int64, error)
+}
+
 // Engine is an interface defining common behaviour for each consensus engine.
 // Currently, both tendermint-v34 and cometbft-v38 are supported
 type Engine interface {
-	// GetName gets the engine name
+	// GetName gets the name of the engine
 	GetName() string
 
 	// LoadConfig loads and sets the config
@@ -15,8 +72,8 @@ type Engine interface {
 	// CloseDBs closes the relevant blockstore and state DBs
 	CloseDBs() error
 
-	// GetHomePath gets the home path of the config and data folder
-	GetHomePath() string
+	// GetRpcListenAddress gets the address the rpc endpoint is hosted
+	GetRpcListenAddress() string
 
 	// GetProxyAppAddress gets the proxy app address of the TSP connection
 	GetProxyAppAddress() string
@@ -27,30 +84,17 @@ type Engine interface {
 	// StopProxyApp stops the proxy app connections to the app
 	StopProxyApp() error
 
-	// GetChainId gets the chain id of the app
-	GetChainId() (string, error)
-
-	// GetContinuationHeight gets the block height from the app at which
-	// KSYNC should proceed block-syncing
-	GetContinuationHeight() (int64, error)
-
 	// DoHandshake does a handshake with the app and needs to be called
 	// before ApplyBlock
 	DoHandshake() error
 
-	// ApplyBlock takes the block in the raw format and applies it against
-	// the app
-	ApplyBlock(runtime *string, value []byte) error
+	// ApplyBlock takes a block at height n and n+1 and applies it against
+	// the cosmos app
+	ApplyBlock(rawBlock, nextRawBlock []byte) error
 
 	// ApplyFirstBlockOverP2P applies the first block over the P2P reactor
 	// which is necessary, if the genesis file is bigger than 100MB
-	ApplyFirstBlockOverP2P(runtime string, value, nextValue []byte) error
-
-	// GetGenesisPath gets the file path to the genesis file
-	GetGenesisPath() string
-
-	// GetGenesisHeight gets the initial height defined by the genesis file
-	GetGenesisHeight() (int64, error)
+	ApplyFirstBlockOverP2P(rawBlock, nextRawBlock []byte) error
 
 	// GetHeight gets the latest height stored in the blockstore.db
 	GetHeight() int64
@@ -77,7 +121,7 @@ type Engine interface {
 
 	// StartRPCServer spins up a basic rpc server of the engine which serves
 	// /status, /block and /block_results
-	StartRPCServer()
+	StartRPCServer(port int64)
 
 	// GetState rebuilds the requested state from the blockstore and state.db
 	GetState(height int64) ([]byte, error)
@@ -86,13 +130,13 @@ type Engine interface {
 	GetSeenCommit(height int64) ([]byte, error)
 
 	// OfferSnapshot offers a snapshot over ABCI to the app
-	OfferSnapshot(value []byte) (string, uint32, error)
+	OfferSnapshot(rawSnapshot, rawState []byte) error
 
 	// ApplySnapshotChunk applies a snapshot chunk over ABCI to the app
-	ApplySnapshotChunk(chunkIndex uint32, value []byte) (string, error)
+	ApplySnapshotChunk(chunkIndex int64, chunk []byte) error
 
 	// BootstrapState initializes the tendermint state
-	BootstrapState(value []byte) error
+	BootstrapState(rawState, rawSeenCommit, rawBlock []byte) error
 
 	// PruneBlocks prunes blocks from the block store and state store
 	// from the earliest found base height to the specified height
