@@ -12,26 +12,6 @@ import (
 	"github.com/KYVENetwork/ksync/utils"
 )
 
-func getUserConfirmation(y, canApplySnapshot bool, snapshotHeight, continuationHeight, targetHeight int64) (bool, error) {
-	if y {
-		return true, nil
-	}
-
-	if canApplySnapshot {
-		if targetHeight == 0 {
-			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m no target height specified, state-sync to height %d and sync indefinitely from there [y/N]: ", snapshotHeight)
-		} else if snapshotHeight == targetHeight {
-			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by applying a snapshot at height %d [y/N]: ", targetHeight, snapshotHeight)
-		} else {
-			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by applying a snapshot at height %d and syncing the remaining %d blocks [y/N]: ", targetHeight, snapshotHeight, targetHeight-(continuationHeight-1))
-		}
-	} else {
-		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by syncing from height %d [y/N]: ", targetHeight, continuationHeight-1)
-	}
-
-	return utils.GetUserConfirmationInput()
-}
-
 func Start() error {
 	logger.Logger.Info().Msg("starting height-sync")
 
@@ -129,4 +109,24 @@ func Start() error {
 
 	logger.Logger.Info().Str("duration", metrics.GetSyncDuration().String()).Msgf("successfully finished height-sync by reaching target height %d", flags.TargetHeight)
 	return nil
+}
+
+func getUserConfirmation(y, canApplySnapshot bool, snapshotHeight, continuationHeight, targetHeight int64) (bool, error) {
+	if y {
+		return true, nil
+	}
+
+	if canApplySnapshot {
+		if targetHeight == 0 {
+			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m no target height specified, state-sync to height %d and sync indefinitely from there [y/N]: ", snapshotHeight)
+		} else if snapshotHeight == targetHeight {
+			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by applying a snapshot at height %d [y/N]: ", targetHeight, snapshotHeight)
+		} else {
+			fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by applying a snapshot at height %d and syncing the remaining %d blocks [y/N]: ", targetHeight, snapshotHeight, targetHeight-(continuationHeight-1))
+		}
+	} else {
+		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should target height %d be reached by syncing from height %d [y/N]: ", targetHeight, continuationHeight-1)
+	}
+
+	return utils.GetUserConfirmationInput()
 }
