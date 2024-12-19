@@ -4,10 +4,7 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/app/genesis"
 	"github.com/KYVENetwork/ksync/app/source"
-	"github.com/KYVENetwork/ksync/engines/celestia-core-v34"
-	"github.com/KYVENetwork/ksync/engines/cometbft-v37"
 	"github.com/KYVENetwork/ksync/engines/cometbft-v38"
-	"github.com/KYVENetwork/ksync/engines/tendermint-v34"
 	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/metrics"
@@ -199,17 +196,17 @@ func (app *CosmosApp) StartBinary(snapshotInterval int64) error {
 		cmd.Env = append(os.Environ(), "COSMOVISOR_DISABLE_LOGS=true", "UNSAFE_SKIP_BACKUP=true")
 	}
 
-	cmd.Args = append(cmd.Args, "start",
+	cmd.Args = append(cmd.Args, "run",
 		"--home",
 		app.homePath,
-		"--with-tendermint=false",
-		"--address",
-		app.ConsensusEngine.GetProxyAppAddress(),
+		"--with-comet=false",
+		//"--address",
+		//app.ConsensusEngine.GetProxyAppAddress(),
 	)
 
-	if flags.Debug {
-		cmd.Args = append(cmd.Args, "--log_level", "debug")
-	}
+	//if flags.Debug {
+	//	cmd.Args = append(cmd.Args, "--log_level", "debug")
+	//}
 
 	if snapshotInterval > 0 {
 		cmd.Args = append(
@@ -442,48 +439,52 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 		}
 	}
 
-	cmd := exec.Command(app.binaryPath)
-
-	if app.isCosmovisor {
-		cmd.Args = append(cmd.Args, "run")
-		cmd.Env = append(os.Environ(), "COSMOVISOR_DISABLE_LOGS=true")
-	}
-
-	cmd.Args = append(cmd.Args, "version", "--long")
-
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("failed to get output of binary: %w", err)
-	}
-
-	app.ConsensusEngine, err = func() (types.Engine, error) {
-		for _, engine := range []string{"github.com/tendermint/tendermint@v", "github.com/cometbft/cometbft@v"} {
-			for _, line := range strings.Split(string(out), "\n") {
-				if strings.Contains(line, fmt.Sprintf("- %s", engine)) {
-					dependency := strings.Split(strings.ReplaceAll(strings.Split(line, " => ")[len(strings.Split(line, " => "))-1], "- ", ""), "@v")
-
-					if strings.Contains(dependency[1], "0.34.") && strings.Contains(dependency[0], "celestia-core") {
-						return celestia_core_v34.NewEngine(app.homePath)
-					} else if strings.Contains(dependency[1], "0.34.") {
-						return tendermint_v34.NewEngine(app.homePath)
-					} else if strings.Contains(dependency[1], "0.37.") {
-						return cometbft_v37.NewEngine(app.homePath)
-					} else if strings.Contains(dependency[1], "0.38.") {
-						return cometbft_v38.NewEngine(app.homePath)
-					} else {
-						return nil, fmt.Errorf("failed to find engine in binary dependencies")
-					}
-				}
-			}
-		}
-
-		return nil, fmt.Errorf("failed to find engine in binary dependencies")
-	}()
-
-	if err != nil {
-		return err
-	}
-
+	app.ConsensusEngine, _ = cometbft_v38.NewEngine(app.homePath)
 	logger.Logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", app.ConsensusEngine.GetName())
 	return nil
+
+	//cmd := exec.Command(app.binaryPath)
+	//
+	//if app.isCosmovisor {
+	//	cmd.Args = append(cmd.Args, "run")
+	//	cmd.Env = append(os.Environ(), "COSMOVISOR_DISABLE_LOGS=true")
+	//}
+	//
+	//cmd.Args = append(cmd.Args, "version", "--long")
+	//
+	//out, err := cmd.CombinedOutput()
+	//if err != nil {
+	//	return fmt.Errorf("failed to get output of binary: %w", err)
+	//}
+	//
+	//app.ConsensusEngine, err = func() (types.Engine, error) {
+	//	for _, engine := range []string{"github.com/tendermint/tendermint@v", "github.com/cometbft/cometbft@v"} {
+	//		for _, line := range strings.Split(string(out), "\n") {
+	//			if strings.Contains(line, fmt.Sprintf("- %s", engine)) {
+	//				dependency := strings.Split(strings.ReplaceAll(strings.Split(line, " => ")[len(strings.Split(line, " => "))-1], "- ", ""), "@v")
+	//
+	//				if strings.Contains(dependency[1], "0.34.") && strings.Contains(dependency[0], "celestia-core") {
+	//					return celestia_core_v34.NewEngine(app.homePath)
+	//				} else if strings.Contains(dependency[1], "0.34.") {
+	//					return tendermint_v34.NewEngine(app.homePath)
+	//				} else if strings.Contains(dependency[1], "0.37.") {
+	//					return cometbft_v37.NewEngine(app.homePath)
+	//				} else if strings.Contains(dependency[1], "0.38.") {
+	//					return cometbft_v38.NewEngine(app.homePath)
+	//				} else {
+	//					return nil, fmt.Errorf("failed to find engine in binary dependencies")
+	//				}
+	//			}
+	//		}
+	//	}
+	//
+	//	return nil, fmt.Errorf("failed to find engine in binary dependencies")
+	//}()
+	//
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//logger.Logger.Info().Msgf("loaded consensus engine \"%s\" from app binary", app.ConsensusEngine.GetName())
+	//return nil
 }

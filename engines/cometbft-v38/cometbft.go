@@ -95,14 +95,14 @@ func (engine *Engine) LoadConfig() error {
 
 	engine.genDoc = genDoc
 
-	privValidatorKey, err := privval.LoadFilePVEmptyState(
-		engine.config.PrivValidatorKeyFile(),
-		engine.config.PrivValidatorStateFile(),
-	).GetPubKey()
-	if err != nil {
-		return fmt.Errorf("failed to load validator key file: %w", err)
-	}
-	engine.privValidatorKey = privValidatorKey
+	//privValidatorKey, err := privval.LoadFilePVEmptyState(
+	//	engine.config.PrivValidatorKeyFile(),
+	//	engine.config.PrivValidatorStateFile(),
+	//).GetPubKey()
+	//if err != nil {
+	//	return fmt.Errorf("failed to load validator key file: %w", err)
+	//}
+	//engine.privValidatorKey = privValidatorKey
 
 	nodeKey, err := cometP2P.LoadNodeKey(engine.config.NodeKeyFile())
 	if err != nil {
@@ -199,6 +199,7 @@ func (engine *Engine) StartProxyApp() error {
 	}
 
 	engine.proxyApp = proxy.NewAppConns(proxy.NewRemoteClientCreator(engine.config.ProxyApp, engine.config.ABCI, false), proxy.NopMetrics())
+	engine.proxyApp.SetLogger(engineLogger.With("proxy_app"))
 	if err := engine.proxyApp.Start(); err != nil {
 		return fmt.Errorf("failed to start proxy app: %w", err)
 	}
