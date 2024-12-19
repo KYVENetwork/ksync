@@ -3,7 +3,7 @@ module github.com/KYVENetwork/ksync
 go 1.22.4
 
 require (
-	github.com/KYVENetwork/celestia-core v1.47.0-tm-v0.34.29
+	github.com/KYVENetwork/celestia-core v1.50.0-tm-v0.34.29
 	github.com/KYVENetwork/cometbft/v37 v37.0.3
 	github.com/KYVENetwork/cometbft/v38 v38.0.4
 	github.com/cometbft/cometbft-db v0.9.5
@@ -29,7 +29,7 @@ require (
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
-	github.com/cosmos/gogoproto v1.4.11 // indirect
+	github.com/cosmos/gogoproto v1.7.0 // indirect
 	github.com/creachadair/taskgroup v0.13.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect

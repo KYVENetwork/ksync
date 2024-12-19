@@ -3,8 +3,8 @@ github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161/go.mod h1:xomTg6
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/ChainSafe/go-schnorrkel v1.0.0 h1:3aDA67lAykLaG1y3AOjs88dMxC88PgUuHRrLeDnvGIM=
 github.com/ChainSafe/go-schnorrkel v1.0.0/go.mod h1:dpzHYVxLZcp8pjlV+O+UR8K0Hp/z7vcchBSbMBEhCw4=
-github.com/KYVENetwork/celestia-core v1.47.0-tm-v0.34.29 h1:MaXU8B5EcAdf9FcryMaUsZtcizabH/N1uRcp/LR/Jgo=
-github.com/KYVENetwork/celestia-core v1.47.0-tm-v0.34.29/go.mod h1:F24hB7hFzH/7oXDPwC0csYnzoyprrGiHkMh/PHtIRY4=
+github.com/KYVENetwork/celestia-core v1.50.0-tm-v0.34.29 h1:yeR+6Wm85UAfxc5s6OYersm2IvO21NTuFAmS7MG39Xk=
+github.com/KYVENetwork/celestia-core v1.50.0-tm-v0.34.29/go.mod h1:IifwmY1S2n7YckIgU4d2CLKq7TQ5Oo7dhT00fYX88OM=
 github.com/KYVENetwork/cometbft v0.34.35 h1:kSwb+Is995tvI5xaYX6RQ9GRVrfMMXzpUHS+Yei+MxQ=
 github.com/KYVENetwork/cometbft v0.34.35/go.mod h1:SA1at6NTspQqvJ3Ud9TV9ixb0xgzoWNHGZVOU4HO+mM=
 github.com/KYVENetwork/cometbft/v37 v37.0.3 h1:kimHuadNTh3qDHfuB5eYyixoEGLpmnmYDc4dVsPG/jA=
@@ -61,8 +61,8 @@ github.com/coreos/go-semver v0.2.0/go.mod h1:nnelYz7RCh+5ahJtPPxZlU+153eP4D4r3Ee
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
 github.com/cosmos/go-bip39 v0.0.0-20180819234021-555e2067c45d h1:49RLWk1j44Xu4fjHb6JFYmeUnDORVwHNkDxaQ0ctCVU=
 github.com/cosmos/go-bip39 v0.0.0-20180819234021-555e2067c45d/go.mod h1:tSxLoYXyBmiFeKpvmq4dzayMdCjCnu8uqmCysIGBT2Y=
-github.com/cosmos/gogoproto v1.4.11 h1:LZcMHrx4FjUgrqQSWeaGC1v/TeuVFqSLa43CC6aWR2g=
-github.com/cosmos/gogoproto v1.4.11/go.mod h1:/g39Mh8m17X8Q/GDEs5zYTSNaNnInBSohtaxzQnYq1Y=
+github.com/cosmos/gogoproto v1.7.0 h1:79USr0oyXAbxg3rspGh/m4SWNyoz/GLaAh0QlCe2fro=
+github.com/cosmos/gogoproto v1.7.0/go.mod h1:yWChEv5IUEYURQasfyBW5ffkMHR/90hiHgbNgrtp4j0=
 github.com/cpuguy83/go-md2man v1.0.10/go.mod h1:SmD6nW6nTyfqj6ABTjUi3V3JVMnlJmwcJI5acqYI6dE=
 github.com/cpuguy83/go-md2man/v2 v2.0.4/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/creachadair/taskgroup v0.13.0 h1:VKaW1fi1/Erkkrvx4NvaddzHCGA+hh5QPc5Veiq+joI=
