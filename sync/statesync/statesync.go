@@ -11,42 +11,6 @@ import (
 	"github.com/KYVENetwork/ksync/utils"
 )
 
-// PerformStateSyncValidationChecks makes boundary checks for the given snapshot height
-func PerformStateSyncValidationChecks(snapshotCollector types.SnapshotCollector, snapshotHeight int64) error {
-	earliest := snapshotCollector.GetEarliestAvailableHeight()
-	latest := snapshotCollector.GetLatestAvailableHeight()
-
-	logger.Logger.Info().Msgf("retrieved snapshot boundaries, earliest complete snapshot height = %d, latest complete snapshot height %d", earliest, latest)
-
-	if snapshotHeight < earliest {
-		return fmt.Errorf("requested snapshot height is %d but first available snapshot on pool is %d", snapshotHeight, earliest)
-	}
-
-	if snapshotHeight > latest {
-		return fmt.Errorf("requested snapshot height is %d but latest available snapshot on pool is %d", snapshotHeight, latest)
-	}
-
-	return nil
-}
-
-func getUserConfirmation(y bool, snapshotHeight, targetHeight int64) (bool, error) {
-	if y {
-		return true, nil
-	}
-
-	// if we found a different snapshotHeight as the requested targetHeight it means there was no snapshot
-	// at the requested targetHeight. Ask the user here if KSYNC should sync to the nearest height instead
-	if targetHeight == 0 {
-		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m no target height specified, state-sync to latest available snapshot with height %d [y/N]: ", snapshotHeight)
-	} else if snapshotHeight == targetHeight {
-		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should snapshot with height %d be applied with state-sync [y/N]: ", snapshotHeight)
-	} else {
-		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m could not find snapshot with requested height %d, state-sync to nearest available snapshot with height %d instead? [y/N]: ", targetHeight, snapshotHeight)
-	}
-
-	return utils.GetUserConfirmationInput()
-}
-
 func Start() error {
 	logger.Logger.Info().Msg("starting state-sync")
 
@@ -106,4 +70,40 @@ func Start() error {
 
 	logger.Logger.Info().Str("duration", metrics.GetSyncDuration().String()).Msgf("successfully finished state-sync by applying snapshot at height %d", snapshotHeight)
 	return nil
+}
+
+// PerformStateSyncValidationChecks makes boundary checks for the given snapshot height
+func PerformStateSyncValidationChecks(snapshotCollector types.SnapshotCollector, snapshotHeight int64) error {
+	earliest := snapshotCollector.GetEarliestAvailableHeight()
+	latest := snapshotCollector.GetLatestAvailableHeight()
+
+	logger.Logger.Info().Msgf("retrieved snapshot boundaries, earliest complete snapshot height = %d, latest complete snapshot height %d", earliest, latest)
+
+	if snapshotHeight < earliest {
+		return fmt.Errorf("requested snapshot height is %d but first available snapshot on pool is %d", snapshotHeight, earliest)
+	}
+
+	if snapshotHeight > latest {
+		return fmt.Errorf("requested snapshot height is %d but latest available snapshot on pool is %d", snapshotHeight, latest)
+	}
+
+	return nil
+}
+
+func getUserConfirmation(y bool, snapshotHeight, targetHeight int64) (bool, error) {
+	if y {
+		return true, nil
+	}
+
+	// if we found a different snapshotHeight as the requested targetHeight it means there was no snapshot
+	// at the requested targetHeight. Ask the user here if KSYNC should sync to the nearest height instead
+	if targetHeight == 0 {
+		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m no target height specified, state-sync to latest available snapshot with height %d [y/N]: ", snapshotHeight)
+	} else if snapshotHeight == targetHeight {
+		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m should snapshot with height %d be applied with state-sync [y/N]: ", snapshotHeight)
+	} else {
+		fmt.Printf("\u001B[36m[KSYNC]\u001B[0m could not find snapshot with requested height %d, state-sync to nearest available snapshot with height %d instead? [y/N]: ", targetHeight, snapshotHeight)
+	}
+
+	return utils.GetUserConfirmationInput()
 }

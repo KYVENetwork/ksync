@@ -5,7 +5,6 @@ import (
 	abciTypes "github.com/KYVENetwork/cometbft/v37/abci/types"
 	cfg "github.com/KYVENetwork/cometbft/v37/config"
 	cs "github.com/KYVENetwork/cometbft/v37/consensus"
-	"github.com/KYVENetwork/cometbft/v37/crypto"
 	"github.com/KYVENetwork/cometbft/v37/crypto/ed25519"
 	"github.com/KYVENetwork/cometbft/v37/evidence"
 	"github.com/KYVENetwork/cometbft/v37/libs/json"
@@ -44,9 +43,8 @@ type Engine struct {
 
 	evidenceDB db.DB
 
-	genDoc           *GenesisDoc
-	privValidatorKey crypto.PubKey
-	nodeKey          *cometP2P.NodeKey
+	genDoc  *GenesisDoc
+	nodeKey *cometP2P.NodeKey
 
 	state         tmState.State
 	proxyApp      proxy.AppConns
@@ -93,15 +91,6 @@ func (engine *Engine) LoadConfig() error {
 	}
 
 	engine.genDoc = genDoc
-
-	privValidatorKey, err := privval.LoadFilePVEmptyState(
-		engine.config.PrivValidatorKeyFile(),
-		engine.config.PrivValidatorStateFile(),
-	).GetPubKey()
-	if err != nil {
-		return fmt.Errorf("failed to load validator key file: %w", err)
-	}
-	engine.privValidatorKey = privValidatorKey
 
 	nodeKey, err := cometP2P.LoadNodeKey(engine.config.NodeKeyFile())
 	if err != nil {
@@ -486,7 +475,7 @@ func (engine *Engine) StartRPCServer(port int64) {
 		ConsensusState:   nil,
 		P2PPeers:         nil,
 		P2PTransport:     &Transport{nodeInfo: nodeInfo},
-		PubKey:           engine.privValidatorKey,
+		PubKey:           ed25519.GenPrivKey().PubKey(),
 		GenDoc:           nil,
 		TxIndexer:        nil,
 		BlockIndexer:     nil,

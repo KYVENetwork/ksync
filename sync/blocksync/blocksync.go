@@ -11,6 +11,56 @@ import (
 	"github.com/KYVENetwork/ksync/utils"
 )
 
+func Start() error {
+	logger.Logger.Info().Msg("starting block-sync")
+
+	app, err := app.NewCosmosApp()
+	if err != nil {
+		return fmt.Errorf("failed to init cosmos app: %w", err)
+	}
+
+	if flags.Reset {
+		if err := app.ConsensusEngine.ResetAll(true); err != nil {
+			return fmt.Errorf("failed to reset cosmos app: %w", err)
+		}
+	}
+
+	continuationHeight := app.GetContinuationHeight()
+	metrics.SetContinuationHeight(continuationHeight)
+
+	blockCollector, err := getBlockCollector(app)
+	if err != nil {
+		return err
+	}
+
+	if err := PerformBlockSyncValidationChecks(blockCollector, continuationHeight, flags.TargetHeight); err != nil {
+		return fmt.Errorf("block-sync validation checks failed: %w", err)
+	}
+
+	if confirmation, err := getUserConfirmation(flags.Y, continuationHeight, flags.TargetHeight); !confirmation {
+		return err
+	}
+
+	if err := app.AutoSelectBinaryVersion(continuationHeight); err != nil {
+		return fmt.Errorf("failed to auto select binary version: %w", err)
+	}
+
+	if err := app.StartAll(0); err != nil {
+		return fmt.Errorf("failed to start app: %w", err)
+	}
+
+	defer app.StopAll()
+
+	// we only pass the snapshot collector to the block executor if we are creating
+	// state-sync snapshots with serve-snapshots
+	if err := StartBlockSyncExecutor(app, blockCollector, nil); err != nil {
+		return fmt.Errorf("failed to start block-sync executor: %w", err)
+	}
+
+	logger.Logger.Info().Str("duration", metrics.GetSyncDuration().String()).Msgf("successfully finished block-sync by reaching target height %d", flags.TargetHeight)
+	return nil
+}
+
 // PerformBlockSyncValidationChecks makes boundary checks if app can be block-synced from the given
 // continuation height to the given target height
 func PerformBlockSyncValidationChecks(blockCollector types.BlockCollector, continuationHeight, targetHeight int64) error {
@@ -79,54 +129,4 @@ func getUserConfirmation(y bool, continuationHeight, targetHeight int64) (bool, 
 	}
 
 	return utils.GetUserConfirmationInput()
-}
-
-func Start() error {
-	logger.Logger.Info().Msg("starting block-sync")
-
-	app, err := app.NewCosmosApp()
-	if err != nil {
-		return fmt.Errorf("failed to init cosmos app: %w", err)
-	}
-
-	if flags.Reset {
-		if err := app.ConsensusEngine.ResetAll(true); err != nil {
-			return fmt.Errorf("failed to reset cosmos app: %w", err)
-		}
-	}
-
-	continuationHeight := app.GetContinuationHeight()
-	metrics.SetContinuationHeight(continuationHeight)
-
-	blockCollector, err := getBlockCollector(app)
-	if err != nil {
-		return err
-	}
-
-	if err := PerformBlockSyncValidationChecks(blockCollector, continuationHeight, flags.TargetHeight); err != nil {
-		return fmt.Errorf("block-sync validation checks failed: %w", err)
-	}
-
-	if confirmation, err := getUserConfirmation(flags.Y, continuationHeight, flags.TargetHeight); !confirmation {
-		return err
-	}
-
-	if err := app.AutoSelectBinaryVersion(continuationHeight); err != nil {
-		return fmt.Errorf("failed to auto select binary version: %w", err)
-	}
-
-	if err := app.StartAll(0); err != nil {
-		return fmt.Errorf("failed to start app: %w", err)
-	}
-
-	defer app.StopAll()
-
-	// we only pass the snapshot collector to the block executor if we are creating
-	// state-sync snapshots with serve-snapshots
-	if err := StartBlockSyncExecutor(app, blockCollector, nil); err != nil {
-		return fmt.Errorf("failed to start block-sync executor: %w", err)
-	}
-
-	logger.Logger.Info().Str("duration", metrics.GetSyncDuration().String()).Msgf("successfully finished block-sync by reaching target height %d", flags.TargetHeight)
-	return nil
 }

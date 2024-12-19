@@ -384,6 +384,8 @@ func (app *CosmosApp) LoadHomePath() error {
 		cmd.Env = append(os.Environ(), "COSMOVISOR_DISABLE_LOGS=true")
 	}
 
+	cmd.Args = append(cmd.Args, "start", "--help")
+
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to get output of binary: %w", err)
