@@ -211,43 +211,17 @@ func (app *CosmosApp) StartBinary(snapshotInterval int64) error {
 	if snapshotInterval > 0 {
 		cmd.Args = append(
 			cmd.Args,
-			"--state-sync.snapshot-interval",
+			"--snapshot-interval",
 			strconv.FormatInt(snapshotInterval, 10),
 		)
 
-		if flags.Pruning {
-			cmd.Args = append(
-				cmd.Args,
-				"--pruning",
-				"custom",
-				"--pruning-keep-recent",
-				strconv.FormatInt(utils.SnapshotPruningWindowFactor*snapshotInterval, 10),
-				"--pruning-interval",
-				"10",
-			)
-
-			if flags.KeepSnapshots {
-				cmd.Args = append(
-					cmd.Args,
-					"--state-sync.snapshot-keep-recent",
-					"0",
-				)
-			} else {
-				cmd.Args = append(
-					cmd.Args,
-					"--state-sync.snapshot-keep-recent",
-					strconv.FormatInt(utils.SnapshotPruningWindowFactor, 10),
-				)
-			}
-		} else {
-			cmd.Args = append(
-				cmd.Args,
-				"--state-sync.snapshot-keep-recent",
-				"0",
-				"--pruning",
-				"nothing",
-			)
-		}
+		cmd.Args = append(
+			cmd.Args,
+			"--snapshot-keep-recent",
+			"0",
+			"--pruning",
+			"nothing",
+		)
 	}
 
 	cmd.Args = append(cmd.Args, strings.Split(flags.AppFlags, ",")...)
