@@ -5,7 +5,6 @@ import (
 	abciTypes "github.com/KYVENetwork/celestia-core/abci/types"
 	cfg "github.com/KYVENetwork/celestia-core/config"
 	cs "github.com/KYVENetwork/celestia-core/consensus"
-	"github.com/KYVENetwork/celestia-core/crypto"
 	"github.com/KYVENetwork/celestia-core/crypto/ed25519"
 	"github.com/KYVENetwork/celestia-core/evidence"
 	"github.com/KYVENetwork/celestia-core/libs/json"
@@ -44,9 +43,8 @@ type Engine struct {
 
 	evidenceDB db.DB
 
-	genDoc           *GenesisDoc
-	privValidatorKey crypto.PubKey
-	nodeKey          *tmP2P.NodeKey
+	genDoc  *GenesisDoc
+	nodeKey *tmP2P.NodeKey
 
 	state         tmState.State
 	proxyApp      proxy.AppConns
@@ -93,15 +91,6 @@ func (engine *Engine) LoadConfig() error {
 	}
 
 	engine.genDoc = genDoc
-
-	privValidatorKey, err := privval.LoadFilePVEmptyState(
-		engine.config.PrivValidatorKeyFile(),
-		engine.config.PrivValidatorStateFile(),
-	).GetPubKey()
-	if err != nil {
-		return fmt.Errorf("failed to load validator key file: %w", err)
-	}
-	engine.privValidatorKey = privValidatorKey
 
 	nodeKey, err := tmP2P.LoadNodeKey(engine.config.NodeKeyFile())
 	if err != nil {
@@ -490,7 +479,7 @@ func (engine *Engine) StartRPCServer(port int64) {
 		ConsensusState:   nil,
 		P2PPeers:         nil,
 		P2PTransport:     &Transport{nodeInfo: nodeInfo},
-		PubKey:           engine.privValidatorKey,
+		PubKey:           ed25519.GenPrivKey().PubKey(),
 		GenDoc:           nil,
 		TxIndexer:        nil,
 		BlockIndexer:     nil,
