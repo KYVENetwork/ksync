@@ -83,10 +83,15 @@ func (collector *KyveSnapshotCollector) GetInterval() int64 {
 	return collector.interval
 }
 
-func (collector *KyveSnapshotCollector) GetSnapshotHeight(targetHeight int64) int64 {
+func (collector *KyveSnapshotCollector) GetSnapshotHeight(targetHeight int64, isServeSnapshot bool) int64 {
 	// if no target height was given the snapshot height is the latest available,
 	// also if the target height is greater than the latest available height
 	if targetHeight == 0 || targetHeight > collector.latestAvailableHeight {
+		// if we run the serve-snapshot command we actually do not want to sync to the latest available height
+		// or else the node operator has to wait until the next snapshot is created in order to join the pool.
+		if isServeSnapshot && collector.latestAvailableHeight > collector.interval {
+			return collector.latestAvailableHeight - collector.interval
+		}
 		return collector.latestAvailableHeight
 	}
 
