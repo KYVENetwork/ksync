@@ -44,6 +44,16 @@ func init() {
 	servesnapshotsCmd.Flags().BoolVarP(&flags.Debug, "debug", "d", false, "run KSYNC in debug mode")
 	servesnapshotsCmd.Flags().BoolVarP(&flags.AppLogs, "app-logs", "l", false, "show logs from cosmos app")
 
+	// deprecated flags
+	servesnapshotsCmd.Flags().StringVarP(&flags.Engine, "engine", "e", "", "")
+	_ = servesnapshotsCmd.Flags().MarkDeprecated("engine", "engine is detected automatically")
+
+	servesnapshotsCmd.Flags().StringVarP(&flags.Source, "source", "s", "", "")
+	_ = servesnapshotsCmd.Flags().MarkDeprecated("source", "source is detected automatically")
+
+	servesnapshotsCmd.Flags().StringVar(&flags.RegistryUrl, "registry-url", "", "")
+	_ = servesnapshotsCmd.Flags().MarkDeprecated("registry-url", "registry url is fixed")
+
 	RootCmd.AddCommand(servesnapshotsCmd)
 }
 

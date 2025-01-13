@@ -35,6 +35,16 @@ func init() {
 	heightSyncCmd.Flags().BoolVarP(&flags.AppLogs, "app-logs", "l", false, "show logs from cosmos app")
 	heightSyncCmd.Flags().BoolVarP(&flags.Y, "assumeyes", "y", false, "automatically answer yes for all questions")
 
+	// deprecated flags
+	heightSyncCmd.Flags().StringVarP(&flags.Engine, "engine", "e", "", "")
+	_ = heightSyncCmd.Flags().MarkDeprecated("engine", "engine is detected automatically")
+
+	heightSyncCmd.Flags().StringVarP(&flags.Source, "source", "s", "", "")
+	_ = heightSyncCmd.Flags().MarkDeprecated("source", "source is detected automatically")
+
+	heightSyncCmd.Flags().StringVar(&flags.RegistryUrl, "registry-url", "", "")
+	_ = heightSyncCmd.Flags().MarkDeprecated("registry-url", "registry url is fixed")
+
 	RootCmd.AddCommand(heightSyncCmd)
 }
 

@@ -28,4 +28,10 @@ var (
 	OptOut                  bool
 	Debug                   bool
 	Y                       bool
+	// Engine is deprecated
+	Engine string
+	// Source is deprecated
+	Source string
+	// RegistryUrl is deprecated
+	RegistryUrl string
 )
