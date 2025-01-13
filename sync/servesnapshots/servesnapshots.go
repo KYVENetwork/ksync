@@ -53,7 +53,9 @@ func Start() error {
 		return fmt.Errorf("failed to init kyve block collector: %w", err)
 	}
 
-	snapshotHeight := snapshotCollector.GetSnapshotHeight(flags.StartHeight)
+	snapshotHeight := snapshotCollector.GetSnapshotHeight(flags.StartHeight, true)
+	if snapshotHeight < flags.StartHeight {
+	}
 	metrics.SetSnapshotHeight(snapshotHeight)
 
 	canApplySnapshot := snapshotHeight > 0 && app.IsReset()

@@ -41,7 +41,7 @@ type SnapshotCollector interface {
 
 	// GetSnapshotHeight gets the exact height of the nearest snapshot before the target
 	// height
-	GetSnapshotHeight(targetHeight int64) int64
+	GetSnapshotHeight(targetHeight int64, isServeSnapshot bool) int64
 
 	// GetSnapshotFromBundleId gets the snapshot from the given bundle
 	GetSnapshotFromBundleId(bundleId int64) (*SnapshotDataItem, error)
