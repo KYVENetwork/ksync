@@ -4,7 +4,7 @@ go 1.22.4
 
 require (
 	github.com/KYVENetwork/celestia-core v1.50.0-tm-v0.34.29
-	github.com/KYVENetwork/cometbft/v34 v34.0.5
+	github.com/KYVENetwork/cometbft/v34 v34.0.6
 	github.com/KYVENetwork/cometbft/v37 v37.0.3
 	github.com/KYVENetwork/cometbft/v38 v38.0.5
 	github.com/cometbft/cometbft-db v0.9.5
