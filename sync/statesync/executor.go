@@ -2,11 +2,11 @@ package statesync
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/cometbft/v34/libs/json"
 	"github.com/KYVENetwork/ksync/app"
 	"github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/metrics"
 	"github.com/KYVENetwork/ksync/types"
-	"github.com/tendermint/tendermint/libs/json"
 )
 
 // StartStateSyncExecutor takes the bundle id of the first snapshot chunk and applies the snapshot from there

@@ -1,15 +1,15 @@
 package tendermint_v34
 
 import (
+	cfg "github.com/KYVENetwork/cometbft/v34/config"
+	mempl "github.com/KYVENetwork/cometbft/v34/mempool"
+	memplv0 "github.com/KYVENetwork/cometbft/v34/mempool/v0"
+	"github.com/KYVENetwork/cometbft/v34/proxy"
+	"github.com/KYVENetwork/cometbft/v34/state"
+	sm "github.com/KYVENetwork/cometbft/v34/state"
+	"github.com/KYVENetwork/cometbft/v34/store"
 	dbm "github.com/cometbft/cometbft-db"
 	"github.com/spf13/viper"
-	cfg "github.com/tendermint/tendermint/config"
-	mempl "github.com/tendermint/tendermint/mempool"
-	memplv0 "github.com/tendermint/tendermint/mempool/v0"
-	"github.com/tendermint/tendermint/proxy"
-	"github.com/tendermint/tendermint/state"
-	sm "github.com/tendermint/tendermint/state"
-	"github.com/tendermint/tendermint/store"
 	"path/filepath"
 )
 

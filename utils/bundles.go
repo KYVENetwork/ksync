@@ -3,9 +3,9 @@ package utils
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/KYVENetwork/cometbft/v34/libs/json"
 	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/types"
-	"github.com/tendermint/tendermint/libs/json"
 	"strings"
 )
 

@@ -2,10 +2,10 @@ package tendermint_v34
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/cometbft/v34/libs/log"
 	"github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/utils"
 	"github.com/rs/zerolog"
-	"github.com/tendermint/tendermint/libs/log"
 )
 
 var (

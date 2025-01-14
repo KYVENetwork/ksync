@@ -1,10 +1,10 @@
 package tendermint_v34
 
 import (
-	abciTypes "github.com/tendermint/tendermint/abci/types"
-	tmCfg "github.com/tendermint/tendermint/config"
-	tmP2P "github.com/tendermint/tendermint/p2p"
-	tmTypes "github.com/tendermint/tendermint/types"
+	abciTypes "github.com/KYVENetwork/cometbft/v34/abci/types"
+	tmCfg "github.com/KYVENetwork/cometbft/v34/config"
+	tmP2P "github.com/KYVENetwork/cometbft/v34/p2p"
+	tmTypes "github.com/KYVENetwork/cometbft/v34/types"
 )
 
 type Block = tmTypes.Block

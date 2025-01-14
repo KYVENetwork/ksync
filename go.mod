@@ -4,6 +4,7 @@ go 1.22.4
 
 require (
 	github.com/KYVENetwork/celestia-core v1.50.0-tm-v0.34.29
+	github.com/KYVENetwork/cometbft/v34 v34.0.5
 	github.com/KYVENetwork/cometbft/v37 v37.0.3
 	github.com/KYVENetwork/cometbft/v38 v38.0.5
 	github.com/cometbft/cometbft-db v0.9.5
@@ -14,7 +15,6 @@ require (
 	github.com/segmentio/analytics-go v3.1.0+incompatible
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
-	github.com/tendermint/tendermint v0.34.27
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -127,5 +127,3 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/tendermint/tendermint => github.com/KYVENetwork/cometbft v0.34.35

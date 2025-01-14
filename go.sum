@@ -5,8 +5,8 @@ github.com/ChainSafe/go-schnorrkel v1.0.0 h1:3aDA67lAykLaG1y3AOjs88dMxC88PgUuHRr
 github.com/ChainSafe/go-schnorrkel v1.0.0/go.mod h1:dpzHYVxLZcp8pjlV+O+UR8K0Hp/z7vcchBSbMBEhCw4=
 github.com/KYVENetwork/celestia-core v1.50.0-tm-v0.34.29 h1:yeR+6Wm85UAfxc5s6OYersm2IvO21NTuFAmS7MG39Xk=
 github.com/KYVENetwork/celestia-core v1.50.0-tm-v0.34.29/go.mod h1:IifwmY1S2n7YckIgU4d2CLKq7TQ5Oo7dhT00fYX88OM=
-github.com/KYVENetwork/cometbft v0.34.35 h1:kSwb+Is995tvI5xaYX6RQ9GRVrfMMXzpUHS+Yei+MxQ=
-github.com/KYVENetwork/cometbft v0.34.35/go.mod h1:SA1at6NTspQqvJ3Ud9TV9ixb0xgzoWNHGZVOU4HO+mM=
+github.com/KYVENetwork/cometbft/v34 v34.0.5 h1:+8QOL5izcjKlv6x28XyY7B4NR2FM52EBv7Gl31S5JL4=
+github.com/KYVENetwork/cometbft/v34 v34.0.5/go.mod h1:XLyQHAeNW7y+i8tDOHaAgUfqVVIInAMK5gdE7Ewd1DA=
 github.com/KYVENetwork/cometbft/v37 v37.0.3 h1:kimHuadNTh3qDHfuB5eYyixoEGLpmnmYDc4dVsPG/jA=
 github.com/KYVENetwork/cometbft/v37 v37.0.3/go.mod h1:Q2yJ37nDdqtqjt58rhyaooQej7amyWIoEu+0tvKPRUI=
 github.com/KYVENetwork/cometbft/v38 v38.0.5 h1:nkMzwZMeOU6Y2pmK/7dDznZQaHCPLdxZ5omsrWdcya4=
