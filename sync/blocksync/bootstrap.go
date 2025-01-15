@@ -2,11 +2,11 @@ package blocksync
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/cometbft/v34/libs/json"
 	"github.com/KYVENetwork/ksync/app"
 	"github.com/KYVENetwork/ksync/logger"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
-	"github.com/tendermint/tendermint/libs/json"
 	"strconv"
 	"strings"
 	"time"

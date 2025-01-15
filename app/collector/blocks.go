@@ -3,9 +3,9 @@ package collector
 import (
 	"encoding/json"
 	"fmt"
+	tmJson "github.com/KYVENetwork/cometbft/v34/libs/json"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/KYVENetwork/ksync/utils"
-	tmJson "github.com/tendermint/tendermint/libs/json"
 	"strconv"
 	"time"
 )
