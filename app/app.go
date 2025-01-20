@@ -444,6 +444,11 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 		}
 	}
 
+	// we first try to detect the engine by checking the build dependencies
+	// in the "version --long" command. If we don't find anything there we check
+	// the "tendermint version" command. We prefer to detect it with the build
+	// dependencies because only there we can distinguish between tendermint-v34
+	// and the celestia-core engine fork
 	cmd := exec.Command(app.binaryPath)
 
 	if app.isCosmovisor {
@@ -471,6 +476,38 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 					} else if strings.Contains(dependency[1], "0.37.") {
 						return cometbft_v37.NewEngine(app.homePath)
 					} else if strings.Contains(dependency[1], "0.38.") {
+						return cometbft_v38.NewEngine(app.homePath)
+					} else {
+						return nil, fmt.Errorf("failed to find engine in binary dependencies")
+					}
+				}
+			}
+		}
+
+		cmd = exec.Command(app.binaryPath)
+
+		if app.isCosmovisor {
+			cmd.Args = append(cmd.Args, "run")
+			cmd.Env = append(os.Environ(), "COSMOVISOR_DISABLE_LOGS=true")
+		}
+
+		cmd.Args = append(cmd.Args, "tendermint", "version")
+
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get output of binary: %w", err)
+		}
+
+		for _, engine := range []string{"tendermint", "Tendermint", "CometBFT"} {
+			for _, line := range strings.Split(string(out), "\n") {
+				if strings.Contains(line, engine) {
+					version := strings.Split(line, ": ")[1]
+
+					if strings.Contains(version, "0.34.") {
+						return tendermint_v34.NewEngine(app.homePath)
+					} else if strings.Contains(version, "0.37.") {
+						return cometbft_v37.NewEngine(app.homePath)
+					} else if strings.Contains(version, "0.38.") {
 						return cometbft_v38.NewEngine(app.homePath)
 					} else {
 						return nil, fmt.Errorf("failed to find engine in binary dependencies")
