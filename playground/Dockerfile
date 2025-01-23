@@ -33,4 +33,5 @@ RUN git clone --depth 1 --branch v1.0.0 https://github.com/archway-network/archw
 
 FROM scratch
 COPY --from=build /bin/chaind /
+COPY --from=build "/go/pkg/mod/github.com/!cosm!wasm/wasmvm@v1.2.4/internal/api/libwasmvm.x86_64.so" /
 ENTRYPOINT ["/chaind"]
