@@ -116,13 +116,15 @@ func Start() error {
 	for _, upgrade := range upgrades {
 		buildCtx, _ := archive.TarWithOptions("setup/", &archive.TarOptions{})
 		baseImage := fmt.Sprintf("golang:%s", upgrade.GoVersion)
+		// TODO: remove internal depending on wasmvm version
+		libwasmPath := fmt.Sprintf("/go/pkg/mod/github.com/!cosm!wasm/wasmvm@%s/internal/api/libwasmvm.x86_64.so", upgrade.LibwasmVersion)
 
 		buildArgs := make(map[string]*string)
 		buildArgs["BASE_IMAGE"] = &baseImage
 		buildArgs["VERSION"] = &upgrade.Version
-		buildArgs["LIBWASM_VERSION"] = &upgrade.LibwasmVersion
 		buildArgs["GIT_REPO"] = &chainResponse.Codebase.GitRepoUrl
 		buildArgs["DAEMON_NAME"] = &chainResponse.DaemonName
+		buildArgs["LIBWASM_PATH"] = &libwasmPath
 
 		opts := types.ImageBuildOptions{
 			Dockerfile: "Dockerfile",
