@@ -117,6 +117,9 @@ func Start() error {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 
+		cmd.Env = os.Environ()
+		cmd.Env = append(cmd.Env, fmt.Sprintf("LD_LIBRARY_PATH=%s", genesisPath))
+
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("failed to run chain init: %w", err)
 		}
