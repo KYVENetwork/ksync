@@ -18,18 +18,7 @@ RUN git clone --depth 1 --branch $VERSION $GIT_REPO chain \
     && cd .. \
     && rm -r chain
 
-RUN cp "/go/pkg/mod/github.com/!cosm!wasm/wasmvm@v1.2.4/internal/api/libwasmvm.x86_64.so" /app
-
-# RUN cp $LIBWASM_PATH /app
-# RUN if [[ "$LIBWASM_PATH" != "" ]] ; then cp $LIBWASM_PATH /app ; fi
-
-#RUN git clone --depth 1 --branch v10.0.0 https://github.com/osmosis-labs/osmosis chain \
-#    && cd chain \
-#    && make build \
-#    && mv build/osmosisd /app/chaind \
-#    && cd .. \
-#    && rm -r chain \
-#    && cp "/go/pkg/mod/github.com/!cosm!wasm/wasmvm@v1.0.0/api/libwasmvm.x86_64.so" /app
+RUN if [ -n "$LIBWASM_PATH" ] ; then cp $LIBWASM_PATH /app ; fi
 
 FROM scratch
 

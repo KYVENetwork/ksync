@@ -11,10 +11,18 @@ type Endpoint struct {
 	Provider string `json:"provider"`
 }
 
+type FeeToken struct {
+	Denom       string  `json:"denom"`
+	LowGasPrice float64 `json:"low_gas_price"`
+}
+
 type ChainSchema struct {
 	ChainId    string `json:"chain_id"`
 	DaemonName string `json:"daemon_name"`
-	Codebase   struct {
+	Fees       struct {
+		FeeTokens []FeeToken `json:"fee_tokens"`
+	} `json:"fees"`
+	Codebase struct {
 		GitRepoUrl string `json:"git_repo"`
 		Genesis    struct {
 			GenesisUrl string `json:"genesis_url"`

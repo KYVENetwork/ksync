@@ -1,18 +1,12 @@
 package setup
 
 import (
-	"bufio"
-	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	tmJson "github.com/KYVENetwork/cometbft/v34/libs/json"
 	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/utils"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/archive"
-	"io"
+	"os"
+	"os/exec"
 	"strings"
 )
 
@@ -105,18 +99,7 @@ func Start() error {
 
 	fmt.Println(upgrades)
 
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		fmt.Println(err.Error())
-		return err
-	}
-
-	ctx := context.Background()
-
 	for _, upgrade := range upgrades {
-		buildCtx, _ := archive.TarWithOptions("setup/", &archive.TarOptions{})
-		baseImage := fmt.Sprintf("golang:%s", upgrade.GoVersion)
-
 		libwasmPath := ""
 
 		if upgrade.LibwasmVersion != "" {
@@ -129,60 +112,32 @@ func Start() error {
 			}
 		}
 
-		buildArgs := make(map[string]*string)
-		buildArgs["BASE_IMAGE"] = &baseImage
-		buildArgs["VERSION"] = &upgrade.Version
-		buildArgs["GIT_REPO"] = &chainResponse.Codebase.GitRepoUrl
-		buildArgs["DAEMON_NAME"] = &chainResponse.DaemonName
-		buildArgs["LIBWASM_PATH"] = &libwasmPath
+		cmd := exec.Command("docker")
 
-		opts := types.ImageBuildOptions{
-			Dockerfile: "Dockerfile",
-			Remove:     true,
-			BuildArgs:  buildArgs,
-		}
-		res, err := cli.ImageBuild(ctx, buildCtx, opts)
-		if err != nil {
-			return err
+		cmd.Args = append(cmd.Args, "build")
+
+		//cmd.Args = append(cmd.Args, "--platform", fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH))
+		cmd.Args = append(cmd.Args, "--platform", fmt.Sprintf("%s/%s", "linux", "amd64"))
+		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("BASE_IMAGE=golang:%s", upgrade.GoVersion))
+		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("VERSION=%s", upgrade.Version))
+		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("GIT_REPO=%s", chainResponse.Codebase.GitRepoUrl))
+		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("DAEMON_NAME=%s", chainResponse.DaemonName))
+
+		if libwasmPath != "" {
+			cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("LIBWASM_PATH=%s", libwasmPath))
 		}
 
-		err = print(res.Body)
-		if err != nil {
-			return err
+		cmd.Args = append(cmd.Args, "--output", fmt.Sprintf("out/%s", upgrade.Name))
+		cmd.Args = append(cmd.Args, "-f", "setup/Dockerfile", ".")
+
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+
+		fmt.Println("run", cmd.Args)
+
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to run docker build: %w", err)
 		}
-
-		res.Body.Close()
-	}
-
-	return nil
-}
-
-type ErrorLine struct {
-	Error       string      `json:"error"`
-	ErrorDetail ErrorDetail `json:"errorDetail"`
-}
-
-type ErrorDetail struct {
-	Message string `json:"message"`
-}
-
-func print(rd io.Reader) error {
-	var lastLine string
-
-	scanner := bufio.NewScanner(rd)
-	for scanner.Scan() {
-		lastLine = scanner.Text()
-		fmt.Println(scanner.Text())
-	}
-
-	errLine := &ErrorLine{}
-	json.Unmarshal([]byte(lastLine), errLine)
-	if errLine.Error != "" {
-		return errors.New(errLine.Error)
-	}
-
-	if err := scanner.Err(); err != nil {
-		return err
 	}
 
 	return nil
