@@ -28,6 +28,7 @@ var (
 	OptOut                  bool
 	Debug                   bool
 	Y                       bool
+	Moniker                 string
 	// Engine is deprecated
 	Engine string
 	// Source is deprecated

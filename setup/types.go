@@ -1,5 +1,12 @@
 package setup
 
+type Upgrade struct {
+	Name           string
+	Version        string
+	GoVersion      string
+	LibwasmVersion string
+}
+
 type Peer struct {
 	Id       string `json:"id"`
 	Address  string `json:"address"`
@@ -19,6 +26,7 @@ type FeeToken struct {
 type ChainSchema struct {
 	ChainId    string `json:"chain_id"`
 	DaemonName string `json:"daemon_name"`
+	NodeHome   string `json:"node_home"`
 	Fees       struct {
 		FeeTokens []FeeToken `json:"fee_tokens"`
 	} `json:"fees"`

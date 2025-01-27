@@ -13,6 +13,8 @@ func init() {
 		panic(fmt.Errorf("flag 'source' should be required: %w", err))
 	}
 
+	setupCmd.Flags().StringVarP(&flags.Moniker, "moniker", "m", "", "moniker name for initializing the chain")
+
 	RootCmd.AddCommand(setupCmd)
 }
 
