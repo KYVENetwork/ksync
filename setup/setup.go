@@ -6,12 +6,101 @@ import (
 	tmJson "github.com/KYVENetwork/cometbft/v34/libs/json"
 	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/utils"
+	"github.com/charmbracelet/bubbles/spinner"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"strings"
 )
+
+var program *tea.Program
+
+type CmdWriter struct{}
+
+func (w *CmdWriter) Write(p []byte) (n int, err error) {
+	messages := strings.Split(string(p), "\n")
+	for _, msg := range messages {
+		if len(msg) > 0 {
+			program.Send(msg)
+		}
+	}
+
+	return len(p), nil
+}
+
+var (
+	spinnerStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("63"))
+	helpStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Margin(1, 0)
+	dotStyle      = helpStyle.UnsetMargins()
+	durationStyle = dotStyle
+	appStyle      = lipgloss.NewStyle().Margin(1, 2, 0, 2)
+)
+
+type model struct {
+	spinner  spinner.Model
+	results  []string
+	quitting bool
+}
+
+func newModel() model {
+	const numLastResults = 10
+	s := spinner.New()
+	s.Style = spinnerStyle
+	return model{
+		spinner: s,
+		results: make([]string, numLastResults),
+	}
+}
+
+func (m model) Init() tea.Cmd {
+	return m.spinner.Tick
+}
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		m.quitting = true
+		return m, tea.Quit
+	case string:
+		m.results = append(m.results[1:], msg)
+		return m, nil
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+	default:
+		return m, nil
+	}
+}
+
+func (m model) View() string {
+	var s string
+
+	if m.quitting {
+		s += "That’s all for today!"
+	} else {
+		s += m.spinner.View() + " Building docker image..."
+	}
+
+	s += "\n\n"
+
+	for _, res := range m.results {
+		s += res + "\n"
+	}
+
+	if !m.quitting {
+		s += helpStyle.Render("Press any key to exit")
+	}
+
+	if m.quitting {
+		s += "\n"
+	}
+
+	return appStyle.Render(s)
+}
 
 func Start() error {
 	result, err := utils.GetFromUrl(fmt.Sprintf("https://raw.githubusercontent.com/cosmos/chain-registry/refs/heads/master/%s/chain.json", flags.Source))
@@ -223,14 +312,24 @@ func buildUpgradeBinary(upgrade Upgrade, gitRepoUrl, daemonName, outputPath stri
 	cmd.Args = append(cmd.Args, "--output", outputPath)
 	cmd.Args = append(cmd.Args, "-f", "setup/Dockerfile", ".")
 
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	program = tea.NewProgram(newModel())
+
+	var writer CmdWriter
+
+	cmd.Stdout = &writer
+	cmd.Stderr = &writer
 
 	fmt.Println("run", cmd.Args)
+
+	go func() {
+		program.Run()
+	}()
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to run docker build: %w", err)
 	}
+
+	program.Quit()
 
 	return nil
 }
