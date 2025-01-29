@@ -118,7 +118,7 @@ func Start() error {
 		cmd.Stderr = os.Stderr
 
 		cmd.Env = os.Environ()
-		cmd.Env = append(cmd.Env, fmt.Sprintf("LD_LIBRARY_PATH=%s", genesisPath))
+		cmd.Env = append(cmd.Env, "LD_LIBRARY_PATH=.")
 
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("failed to run chain init: %w", err)
@@ -158,6 +158,36 @@ func Start() error {
 		}
 	}
 
+	return buildCosmovisor(fmt.Sprintf("%s/go/bin/", os.Getenv("HOME")))
+}
+
+func buildCosmovisor(outputPath string) error {
+	cmd := exec.Command("docker")
+
+	cmd.Args = append(cmd.Args, "build")
+
+	//cmd.Args = append(cmd.Args, "--platform", fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH))
+	cmd.Args = append(cmd.Args, "--platform", fmt.Sprintf("%s/%s", "linux", "amd64"))
+	cmd.Args = append(cmd.Args, "--build-arg", "BASE_IMAGE=golang:1.23")
+	cmd.Args = append(cmd.Args, "--build-arg", "VERSION=cosmovisor/v1.7.0")
+	cmd.Args = append(cmd.Args, "--build-arg", "GIT_REPO=https://github.com/cosmos/cosmos-sdk")
+	cmd.Args = append(cmd.Args, "--build-arg", "BINARY_PATH=cosmovisor")
+	cmd.Args = append(cmd.Args, "--build-arg", "GO_VERSION=1.23")
+	cmd.Args = append(cmd.Args, "--build-arg", "SUBFOLDER=tools/cosmovisor")
+	cmd.Args = append(cmd.Args, "--build-arg", "BUILD_CMD=cosmovisor")
+
+	cmd.Args = append(cmd.Args, "--output", outputPath)
+	cmd.Args = append(cmd.Args, "-f", "setup/Dockerfile", ".")
+
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	fmt.Println("run", cmd.Args)
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to run docker build: %w", err)
+	}
+
 	return nil
 }
 
@@ -183,7 +213,7 @@ func buildUpgradeBinary(upgrade Upgrade, gitRepoUrl, daemonName, outputPath stri
 	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("BASE_IMAGE=golang:%s", upgrade.GoVersion))
 	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("VERSION=%s", upgrade.Version))
 	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("GIT_REPO=%s", gitRepoUrl))
-	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("DAEMON_NAME=%s", daemonName))
+	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("BINARY_PATH=%s", fmt.Sprintf("build/%s", daemonName)))
 	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("GO_VERSION=%s", upgrade.GoVersion))
 
 	if libwasmPath != "" {
