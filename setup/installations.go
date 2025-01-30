@@ -180,10 +180,10 @@ func buildUpgradeBinary(upgrade types.Upgrade, gitRepoUrl, daemonName, outputPat
 	cmd.Args = append(cmd.Args, "--output", outputPath)
 	cmd.Args = append(cmd.Args, "-f", "setup/Dockerfile", ".")
 
-	var writer CmdWriter
+	//var writer CmdWriter
 
-	cmd.Stdout = &writer
-	cmd.Stderr = &writer
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	start := time.Now()
 
