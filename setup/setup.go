@@ -33,7 +33,7 @@ func (w *CmdWriter) Write(p []byte) (n int, err error) {
 	messages := strings.Split(string(p), "\n")
 	for _, msg := range messages {
 		if len(msg) > 0 {
-			//program.Send(dotStyle.Render(msg))
+			program.Send(dotStyle.Render(msg))
 		}
 	}
 
@@ -43,16 +43,19 @@ func (w *CmdWriter) Write(p []byte) (n int, err error) {
 type model struct {
 	spinner           spinner.Model
 	currentUpgrade    string
+	logs              []string
 	upgrades          []Upgrade
 	installedUpgrades []Upgrade
 }
 
 func newModel(upgrades []Upgrade) model {
+	const numLastResults = 10
 	s := spinner.New()
 	s.Style = spinnerStyle
 	s.Spinner = spinner.Dot
 	return model{
 		spinner:           s,
+		logs:              make([]string, numLastResults),
 		upgrades:          upgrades,
 		installedUpgrades: make([]Upgrade, 0),
 	}
@@ -65,9 +68,13 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// TODO: only quit after CMD+C
 		return m, tea.Quit
 	case Upgrade:
 		m.installedUpgrades = append(m.installedUpgrades, msg)
+		return m, nil
+	case string:
+		m.logs = append(m.logs[1:], msg)
 		return m, nil
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -101,14 +108,22 @@ func (m model) View() string {
 			if lastIndex+1 == index {
 				s += m.spinner.View() + fmt.Sprintf("Installing %s ...\n", upgrade.Name)
 			} else {
-				s += fmt.Sprintf("Scheduled %s\n", upgrade.Name)
+				s += fmt.Sprintf("  Scheduled %s\n", upgrade.Name)
 			}
 		} else {
 			if lastIndex+1 == index {
 				s += m.spinner.View() + fmt.Sprintf("Installing upgrade %s ...\n", upgrade.Name)
 			} else {
-				s += fmt.Sprintf("Scheduled upgrade %s\n", upgrade.Name)
+				s += fmt.Sprintf("  Scheduled upgrade %s\n", upgrade.Name)
 			}
+		}
+	}
+
+	if len(m.installedUpgrades) < len(m.upgrades) {
+		s += "\n"
+
+		for _, log := range m.logs {
+			s += log + "\n"
 		}
 	}
 
