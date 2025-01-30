@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -35,6 +36,14 @@ func InstallBinaries(chainSchema *types.ChainSchema, upgrades []types.Upgrade) e
 	genesisPath := fmt.Sprintf("%s/cosmovisor/genesis/bin", homePath)
 
 	if err := buildCosmovisor(fmt.Sprintf("%s/go/bin/", os.Getenv("HOME"))); err != nil {
+		return err
+	}
+
+	if err := os.Setenv("DAEMON_HOME", homePath); err != nil {
+		return err
+	}
+
+	if err := os.Setenv("DAEMON_NAME", chainSchema.DaemonName); err != nil {
 		return err
 	}
 
@@ -99,12 +108,16 @@ func InstallBinaries(chainSchema *types.ChainSchema, upgrades []types.Upgrade) e
 }
 
 func buildCosmovisor(outputPath string) error {
-	cmd := exec.Command("docker")
+	cmd := exec.Command("docker", "build")
 
-	cmd.Args = append(cmd.Args, "build")
+	if runtime.GOOS == "darwin" {
+		cmd.Args = append(cmd.Args, "--platform", "linux/amd64")
+		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOOS=%s", runtime.GOOS))
+		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOARCH=%s", runtime.GOARCH))
+	} else {
+		cmd.Args = append(cmd.Args, "--platform", fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH))
+	}
 
-	//cmd.Args = append(cmd.Args, "--platform", fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH))
-	cmd.Args = append(cmd.Args, "--platform", fmt.Sprintf("%s/%s", "linux", "amd64"))
 	cmd.Args = append(cmd.Args, "--build-arg", "BASE_IMAGE=golang:1.23")
 	cmd.Args = append(cmd.Args, "--build-arg", "VERSION=cosmovisor/v1.7.0")
 	cmd.Args = append(cmd.Args, "--build-arg", "GIT_REPO=https://github.com/cosmos/cosmos-sdk")
@@ -148,12 +161,16 @@ func buildUpgradeBinary(upgrade types.Upgrade, gitRepoUrl, daemonName, outputPat
 		}
 	}
 
-	cmd := exec.Command("docker")
+	cmd := exec.Command("docker", "build")
 
-	cmd.Args = append(cmd.Args, "build")
+	if runtime.GOOS == "darwin" {
+		cmd.Args = append(cmd.Args, "--platform", "linux/amd64")
+		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOOS=%s", runtime.GOOS))
+		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOARCH=%s", runtime.GOARCH))
+	} else {
+		cmd.Args = append(cmd.Args, "--platform", fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH))
+	}
 
-	//cmd.Args = append(cmd.Args, "--platform", fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH))
-	cmd.Args = append(cmd.Args, "--platform", fmt.Sprintf("%s/%s", "linux", "amd64"))
 	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("BASE_IMAGE=golang:%s", upgrade.GoVersion))
 	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("VERSION=%s", upgrade.Version))
 	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("GIT_REPO=%s", gitRepoUrl))

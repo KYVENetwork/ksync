@@ -3,6 +3,7 @@ package setup
 import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/setup/peers"
+	"runtime"
 )
 
 func Start() error {
@@ -16,7 +17,16 @@ func Start() error {
 		return err
 	}
 
-	fmt.Println(upgrades)
+	canRunDarwin := true
+	for _, upgrade := range upgrades {
+		if upgrade.LibwasmVersion != "" {
+			canRunDarwin = false
+		}
+	}
+
+	if !canRunDarwin && runtime.GOOS == "darwin" {
+		return fmt.Errorf("chain binaries contain cosmwasm, unable to cross-compile for darwin")
+	}
 
 	if err := InstallBinaries(chainSchema, upgrades); err != nil {
 		return err

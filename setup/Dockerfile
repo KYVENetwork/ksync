@@ -8,7 +8,12 @@ ARG BINARY_PATH
 ARG LIBWASM_PATH
 ARG GO_VERSION
 ARG SUBFOLDER
+ARG TARGET_GOOS
+ARG TARGET_GOARCH
 ARG BUILD_CMD="build"
+
+ENV GOOS=$TARGET_GOOS
+ENV GOARCH=$TARGET_GOARCH
 
 WORKDIR /app
 
@@ -16,7 +21,7 @@ RUN apt update && apt upgrade -y
 
 RUN git clone --depth 1 --branch $VERSION $GIT_REPO repo \
     && cd repo/$SUBFOLDER \
-    && env GOOS=darwin GOARCH=arm64 make $BUILD_CMD ENV=mainnet GO_VERSION=$GO_VERSION \
+    && make $BUILD_CMD ENV=mainnet GO_VERSION=$GO_VERSION \
     && mv $BINARY_PATH /app \
     && cd /app \
     && rm -r repo
