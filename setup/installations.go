@@ -39,14 +39,6 @@ func InstallBinaries(chainSchema *types.ChainSchema, upgrades []types.Upgrade) e
 		return err
 	}
 
-	if err := os.Setenv("DAEMON_HOME", homePath); err != nil {
-		return err
-	}
-
-	if err := os.Setenv("DAEMON_NAME", chainSchema.DaemonName); err != nil {
-		return err
-	}
-
 	if err := buildUpgradeBinary(upgrades[0], chainSchema.Codebase.GitRepoUrl, chainSchema.DaemonName, genesisPath); err != nil {
 		return err
 	}
@@ -116,6 +108,8 @@ func buildCosmovisor(outputPath string) error {
 		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOARCH=%s", runtime.GOARCH))
 	} else {
 		cmd.Args = append(cmd.Args, "--platform", fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH))
+		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOOS=%s", ""))
+		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOARCH=%s", ""))
 	}
 
 	cmd.Args = append(cmd.Args, "--build-arg", "BASE_IMAGE=golang:1.23")
@@ -169,6 +163,8 @@ func buildUpgradeBinary(upgrade types.Upgrade, gitRepoUrl, daemonName, outputPat
 		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOARCH=%s", runtime.GOARCH))
 	} else {
 		cmd.Args = append(cmd.Args, "--platform", fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH))
+		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOOS=%s", ""))
+		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOARCH=%s", ""))
 	}
 
 	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("BASE_IMAGE=golang:%s", upgrade.GoVersion))

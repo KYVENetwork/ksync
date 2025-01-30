@@ -24,7 +24,7 @@ func Start() error {
 		}
 	}
 
-	if !canRunDarwin && runtime.GOOS == "darwin" {
+	if runtime.GOOS == "darwin" && !canRunDarwin {
 		return fmt.Errorf("chain binaries contain cosmwasm, unable to cross-compile for darwin")
 	}
 
