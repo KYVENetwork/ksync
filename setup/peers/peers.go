@@ -5,6 +5,8 @@ import (
 	"github.com/KYVENetwork/ksync/types"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"os"
+	"strings"
 )
 
 var (
@@ -21,6 +23,49 @@ func SelectPeers(name string, peers []types.Peer) ([]types.Peer, error) {
 	}
 
 	return selectedPeers, nil
+}
+
+func SavePeers(chainSchema *types.ChainSchema, seedsArr, persistentPeersArr []types.Peer) error {
+	seeds := ""
+	for index, peer := range seedsArr {
+		if index > 0 {
+			seeds += ","
+		}
+
+		seeds += fmt.Sprintf("%s@%s", peer.Id, peer.Address)
+	}
+
+	persistentPeers := ""
+	for index, peer := range persistentPeersArr {
+		if index > 0 {
+			persistentPeers += ","
+		}
+
+		persistentPeers += fmt.Sprintf("%s@%s", peer.Id, peer.Address)
+	}
+
+	homePath := strings.ReplaceAll(chainSchema.NodeHome, "$HOME", os.Getenv("HOME"))
+	data, err := os.ReadFile(fmt.Sprintf("%s/config/config.toml", homePath))
+	if err != nil {
+		return err
+	}
+	config := make([]string, 0)
+
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, "seeds = ") {
+			config = append(config, fmt.Sprintf("seeds = \"%s\"", seeds))
+		} else if strings.HasPrefix(line, "persistent_peers = ") {
+			config = append(config, fmt.Sprintf("persistent_peers = \"%s\"", persistentPeers))
+		} else {
+			config = append(config, line)
+		}
+	}
+
+	if err := os.WriteFile(fmt.Sprintf("%s/config/config.toml", homePath), []byte(strings.Join(config, "\n")), 0644); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type model struct {
@@ -109,14 +154,4 @@ func (m model) View() string {
 
 	s += dotStyle.Render("\nPress space to select and enter to continue\n")
 	return s
-}
-
-func (m model) GetSelectedPeers() []types.Peer {
-	selectedPeers := make([]types.Peer, 0)
-
-	for i := range m.selected {
-		selectedPeers = append(selectedPeers, m.peers[i])
-	}
-
-	return selectedPeers
 }

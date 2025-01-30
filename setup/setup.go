@@ -11,20 +11,6 @@ func Start() error {
 		return err
 	}
 
-	seeds, err := peers.SelectPeers("seeds", chainSchema.Peers.Seeds)
-	if err != nil {
-		return err
-	}
-
-	persistentPeers, err := peers.SelectPeers("persistent peers", chainSchema.Peers.PersistentPeers)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(seeds)
-	fmt.Println(persistentPeers)
-	fmt.Println("hello world")
-
 	upgrades, err := FetchUpgrades(chainSchema)
 	if err != nil {
 		return err
@@ -36,7 +22,19 @@ func Start() error {
 		return err
 	}
 
-	fmt.Println("install success")
+	seeds, err := peers.SelectPeers("seeds", chainSchema.Peers.Seeds)
+	if err != nil {
+		return err
+	}
+
+	persistentPeers, err := peers.SelectPeers("persistent peers", chainSchema.Peers.PersistentPeers)
+	if err != nil {
+		return err
+	}
+
+	if err := peers.SavePeers(chainSchema, seeds, persistentPeers); err != nil {
+		return err
+	}
 
 	return nil
 }

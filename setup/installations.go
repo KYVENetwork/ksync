@@ -21,7 +21,6 @@ var (
 	spinnerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("63"))
 	helpStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Margin(1, 0)
 	dotStyle     = helpStyle.UnsetMargins()
-	appStyle     = lipgloss.NewStyle().Margin(1, 2, 0, 2)
 	checkMark    = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).SetString("✓")
 )
 
@@ -95,7 +94,7 @@ func InstallBinaries(chainSchema *types.ChainSchema, upgrades []types.Upgrade) e
 		}
 	}
 
-	program.Quit()
+	program.Wait()
 	return nil
 }
 
@@ -234,9 +233,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		return m, nil
-	case string:
-		m.logs = append(m.logs[1:], msg)
-		return m, nil
+	//case string:
+	//	m.logs = append(m.logs[1:], msg)
+	//	return m, nil
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
@@ -280,13 +279,13 @@ func (m model) View() string {
 		}
 	}
 
-	if len(m.installedUpgrades) < len(m.upgrades) {
-		s += "\n"
+	//if len(m.installedUpgrades) < len(m.upgrades) {
+	//	s += "\n"
+	//
+	//	for _, log := range m.logs {
+	//		s += log + "\n"
+	//	}
+	//}
 
-		for _, log := range m.logs {
-			s += log + "\n"
-		}
-	}
-
-	return appStyle.Render(s)
+	return s
 }
