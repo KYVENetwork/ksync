@@ -55,6 +55,7 @@ func InstallBinaries(chainSchema *types.ChainSchema, upgrades []types.Upgrade) e
 		cmd.Stderr = os.Stderr
 
 		cmd.Env = os.Environ()
+		// TODO: this still fails
 		cmd.Env = append(cmd.Env, "LD_LIBRARY_PATH=.")
 
 		if err := cmd.Run(); err != nil {
@@ -180,10 +181,10 @@ func buildUpgradeBinary(upgrade types.Upgrade, gitRepoUrl, daemonName, outputPat
 	cmd.Args = append(cmd.Args, "--output", outputPath)
 	cmd.Args = append(cmd.Args, "-f", "setup/Dockerfile", ".")
 
-	//var writer CmdWriter
+	var writer CmdWriter
 
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = &writer
+	cmd.Stderr = &writer
 
 	start := time.Now()
 
