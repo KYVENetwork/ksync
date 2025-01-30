@@ -1,10 +1,13 @@
 package setup
 
+import "time"
+
 type Upgrade struct {
-	Name           string
-	Version        string
-	GoVersion      string
-	LibwasmVersion string
+	Name            string
+	Version         string
+	GoVersion       string
+	LibwasmVersion  string
+	InstallDuration time.Duration
 }
 
 type Peer struct {

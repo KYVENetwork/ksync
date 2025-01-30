@@ -14,6 +14,15 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
+)
+
+var (
+	spinnerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("63"))
+	helpStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Margin(1, 0)
+	dotStyle     = helpStyle.UnsetMargins()
+	appStyle     = lipgloss.NewStyle().Margin(1, 2, 0, 2)
+	checkMark    = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).SetString("✓")
 )
 
 var program *tea.Program
@@ -24,34 +33,28 @@ func (w *CmdWriter) Write(p []byte) (n int, err error) {
 	messages := strings.Split(string(p), "\n")
 	for _, msg := range messages {
 		if len(msg) > 0 {
-			program.Send(msg)
+			//program.Send(dotStyle.Render(msg))
 		}
 	}
 
 	return len(p), nil
 }
 
-var (
-	spinnerStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("63"))
-	helpStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Margin(1, 0)
-	dotStyle      = helpStyle.UnsetMargins()
-	durationStyle = dotStyle
-	appStyle      = lipgloss.NewStyle().Margin(1, 2, 0, 2)
-)
-
 type model struct {
-	spinner  spinner.Model
-	results  []string
-	quitting bool
+	spinner           spinner.Model
+	currentUpgrade    string
+	upgrades          []Upgrade
+	installedUpgrades []Upgrade
 }
 
-func newModel() model {
-	const numLastResults = 10
+func newModel(upgrades []Upgrade) model {
 	s := spinner.New()
 	s.Style = spinnerStyle
+	s.Spinner = spinner.Dot
 	return model{
-		spinner: s,
-		results: make([]string, numLastResults),
+		spinner:           s,
+		upgrades:          upgrades,
+		installedUpgrades: make([]Upgrade, 0),
 	}
 }
 
@@ -62,10 +65,9 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		m.quitting = true
 		return m, tea.Quit
-	case string:
-		m.results = append(m.results[1:], msg)
+	case Upgrade:
+		m.installedUpgrades = append(m.installedUpgrades, msg)
 		return m, nil
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -79,24 +81,35 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	var s string
 
-	if m.quitting {
-		s += "That’s all for today!"
-	} else {
-		s += m.spinner.View() + " Building docker image..."
+	lastIndex := -1
+
+	for index, upgrade := range m.installedUpgrades {
+		if upgrade.Name == "Cosmovisor" {
+			s += fmt.Sprintf("%s Installed %s %s\n", checkMark, upgrade.Name, dotStyle.Render(upgrade.InstallDuration.String()))
+		} else {
+			s += fmt.Sprintf("%s Installed upgrade %s %s\n", checkMark, upgrade.Name, dotStyle.Render(upgrade.InstallDuration.String()))
+		}
+		lastIndex = index
 	}
 
-	s += "\n\n"
+	for index, upgrade := range m.upgrades {
+		if lastIndex >= index {
+			continue
+		}
 
-	for _, res := range m.results {
-		s += res + "\n"
-	}
-
-	if !m.quitting {
-		s += helpStyle.Render("Press any key to exit")
-	}
-
-	if m.quitting {
-		s += "\n"
+		if upgrade.Name == "Cosmovisor" {
+			if lastIndex+1 == index {
+				s += m.spinner.View() + fmt.Sprintf("Installing %s ...\n", upgrade.Name)
+			} else {
+				s += fmt.Sprintf("Scheduled %s\n", upgrade.Name)
+			}
+		} else {
+			if lastIndex+1 == index {
+				s += m.spinner.View() + fmt.Sprintf("Installing upgrade %s ...\n", upgrade.Name)
+			} else {
+				s += fmt.Sprintf("Scheduled upgrade %s\n", upgrade.Name)
+			}
+		}
 	}
 
 	return appStyle.Render(s)
@@ -188,6 +201,14 @@ func Start() error {
 
 	fmt.Println(upgrades)
 
+	program = tea.NewProgram(newModel(append(upgrades, Upgrade{
+		Name: "Cosmovisor",
+	})))
+
+	go func() {
+		program.Run()
+	}()
+
 	homePath := strings.ReplaceAll(chainResponse.NodeHome, "$HOME", os.Getenv("HOME"))
 	genesisPath := fmt.Sprintf("%s/cosmovisor/genesis/bin", homePath)
 
@@ -247,7 +268,13 @@ func Start() error {
 		}
 	}
 
-	return buildCosmovisor(fmt.Sprintf("%s/go/bin/", os.Getenv("HOME")))
+	if err := buildCosmovisor(fmt.Sprintf("%s/go/bin/", os.Getenv("HOME"))); err != nil {
+		return err
+	}
+
+	program.Quit()
+
+	return nil
 }
 
 func buildCosmovisor(outputPath string) error {
@@ -268,14 +295,21 @@ func buildCosmovisor(outputPath string) error {
 	cmd.Args = append(cmd.Args, "--output", outputPath)
 	cmd.Args = append(cmd.Args, "-f", "setup/Dockerfile", ".")
 
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	var writer CmdWriter
 
-	fmt.Println("run", cmd.Args)
+	cmd.Stdout = &writer
+	cmd.Stderr = &writer
+
+	start := time.Now()
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to run docker build: %w", err)
 	}
+
+	program.Send(Upgrade{
+		Name:            "Cosmovisor",
+		InstallDuration: time.Since(start),
+	})
 
 	return nil
 }
@@ -312,24 +346,19 @@ func buildUpgradeBinary(upgrade Upgrade, gitRepoUrl, daemonName, outputPath stri
 	cmd.Args = append(cmd.Args, "--output", outputPath)
 	cmd.Args = append(cmd.Args, "-f", "setup/Dockerfile", ".")
 
-	program = tea.NewProgram(newModel())
-
 	var writer CmdWriter
 
 	cmd.Stdout = &writer
 	cmd.Stderr = &writer
 
-	fmt.Println("run", cmd.Args)
-
-	go func() {
-		program.Run()
-	}()
+	start := time.Now()
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to run docker build: %w", err)
 	}
 
-	program.Quit()
+	upgrade.InstallDuration = time.Since(start)
+	program.Send(upgrade)
 
 	return nil
 }
