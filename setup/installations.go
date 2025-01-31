@@ -56,7 +56,7 @@ func InstallBinaries(chainSchema *types.ChainSchema, upgrades []types.Upgrade) e
 
 		cmd.Env = os.Environ()
 		// TODO: this still fails
-		cmd.Env = append(cmd.Env, "LD_LIBRARY_PATH=.")
+		cmd.Env = append(cmd.Env, fmt.Sprintf("LD_LIBRARY_PATH=%s", genesisPath))
 
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("failed to run chain init: %w", err)
