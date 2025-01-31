@@ -21,7 +21,7 @@ RUN apt update && apt upgrade -y
 
 RUN git clone --depth 1 --branch $VERSION $GIT_REPO repo \
     && cd repo/$SUBFOLDER \
-    && make $BUILD_CMD ENV=mainnet GO_VERSION=$GO_VERSION \
+    && make $BUILD_CMD ENV=mainnet GO_VERSION=$GO_VERSION LAVA_BINARY=lavad \
     && mv $BINARY_PATH /app \
     && cd /app \
     && rm -r repo

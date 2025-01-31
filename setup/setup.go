@@ -2,19 +2,21 @@ package setup
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/setup/mode"
 	"github.com/KYVENetwork/ksync/setup/peers"
 	"runtime"
 )
 
 func Start() error {
-	chainSchema, err := FetchChainSchema()
+	chainSchema, upgrades, setupMode, err := mode.SelectSetupMode()
 	if err != nil {
 		return err
 	}
 
-	upgrades, err := FetchUpgrades(chainSchema)
-	if err != nil {
-		return err
+	fmt.Println("Setup mode: ", setupMode)
+
+	if setupMode == 4 {
+		return nil
 	}
 
 	canRunDarwin := true

@@ -1,4 +1,4 @@
-package setup
+package mode
 
 import (
 	"fmt"
@@ -21,6 +21,24 @@ func FetchChainSchema() (*types.ChainSchema, error) {
 	}
 
 	return &chainResponse, nil
+}
+
+func FetchLatestHeight(chainSchema *types.ChainSchema) (int64, error) {
+	for _, rpc := range chainSchema.Apis.Rpc {
+		result, err := utils.GetFromUrl(fmt.Sprintf("%s/status", rpc.Address))
+		if err != nil {
+			continue
+		}
+
+		var statusResponse types.StatusResponse
+		if err := tmJson.Unmarshal(result, &statusResponse); err != nil {
+			continue
+		}
+
+		return statusResponse.Result.SyncInfo.LatestBlockHeight, nil
+	}
+
+	return -1, fmt.Errorf("failed to find latest of chain")
 }
 
 func FetchUpgrades(chainSchema *types.ChainSchema) ([]types.Upgrade, error) {

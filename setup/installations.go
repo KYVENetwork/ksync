@@ -24,6 +24,8 @@ var (
 	helpStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Margin(1, 0)
 	dotStyle     = helpStyle.UnsetMargins()
 	checkMark    = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).SetString("✓")
+	errorMark    = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).SetString("x")
+	dockerLogs   string
 )
 
 func InstallBinaries(chainSchema *types.ChainSchema, upgrades []types.Upgrade) error {
@@ -110,8 +112,8 @@ func buildCosmovisor(outputPath string) error {
 		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOARCH=%s", runtime.GOARCH))
 	} else {
 		cmd.Args = append(cmd.Args, "--platform", fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH))
-		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOOS=%s", ""))
-		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOARCH=%s", ""))
+		//cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOOS=%s", ""))
+		//cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOARCH=%s", ""))
 	}
 
 	cmd.Args = append(cmd.Args, "--build-arg", "BASE_IMAGE=golang:1.23")
@@ -133,6 +135,10 @@ func buildCosmovisor(outputPath string) error {
 	start := time.Now()
 
 	if err := cmd.Run(); err != nil {
+		program.Send(fmt.Errorf(err.Error()))
+		program.Quit()
+		program.Wait()
+		fmt.Printf("\n%s", dockerLogs)
 		return fmt.Errorf("failed to run docker build: %w", err)
 	}
 
@@ -165,8 +171,8 @@ func buildUpgradeBinary(upgrade types.Upgrade, gitRepoUrl, daemonName, outputPat
 		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOARCH=%s", runtime.GOARCH))
 	} else {
 		cmd.Args = append(cmd.Args, "--platform", fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH))
-		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOOS=%s", ""))
-		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOARCH=%s", ""))
+		//cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOOS=%s", ""))
+		//cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOARCH=%s", ""))
 	}
 
 	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("BASE_IMAGE=golang:%s", upgrade.GoVersion))
@@ -190,6 +196,10 @@ func buildUpgradeBinary(upgrade types.Upgrade, gitRepoUrl, daemonName, outputPat
 	start := time.Now()
 
 	if err := cmd.Run(); err != nil {
+		program.Send(fmt.Errorf(err.Error()))
+		program.Quit()
+		program.Wait()
+		fmt.Printf("\n%s", dockerLogs)
 		return fmt.Errorf("failed to run docker build: %w", err)
 	}
 
@@ -202,13 +212,7 @@ func buildUpgradeBinary(upgrade types.Upgrade, gitRepoUrl, daemonName, outputPat
 type CmdWriter struct{}
 
 func (w *CmdWriter) Write(p []byte) (n int, err error) {
-	messages := strings.Split(string(p), "\n")
-	for _, msg := range messages {
-		if len(msg) > 0 {
-			program.Send(dotStyle.Render(msg))
-		}
-	}
-
+	dockerLogs += string(p) + "\n"
 	return len(p), nil
 }
 
@@ -218,6 +222,7 @@ type model struct {
 	logs              []string
 	upgrades          []types.Upgrade
 	installedUpgrades []types.Upgrade
+	error             bool
 }
 
 func newModel(upgrades []types.Upgrade) model {
@@ -230,6 +235,7 @@ func newModel(upgrades []types.Upgrade) model {
 		logs:              make([]string, numLastResults),
 		upgrades:          upgrades,
 		installedUpgrades: make([]types.Upgrade, 0),
+		error:             false,
 	}
 }
 
@@ -248,9 +254,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		return m, nil
-	//case string:
-	//	m.logs = append(m.logs[1:], msg)
-	//	return m, nil
+	case error:
+		m.error = true
+		return m, tea.Quit
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
@@ -281,13 +287,21 @@ func (m model) View() string {
 
 		if upgrade.Name == "Cosmovisor" {
 			if lastIndex+1 == index {
-				s += m.spinner.View() + fmt.Sprintf("Installing %s ...\n", upgrade.Name)
+				if m.error {
+					s += fmt.Sprintf("%s Failed to install %s\n", errorMark, upgrade.Name)
+				} else {
+					s += m.spinner.View() + fmt.Sprintf("Installing %s ...\n", upgrade.Name)
+				}
 			} else {
 				s += fmt.Sprintf("  Scheduled %s\n", upgrade.Name)
 			}
 		} else {
 			if lastIndex+1 == index {
-				s += m.spinner.View() + fmt.Sprintf("Installing upgrade %s ...\n", upgrade.Name)
+				if m.error {
+					s += fmt.Sprintf("%s Failed to install %s\n", errorMark, upgrade.Name)
+				} else {
+					s += m.spinner.View() + fmt.Sprintf("Installing upgrade %s ...\n", upgrade.Name)
+				}
 			} else {
 				s += fmt.Sprintf("  Scheduled upgrade %s\n", upgrade.Name)
 			}
