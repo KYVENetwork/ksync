@@ -193,6 +193,7 @@ func (app *CosmosApp) StartBinary(snapshotInterval int64) error {
 	}
 
 	cmd := exec.Command(app.binaryPath)
+	cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", app.binaryPath))
 
 	if app.isCosmovisor {
 		cmd.Args = append(cmd.Args, "run")
@@ -278,6 +279,7 @@ func (app *CosmosApp) StartBinaryP2P() error {
 	}
 
 	cmd := exec.Command(app.binaryPath)
+	cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", app.binaryPath))
 
 	if app.isCosmovisor {
 		cmd.Args = append(cmd.Args, "run")
