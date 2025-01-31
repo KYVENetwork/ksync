@@ -382,8 +382,8 @@ func (app *CosmosApp) LoadHomePath() error {
 	}
 
 	cmd := exec.Command(app.binaryPath)
-	cmd.Env = append(cmd.Env, fmt.Sprintf("LD_LIBRARY_PATH=%s", app.getLDLibraryPath()))
 	fmt.Println(fmt.Sprintf("LD_LIBRARY_PATH=%s", app.getLDLibraryPath()))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("LD_LIBRARY_PATH=%s", app.getLDLibraryPath()))
 
 	if app.isCosmovisor {
 		cmd.Args = append(cmd.Args, "run")
@@ -394,6 +394,7 @@ func (app *CosmosApp) LoadHomePath() error {
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		fmt.Println(string(out))
 		return fmt.Errorf("failed to get output of binary: %w", err)
 	}
 
