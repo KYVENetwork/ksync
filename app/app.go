@@ -383,7 +383,7 @@ func (app *CosmosApp) LoadHomePath() error {
 
 	cmd := exec.Command(app.binaryPath)
 	fmt.Println(fmt.Sprintf("LD_LIBRARY_PATH=%s", app.getLDLibraryPath()))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("LD_LIBRARY_PATH=%s", app.getLDLibraryPath()))
+	cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", app.getLDLibraryPath()))
 
 	if app.isCosmovisor {
 		cmd.Args = append(cmd.Args, "run")
