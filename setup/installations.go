@@ -51,11 +51,7 @@ func InstallBinaries(chainSchema *types.ChainSchema, upgrades []types.Upgrade) e
 
 		cmd := exec.Command(fmt.Sprintf("%s/%s", genesisPath, chainSchema.DaemonName), "init", flags.Moniker, "--chain-id", chainSchema.ChainId)
 
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-
 		cmd.Env = os.Environ()
-		// TODO: this still fails
 		cmd.Env = append(cmd.Env, fmt.Sprintf("LD_LIBRARY_PATH=%s", genesisPath))
 
 		if err := cmd.Run(); err != nil {
@@ -74,12 +70,12 @@ func InstallBinaries(chainSchema *types.ChainSchema, upgrades []types.Upgrade) e
 		}
 		defer resp.Body.Close()
 
-		n, err := io.Copy(out, resp.Body)
+		_, err = io.Copy(out, resp.Body)
 		if err != nil {
 			return err
 		}
 
-		fmt.Println(fmt.Sprintf("downloaded genesis file with %d bytes", n))
+		//fmt.Println(fmt.Sprintf("downloaded genesis file with %d bytes", n))
 	}
 
 	if _, err := os.Stat(fmt.Sprintf("%s/cosmovisor/current", homePath)); errors.Is(err, os.ErrNotExist) {
