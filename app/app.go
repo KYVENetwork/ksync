@@ -533,7 +533,12 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 
 func (app *CosmosApp) getLDLibraryPath() string {
 	if app.isCosmovisor {
-		upgradeFolder, err := os.Readlink(fmt.Sprintf("%s/cosmovisor/current", app.homePath))
+		homePath := app.homePath
+		if homePath == "" {
+			homePath = os.Getenv("DAEMON_HOME")
+		}
+
+		upgradeFolder, err := os.Readlink(fmt.Sprintf("%s/cosmovisor/current", homePath))
 		if err != nil {
 			return ""
 		}
