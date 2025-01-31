@@ -382,6 +382,7 @@ func (app *CosmosApp) LoadHomePath() error {
 	}
 
 	cmd := exec.Command(app.binaryPath)
+	cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", app.getLDLibraryPath()))
 
 	if app.isCosmovisor {
 		cmd.Args = append(cmd.Args, "run")
@@ -454,6 +455,7 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 	// dependencies because only there we can distinguish between tendermint-v34
 	// and the celestia-core engine fork
 	cmd := exec.Command(app.binaryPath)
+	cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", app.getLDLibraryPath()))
 
 	if app.isCosmovisor {
 		cmd.Args = append(cmd.Args, "run")
@@ -489,6 +491,7 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 		}
 
 		cmd = exec.Command(app.binaryPath)
+		cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", app.getLDLibraryPath()))
 
 		if app.isCosmovisor {
 			cmd.Args = append(cmd.Args, "run")
