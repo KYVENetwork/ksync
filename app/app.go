@@ -194,11 +194,11 @@ func (app *CosmosApp) StartBinary(snapshotInterval int64) error {
 
 	cmd := exec.Command(app.binaryPath)
 	libraryPath := app.getLDLibraryPath()
-	cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", libraryPath))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("LD_LIBRARY_PATH=%s", libraryPath))
 
 	if app.isCosmovisor {
 		cmd.Args = append(cmd.Args, "run")
-		cmd.Env = append(os.Environ(), "COSMOVISOR_DISABLE_LOGS=true", "UNSAFE_SKIP_BACKUP=true")
+		cmd.Env = append(cmd.Env, "COSMOVISOR_DISABLE_LOGS=true", "UNSAFE_SKIP_BACKUP=true")
 	}
 
 	cmd.Args = append(cmd.Args, "start",
@@ -281,11 +281,11 @@ func (app *CosmosApp) StartBinaryP2P() error {
 
 	cmd := exec.Command(app.binaryPath)
 	libraryPath := app.getLDLibraryPath()
-	cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", libraryPath))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("LD_LIBRARY_PATH=%s", libraryPath))
 
 	if app.isCosmovisor {
 		cmd.Args = append(cmd.Args, "run")
-		cmd.Env = append(os.Environ(), "COSMOVISOR_DISABLE_LOGS=true")
+		cmd.Env = append(cmd.Env, "COSMOVISOR_DISABLE_LOGS=true")
 	}
 
 	cmd.Args = append(cmd.Args, "start",
@@ -382,12 +382,12 @@ func (app *CosmosApp) LoadHomePath() error {
 	}
 
 	cmd := exec.Command(app.binaryPath)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", app.getLDLibraryPath()))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("LD_LIBRARY_PATH=%s", app.getLDLibraryPath()))
 	fmt.Println(fmt.Sprintf("LD_LIBRARY_PATH=%s", app.getLDLibraryPath()))
 
 	if app.isCosmovisor {
 		cmd.Args = append(cmd.Args, "run")
-		cmd.Env = append(os.Environ(), "COSMOVISOR_DISABLE_LOGS=true")
+		cmd.Env = append(cmd.Env, "COSMOVISOR_DISABLE_LOGS=true")
 	}
 
 	cmd.Args = append(cmd.Args, "start", "--help")
@@ -456,11 +456,11 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 	// dependencies because only there we can distinguish between tendermint-v34
 	// and the celestia-core engine fork
 	cmd := exec.Command(app.binaryPath)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", app.getLDLibraryPath()))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("LD_LIBRARY_PATH=%s", app.getLDLibraryPath()))
 
 	if app.isCosmovisor {
 		cmd.Args = append(cmd.Args, "run")
-		cmd.Env = append(os.Environ(), "COSMOVISOR_DISABLE_LOGS=true")
+		cmd.Env = append(cmd.Env, "COSMOVISOR_DISABLE_LOGS=true")
 	}
 
 	cmd.Args = append(cmd.Args, "version", "--long")
@@ -492,11 +492,11 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 		}
 
 		cmd = exec.Command(app.binaryPath)
-		cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", app.getLDLibraryPath()))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("LD_LIBRARY_PATH=%s", app.getLDLibraryPath()))
 
 		if app.isCosmovisor {
 			cmd.Args = append(cmd.Args, "run")
-			cmd.Env = append(os.Environ(), "COSMOVISOR_DISABLE_LOGS=true")
+			cmd.Env = append(cmd.Env, "COSMOVISOR_DISABLE_LOGS=true")
 		}
 
 		cmd.Args = append(cmd.Args, "tendermint", "version")
