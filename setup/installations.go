@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"github.com/KYVENetwork/ksync/flags"
@@ -50,9 +51,7 @@ func InstallBinaries(chainSchema *types.ChainSchema, upgrades []types.Upgrade) e
 		}
 
 		cmd := exec.Command(fmt.Sprintf("%s/%s", genesisPath, chainSchema.DaemonName), "init", flags.Moniker, "--chain-id", chainSchema.ChainId)
-
-		cmd.Env = os.Environ()
-		cmd.Env = append(cmd.Env, fmt.Sprintf("LD_LIBRARY_PATH=%s", genesisPath))
+		cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", genesisPath))
 
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("failed to run chain init: %w", err)
@@ -70,12 +69,18 @@ func InstallBinaries(chainSchema *types.ChainSchema, upgrades []types.Upgrade) e
 		}
 		defer resp.Body.Close()
 
-		_, err = io.Copy(out, resp.Body)
-		if err != nil {
-			return err
+		data := resp.Body
+
+		if strings.HasSuffix(chainSchema.Codebase.Genesis.GenesisUrl, ".gz") {
+			data, err = gzip.NewReader(resp.Body)
+			if err != nil {
+				return err
+			}
 		}
 
-		//fmt.Println(fmt.Sprintf("downloaded genesis file with %d bytes", n))
+		if _, err := io.Copy(out, data); err != nil {
+			return err
+		}
 	}
 
 	if _, err := os.Stat(fmt.Sprintf("%s/cosmovisor/current", homePath)); errors.Is(err, os.ErrNotExist) {
