@@ -16,6 +16,9 @@ func init() {
 
 	setupCmd.Flags().StringVarP(&flags.ChainId, "chain-id", "c", utils.DefaultChainId, fmt.Sprintf("KYVE chain id [\"%s\",\"%s\",\"%s\"]", utils.ChainIdMainnet, utils.ChainIdKaon, utils.ChainIdKorellia))
 
+	setupCmd.Flags().StringVar(&flags.ChainRest, "chain-rest", "", "rest endpoint for KYVE chain")
+	setupCmd.Flags().StringVar(&flags.StorageRest, "storage-rest", "", "storage endpoint for requesting bundle data")
+
 	setupCmd.Flags().StringVarP(&flags.Moniker, "moniker", "m", "", "moniker name for initializing the chain")
 
 	RootCmd.AddCommand(setupCmd)

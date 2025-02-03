@@ -2,12 +2,16 @@ package mode
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/app/collector"
 	"github.com/KYVENetwork/ksync/app/source"
+	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/types"
+	"github.com/KYVENetwork/ksync/utils"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"strings"
+	"time"
 )
 
 var (
@@ -41,8 +45,32 @@ func SelectSetupMode() (*types.ChainSchema, []types.Upgrade, int, error) {
 
 	modes := []string{"1. Install binary with Cosmovisor from source"}
 
-	if _, err := sourceInfo.GetSourceSnapshotPoolId(); err == nil {
-		modes = append(modes, "2. Install binaries and state-sync to live height")
+	chainRest, err := func() (string, error) {
+		if flags.ChainRest != "" {
+			return strings.TrimSuffix(flags.ChainRest, "/"), nil
+		}
+
+		switch flags.ChainId {
+		case utils.ChainIdMainnet:
+			return utils.RestEndpointMainnet, nil
+		case utils.ChainIdKaon:
+			return utils.RestEndpointKaon, nil
+		case utils.ChainIdKorellia:
+			return utils.RestEndpointKorellia, nil
+		default:
+			return "", fmt.Errorf("flag --chain-id has to be either \"%s\", \"%s\" or \"%s\"", utils.ChainIdMainnet, utils.ChainIdKaon, utils.ChainIdKorellia)
+		}
+	}()
+	if err != nil {
+		return nil, nil, 0, err
+	}
+
+	if poolId, err := sourceInfo.GetSourceSnapshotPoolId(); err == nil {
+		snapshotCollector, err := collector.NewKyveSnapshotCollector(poolId, chainRest)
+		if err != nil {
+			return nil, nil, 0, err
+		}
+		modes = append(modes, fmt.Sprintf("2. Install binaries and state-sync to latest height %d", snapshotCollector.GetLatestAvailableHeight()))
 	}
 
 	if _, err := sourceInfo.GetSourceBlockPoolId(); err == nil {
@@ -51,6 +79,22 @@ func SelectSetupMode() (*types.ChainSchema, []types.Upgrade, int, error) {
 
 	modes = append(modes, fmt.Sprintf("%d. Exit", len(modes)+1))
 
+	height, err := FetchLatestHeight(chainSchema)
+	if err == nil {
+		p.Send(height)
+	}
+
+	go func() {
+		for {
+			time.Sleep(5 * time.Second)
+
+			height, err = FetchLatestHeight(chainSchema)
+			if err == nil {
+				p.Send(height)
+			}
+		}
+	}()
+
 	p.Send(modes)
 	p.Wait()
 
@@ -58,10 +102,11 @@ func SelectSetupMode() (*types.ChainSchema, []types.Upgrade, int, error) {
 }
 
 type model struct {
-	spinner  spinner.Model
-	cursor   int
-	modes    []string
-	quitting bool
+	spinner      spinner.Model
+	cursor       int
+	modes        []string
+	quitting     bool
+	latestHeight int64
 }
 
 func newModel() model {
@@ -70,9 +115,10 @@ func newModel() model {
 	s.Spinner = spinner.Dot
 
 	return model{
-		spinner:  s,
-		modes:    make([]string, 0),
-		quitting: false,
+		spinner:      s,
+		modes:        make([]string, 0),
+		quitting:     false,
+		latestHeight: 0,
 	}
 }
 
@@ -106,6 +152,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor++
 			}
 		}
+	case int64:
+		m.latestHeight = msg
+		return m, nil
 	case []string:
 		m.modes = msg
 		return m, nil
@@ -125,7 +174,7 @@ func (m model) View() string {
 		if setupMode == 1 {
 			return fmt.Sprintf("%s Selected binary installation\n", checkMark)
 		} else if setupMode == 2 {
-			return fmt.Sprintf("%s Selected binary installation with state-sync to live height\n", checkMark)
+			return fmt.Sprintf("%s Selected binary installation with state-sync to latest height\n", checkMark)
 		} else if setupMode == 3 {
 			return fmt.Sprintf("%s Selected binary installation with block-sync from genesis to live height\n", checkMark)
 		} else {
@@ -143,7 +192,11 @@ func (m model) View() string {
 			cursor = ">"
 		}
 
-		s += fmt.Sprintf("%s %s\n", cursor, mode)
+		if m.latestHeight > 0 && i > 0 && i < len(m.modes)-1 {
+			s += fmt.Sprintf("%s %s %s\n", cursor, mode, dotStyle.Render(fmt.Sprintf("(live height %d)", m.latestHeight)))
+		} else {
+			s += fmt.Sprintf("%s %s\n", cursor, mode)
+		}
 	}
 
 	s += dotStyle.Render("\nPress enter to select\n")
