@@ -2,10 +2,12 @@ package mode
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/app/source"
 	"github.com/KYVENetwork/ksync/types"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"strings"
 )
 
 var (
@@ -18,7 +20,6 @@ var (
 
 func SelectSetupMode() (*types.ChainSchema, []types.Upgrade, int, error) {
 	p := tea.NewProgram(newModel())
-
 	go func() {
 		p.Run()
 	}()
@@ -28,13 +29,29 @@ func SelectSetupMode() (*types.ChainSchema, []types.Upgrade, int, error) {
 		return nil, nil, 0, err
 	}
 
+	sourceInfo, err := source.NewSource(chainSchema.ChainId)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+
 	upgrades, err := FetchUpgrades(chainSchema)
 	if err != nil {
 		return nil, nil, 0, err
 	}
 
-	p.Send(true)
+	modes := []string{"1. Install binary with Cosmovisor from source"}
 
+	if _, err := sourceInfo.GetSourceSnapshotPoolId(); err == nil {
+		modes = append(modes, "2. Install binaries and state-sync to live height")
+	}
+
+	if _, err := sourceInfo.GetSourceBlockPoolId(); err == nil {
+		modes = append(modes, "3. Install binaries and block-sync from genesis to live height")
+	}
+
+	modes = append(modes, fmt.Sprintf("%d. Exit", len(modes)+1))
+
+	p.Send(modes)
 	p.Wait()
 
 	return chainSchema, upgrades, setupMode, nil
@@ -44,7 +61,6 @@ type model struct {
 	spinner  spinner.Model
 	cursor   int
 	modes    []string
-	loaded   bool
 	quitting bool
 }
 
@@ -52,15 +68,10 @@ func newModel() model {
 	s := spinner.New()
 	s.Style = spinnerStyle
 	s.Spinner = spinner.Dot
+
 	return model{
-		spinner: s,
-		modes: []string{
-			"1. Install binary with Cosmovisor from source",
-			"2. Install binaries and state-sync to live height",
-			"3. Install binaries and block-sync from genesis to live height",
-			"4. Exit",
-		},
-		loaded:   false,
+		spinner:  s,
+		modes:    make([]string, 0),
 		quitting: false,
 	}
 }
@@ -76,7 +87,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 
 		case "enter":
-			setupMode = m.cursor + 1
+			if strings.Contains(m.modes[m.cursor], "Exit") {
+				setupMode = 0
+			} else {
+				setupMode = m.cursor + 1
+			}
+
 			m.quitting = true
 			return m, tea.Quit
 
@@ -90,8 +106,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor++
 			}
 		}
-	case bool:
-		m.loaded = msg
+	case []string:
+		m.modes = msg
 		return m, nil
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -115,7 +131,7 @@ func (m model) View() string {
 		} else {
 			return fmt.Sprintf("%s Selected exit\n", checkMark)
 		}
-	} else if !m.loaded {
+	} else if len(m.modes) == 0 {
 		return m.spinner.View() + " Loading chain information ..."
 	}
 

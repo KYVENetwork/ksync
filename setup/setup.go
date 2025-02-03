@@ -18,7 +18,7 @@ func Start() error {
 		return err
 	}
 
-	if setupMode == 4 {
+	if setupMode == 0 {
 		return nil
 	}
 
@@ -69,7 +69,6 @@ func Start() error {
 
 	if setupMode == 3 {
 		flags.BinaryPath = fmt.Sprintf("%s/go/bin/cosmovisor", os.Getenv("HOME"))
-		flags.ChainId = "kaon-1"
 		flags.AutoSelectBinaryVersion = true
 		flags.Y = true
 		return blocksync.Start()

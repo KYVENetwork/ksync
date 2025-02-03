@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/setup"
+	"github.com/KYVENetwork/ksync/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -12,6 +13,8 @@ func init() {
 	if err := setupCmd.MarkFlagRequired("source"); err != nil {
 		panic(fmt.Errorf("flag 'source' should be required: %w", err))
 	}
+
+	setupCmd.Flags().StringVarP(&flags.ChainId, "chain-id", "c", utils.DefaultChainId, fmt.Sprintf("KYVE chain id [\"%s\",\"%s\",\"%s\"]", utils.ChainIdMainnet, utils.ChainIdKaon, utils.ChainIdKorellia))
 
 	setupCmd.Flags().StringVarP(&flags.Moniker, "moniker", "m", "", "moniker name for initializing the chain")
 
