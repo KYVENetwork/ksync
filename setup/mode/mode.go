@@ -6,8 +6,6 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"strings"
-	"time"
 )
 
 var (
@@ -35,13 +33,7 @@ func SelectSetupMode() (*types.ChainSchema, []types.Upgrade, int, error) {
 		return nil, nil, 0, err
 	}
 
-	go func() {
-		for {
-			latestHeight, _ := FetchLatestHeight(chainSchema)
-			p.Send(latestHeight)
-			time.Sleep(10 * time.Second)
-		}
-	}()
+	p.Send(true)
 
 	p.Wait()
 
@@ -49,11 +41,11 @@ func SelectSetupMode() (*types.ChainSchema, []types.Upgrade, int, error) {
 }
 
 type model struct {
-	spinner      spinner.Model
-	cursor       int
-	modes        []string
-	latestHeight int64
-	quitting     bool
+	spinner  spinner.Model
+	cursor   int
+	modes    []string
+	loaded   bool
+	quitting bool
 }
 
 func newModel() model {
@@ -63,18 +55,17 @@ func newModel() model {
 	return model{
 		spinner: s,
 		modes: []string{
-			"1. Sync to latest available block height",
-			"2. Sync to latest available snapshot height",
-			"3. Sync from genesis to live height",
-			"4. Exit",
+			"1. Sync to live height with state-sync",
+			"2. Sync to live height from genesis",
+			"3. Exit",
 		},
-		latestHeight: 0,
-		quitting:     false,
+		loaded:   false,
+		quitting: false,
 	}
 }
 
 func (m model) Init() tea.Cmd {
-	return nil
+	return m.spinner.Tick
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -98,8 +89,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor++
 			}
 		}
-	case int64:
-		m.latestHeight = msg
+	case bool:
+		m.loaded = msg
 		return m, nil
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -115,7 +106,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	if m.quitting {
 		return fmt.Sprintf("%s Selected setup mode %d\n", checkMark, setupMode)
-	} else if m.latestHeight == 0 {
+	} else if !m.loaded {
 		return m.spinner.View() + " Loading chain information ..."
 	}
 
@@ -127,11 +118,7 @@ func (m model) View() string {
 			cursor = ">"
 		}
 
-		if strings.HasPrefix(mode, "1.") {
-			s += fmt.Sprintf("%s %s %d\n", cursor, mode, m.latestHeight)
-		} else {
-			s += fmt.Sprintf("%s %s\n", cursor, mode)
-		}
+		s += fmt.Sprintf("%s %s\n", cursor, mode)
 	}
 
 	s += dotStyle.Render("\nPress enter to select\n")

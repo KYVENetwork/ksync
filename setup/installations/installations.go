@@ -1,4 +1,4 @@
-package setup
+package installations
 
 import (
 	"compress/gzip"
@@ -28,7 +28,7 @@ var (
 	dockerLogs   string
 )
 
-func InstallBinaries(chainSchema *types.ChainSchema, upgrades []types.Upgrade) error {
+func InstallGenesisSyncBinaries(chainSchema *types.ChainSchema, upgrades []types.Upgrade) error {
 	program = tea.NewProgram(newModel(append([]types.Upgrade{{Name: "Cosmovisor"}}, upgrades...)))
 
 	go func() {
@@ -95,6 +95,75 @@ func InstallBinaries(chainSchema *types.ChainSchema, upgrades []types.Upgrade) e
 		outputPath := fmt.Sprintf("%s/cosmovisor/upgrades/%s/bin", homePath, upgrade.Name)
 
 		if err := buildUpgradeBinary(upgrade, chainSchema.Codebase.GitRepoUrl, chainSchema.DaemonName, outputPath); err != nil {
+			return err
+		}
+	}
+
+	program.Wait()
+	return nil
+}
+
+func InstallStateSyncBinaries(chainSchema *types.ChainSchema, upgrades []types.Upgrade) error {
+	upgrade := upgrades[len(upgrades)-1]
+
+	program = tea.NewProgram(newModel(append([]types.Upgrade{{Name: "Cosmovisor"}}, upgrade)))
+
+	go func() {
+		program.Run()
+	}()
+
+	homePath := strings.ReplaceAll(chainSchema.NodeHome, "$HOME", os.Getenv("HOME"))
+	binaryPath := fmt.Sprintf("%s/cosmovisor/upgrades/%s/bin", homePath, upgrade.Name)
+
+	if err := buildCosmovisor(fmt.Sprintf("%s/go/bin/", os.Getenv("HOME"))); err != nil {
+		return err
+	}
+
+	if err := buildUpgradeBinary(upgrade, chainSchema.Codebase.GitRepoUrl, chainSchema.DaemonName, binaryPath); err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(fmt.Sprintf("%s/config/genesis.json", homePath)); errors.Is(err, os.ErrNotExist) {
+		moniker := flags.Moniker
+		if moniker == "" {
+			moniker = "ksync"
+		}
+
+		cmd := exec.Command(fmt.Sprintf("%s/%s", binaryPath, chainSchema.DaemonName), "init", flags.Moniker, "--chain-id", chainSchema.ChainId)
+		cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", binaryPath))
+
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to run chain init: %w", err)
+		}
+
+		out, err := os.Create(fmt.Sprintf("%s/config/genesis.json", homePath))
+		if err != nil {
+			return err
+		}
+		defer out.Close()
+
+		resp, err := http.Get(chainSchema.Codebase.Genesis.GenesisUrl)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		data := resp.Body
+
+		if strings.HasSuffix(chainSchema.Codebase.Genesis.GenesisUrl, ".gz") {
+			data, err = gzip.NewReader(resp.Body)
+			if err != nil {
+				return err
+			}
+		}
+
+		if _, err := io.Copy(out, data); err != nil {
+			return err
+		}
+	}
+
+	if _, err := os.Stat(fmt.Sprintf("%s/cosmovisor/current", homePath)); errors.Is(err, os.ErrNotExist) {
+		if err := os.Symlink(fmt.Sprintf("%s/cosmovisor/upgrades/%s", homePath, upgrade.Name), fmt.Sprintf("%s/cosmovisor/current", homePath)); err != nil {
 			return err
 		}
 	}
@@ -246,8 +315,11 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		// TODO: only quit after CMD+C
-		return m, tea.Quit
+		if msg.String() == "ctrl+c" {
+			return m, tea.Quit
+		}
+
+		return m, nil
 	case types.Upgrade:
 		m.installedUpgrades = append(m.installedUpgrades, msg)
 		if len(m.installedUpgrades) == len(m.upgrades) {

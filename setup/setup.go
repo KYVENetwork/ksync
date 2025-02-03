@@ -2,6 +2,7 @@ package setup
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/setup/installations"
 	"github.com/KYVENetwork/ksync/setup/mode"
 	"github.com/KYVENetwork/ksync/setup/peers"
 	"runtime"
@@ -13,9 +14,7 @@ func Start() error {
 		return err
 	}
 
-	fmt.Println("Setup mode: ", setupMode)
-
-	if setupMode == 4 {
+	if setupMode == 3 {
 		return nil
 	}
 
@@ -30,8 +29,14 @@ func Start() error {
 		return fmt.Errorf("chain binaries contain cosmwasm, unable to cross-compile for darwin")
 	}
 
-	if err := InstallBinaries(chainSchema, upgrades); err != nil {
-		return err
+	if setupMode == 1 {
+		if err := installations.InstallStateSyncBinaries(chainSchema, upgrades); err != nil {
+			return err
+		}
+	} else {
+		if err := installations.InstallGenesisSyncBinaries(chainSchema, upgrades); err != nil {
+			return err
+		}
 	}
 
 	seeds, err := peers.SelectPeers("seeds", chainSchema.Peers.Seeds)
