@@ -29,6 +29,8 @@ var (
 	Debug                   bool
 	Y                       bool
 	Moniker                 string
+	DaemonName              string
+	DaemonHome              string
 	// Engine is deprecated
 	Engine string
 	// Source is deprecated

@@ -199,6 +199,10 @@ func (app *CosmosApp) StartBinary(snapshotInterval int64) error {
 	if app.isCosmovisor {
 		cmd.Args = append(cmd.Args, "run")
 		cmd.Env = append(cmd.Env, "COSMOVISOR_DISABLE_LOGS=true", "UNSAFE_SKIP_BACKUP=true")
+
+		if flags.DaemonName != "" && flags.DaemonHome != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("DAEMON_NAME=%s", flags.DaemonName), fmt.Sprintf("DAEMON_HOME=%s", flags.DaemonHome))
+		}
 	}
 
 	cmd.Args = append(cmd.Args, "start",
@@ -286,6 +290,10 @@ func (app *CosmosApp) StartBinaryP2P() error {
 	if app.isCosmovisor {
 		cmd.Args = append(cmd.Args, "run")
 		cmd.Env = append(cmd.Env, "COSMOVISOR_DISABLE_LOGS=true")
+
+		if flags.DaemonName != "" && flags.DaemonHome != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("DAEMON_NAME=%s", flags.DaemonName), fmt.Sprintf("DAEMON_HOME=%s", flags.DaemonHome))
+		}
 	}
 
 	cmd.Args = append(cmd.Args, "start",
@@ -387,6 +395,11 @@ func (app *CosmosApp) LoadHomePath() error {
 	if app.isCosmovisor {
 		cmd.Args = append(cmd.Args, "run")
 		cmd.Env = append(cmd.Env, "COSMOVISOR_DISABLE_LOGS=true")
+
+		if flags.DaemonName != "" && flags.DaemonHome != "" {
+			fmt.Println(flags.DaemonName, flags.DaemonHome)
+			cmd.Env = append(cmd.Env, fmt.Sprintf("DAEMON_NAME=%s", flags.DaemonName), fmt.Sprintf("DAEMON_HOME=%s", flags.DaemonHome))
+		}
 	}
 
 	cmd.Args = append(cmd.Args, "start", "--help")
@@ -460,6 +473,10 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 	if app.isCosmovisor {
 		cmd.Args = append(cmd.Args, "run")
 		cmd.Env = append(cmd.Env, "COSMOVISOR_DISABLE_LOGS=true")
+
+		if flags.DaemonName != "" && flags.DaemonHome != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("DAEMON_NAME=%s", flags.DaemonName), fmt.Sprintf("DAEMON_HOME=%s", flags.DaemonHome))
+		}
 	}
 
 	cmd.Args = append(cmd.Args, "version", "--long")

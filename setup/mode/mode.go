@@ -55,9 +55,10 @@ func newModel() model {
 	return model{
 		spinner: s,
 		modes: []string{
-			"1. Sync to live height with state-sync",
-			"2. Sync to live height from genesis",
-			"3. Exit",
+			"1. Install binary with Cosmovisor from source",
+			"2. Install binaries and state-sync to live height",
+			"3. Install binaries and block-sync from genesis to live height",
+			"4. Exit",
 		},
 		loaded:   false,
 		quitting: false,
@@ -105,7 +106,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	if m.quitting {
-		return fmt.Sprintf("%s Selected setup mode %d\n", checkMark, setupMode)
+		if setupMode == 1 {
+			return fmt.Sprintf("%s Selected binary installation\n", checkMark)
+		} else if setupMode == 2 {
+			return fmt.Sprintf("%s Selected binary installation with state-sync to live height\n", checkMark)
+		} else if setupMode == 3 {
+			return fmt.Sprintf("%s Selected binary installation with block-sync from genesis to live height\n", checkMark)
+		} else {
+			return fmt.Sprintf("%s Selected exit\n", checkMark)
+		}
 	} else if !m.loaded {
 		return m.spinner.View() + " Loading chain information ..."
 	}
