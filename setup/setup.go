@@ -8,7 +8,6 @@ import (
 	"github.com/KYVENetwork/ksync/setup/peers"
 	"github.com/KYVENetwork/ksync/sync/blocksync"
 	"os"
-	"runtime"
 	"strings"
 )
 
@@ -20,17 +19,6 @@ func Start() error {
 
 	if setupMode == 0 {
 		return nil
-	}
-
-	canRunDarwin := true
-	for _, upgrade := range upgrades {
-		if upgrade.LibwasmVersion != "" {
-			canRunDarwin = false
-		}
-	}
-
-	if runtime.GOOS == "darwin" && !canRunDarwin {
-		return fmt.Errorf("chain binaries contain cosmwasm, unable to cross-compile for darwin")
 	}
 
 	if setupMode == 2 {

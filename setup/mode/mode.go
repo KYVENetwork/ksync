@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -41,6 +42,19 @@ func SelectSetupMode() (*types.ChainSchema, []types.Upgrade, int, error) {
 	upgrades, err := FetchUpgrades(chainSchema)
 	if err != nil {
 		return nil, nil, 0, err
+	}
+
+	canRunDarwin := true
+	for _, upgrade := range upgrades {
+		if upgrade.LibwasmVersion != "" {
+			canRunDarwin = false
+		}
+	}
+
+	if runtime.GOOS == "darwin" && !canRunDarwin {
+		p.Quit()
+		p.Wait()
+		return nil, nil, 0, fmt.Errorf("chain binaries contain cosmwasm, unable to cross-compile for darwin")
 	}
 
 	modes := []string{"1. Install binary with Cosmovisor from source"}
