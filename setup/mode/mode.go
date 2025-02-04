@@ -16,12 +16,13 @@ import (
 )
 
 var (
-	spinnerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("63"))
-	helpStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Margin(1, 0)
-	dotStyle     = helpStyle.UnsetMargins()
-	checkMark    = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).SetString("✓")
-	errorMark    = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).SetString("x")
-	setupMode    int
+	spinnerStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("63"))
+	helpStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Margin(1, 0)
+	selectedItemStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("170"))
+	dotStyle          = helpStyle.UnsetMargins()
+	checkMark         = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).SetString("✓")
+	errorMark         = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).SetString("x")
+	setupMode         int
 )
 
 func SelectSetupMode() (*types.ChainSchema, []types.Upgrade, int, error) {
@@ -207,10 +208,18 @@ func (m model) View() string {
 			cursor = ">"
 		}
 
+		var line string
+
 		if m.latestHeight > 0 && i > 0 && i < len(m.modes)-1 {
-			s += fmt.Sprintf("%s %s %s\n", cursor, mode, dotStyle.Render(fmt.Sprintf("(live height %d)", m.latestHeight)))
+			line = fmt.Sprintf("%s %s %s", cursor, mode, dotStyle.Render(fmt.Sprintf("(live height %d)", m.latestHeight)))
 		} else {
-			s += fmt.Sprintf("%s %s\n", cursor, mode)
+			line = fmt.Sprintf("%s %s", cursor, mode)
+		}
+
+		if m.cursor == i {
+			s += selectedItemStyle.Render(line) + "\n"
+		} else {
+			s += line + "\n"
 		}
 	}
 

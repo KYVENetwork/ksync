@@ -10,10 +10,11 @@ import (
 )
 
 var (
-	helpStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Margin(1, 0)
-	dotStyle      = helpStyle.UnsetMargins()
-	checkMark     = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).SetString("✓")
-	selectedPeers = make([]types.Peer, 0)
+	helpStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Margin(1, 0)
+	dotStyle          = helpStyle.UnsetMargins()
+	selectedItemStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("170"))
+	checkMark         = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).SetString("✓")
+	selectedPeers     = make([]types.Peer, 0)
 )
 
 func SelectPeers(name string, peers []types.Peer) ([]types.Peer, error) {
@@ -149,7 +150,12 @@ func (m model) View() string {
 			checked = "x"
 		}
 
-		s += fmt.Sprintf("%s [%s] %s %s\n", cursor, checked, peer.Provider, dotStyle.Render(fmt.Sprintf("%s@%s", peer.Id, peer.Address)))
+		line := fmt.Sprintf("%s [%s] %s %s", cursor, checked, peer.Provider, dotStyle.Render(fmt.Sprintf("%s@%s", peer.Id, peer.Address)))
+		if m.cursor == i {
+			s += selectedItemStyle.Render(line) + "\n"
+		} else {
+			s += line + "\n"
+		}
 	}
 
 	s += dotStyle.Render("\nPress space to select and enter to continue\n")

@@ -32,8 +32,8 @@ func GetVersion() string {
 	return strings.TrimSpace(version.Main.Version)
 }
 
-// getFromUrl tries to fetch data from url with a custom User-Agent header
-func getFromUrl(url string) ([]byte, error) {
+// GetFromUrlWithErr tries to fetch data from url with a custom User-Agent header
+func GetFromUrlWithErr(url string) ([]byte, error) {
 	// Log debug info
 	logger.Logger.Debug().Str("url", url).Msg("GET")
 
@@ -81,7 +81,7 @@ func getFromUrl(url string) ([]byte, error) {
 // always want a request to succeed so it is implemented by default
 func GetFromUrl(url string) (data []byte, err error) {
 	for i := 0; i < BackoffMaxRetries; i++ {
-		data, err = getFromUrl(url)
+		data, err = GetFromUrlWithErr(url)
 		if err != nil {
 			metrics.IncreaseFailedRequests()
 			delaySec := math.Pow(2, float64(i))

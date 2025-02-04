@@ -10,7 +10,7 @@ import (
 )
 
 func FetchChainSchema() (*types.ChainSchema, error) {
-	result, err := utils.GetFromUrl(fmt.Sprintf("https://raw.githubusercontent.com/cosmos/chain-registry/refs/heads/master/%s/chain.json", flags.Source))
+	result, err := utils.GetFromUrlWithErr(fmt.Sprintf("https://raw.githubusercontent.com/cosmos/chain-registry/refs/heads/master/%s/chain.json", flags.Source))
 	if err != nil {
 		return nil, fmt.Errorf("failed to query chain registry https://raw.githubusercontent.com/cosmos/chain-registry/refs/heads/master/%s/chain.json: %w", flags.Source, err)
 	}
@@ -25,7 +25,7 @@ func FetchChainSchema() (*types.ChainSchema, error) {
 
 func FetchLatestHeight(chainSchema *types.ChainSchema) (int64, error) {
 	for _, rpc := range chainSchema.Apis.Rpc {
-		result, err := utils.GetFromUrl(fmt.Sprintf("%s/status", rpc.Address))
+		result, err := utils.GetFromUrlWithErr(fmt.Sprintf("%s/status", rpc.Address))
 		if err != nil {
 			continue
 		}
@@ -42,7 +42,7 @@ func FetchLatestHeight(chainSchema *types.ChainSchema) (int64, error) {
 }
 
 func FetchUpgrades(chainSchema *types.ChainSchema) ([]types.Upgrade, error) {
-	result, err := utils.GetFromUrl(fmt.Sprintf("https://raw.githubusercontent.com/cosmos/chain-registry/refs/heads/master/%s/versions.json", flags.Source))
+	result, err := utils.GetFromUrlWithErr(fmt.Sprintf("https://raw.githubusercontent.com/cosmos/chain-registry/refs/heads/master/%s/versions.json", flags.Source))
 	if err != nil {
 		return nil, fmt.Errorf("failed to query chain registry https://raw.githubusercontent.com/cosmos/chain-registry/refs/heads/master/%s/versions.json: %w", flags.Source, err)
 	}
@@ -75,7 +75,7 @@ func FetchUpgrades(chainSchema *types.ChainSchema) ([]types.Upgrade, error) {
 
 		repo := strings.ReplaceAll(chainSchema.Codebase.GitRepoUrl, "https://github.com/", "https://raw.githubusercontent.com/")
 
-		result, err = utils.GetFromUrl(fmt.Sprintf("%s/refs/tags/%s/go.mod", repo, recommendedVersion))
+		result, err = utils.GetFromUrlWithErr(fmt.Sprintf("%s/refs/tags/%s/go.mod", repo, recommendedVersion))
 		if err != nil {
 			return nil, fmt.Errorf("failed to query go.mod for version \"%s/refs/tags/%s/go.mod\": %w", repo, recommendedVersion, err)
 		}

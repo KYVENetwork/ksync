@@ -63,7 +63,7 @@ func SelectSource() error {
 		return nil
 	}
 
-	sourcesResponse, err := utils.GetFromUrl("https://api.github.com/repos/cosmos/chain-registry/contents")
+	sourcesResponse, err := utils.GetFromUrlWithErr("https://api.github.com/repos/cosmos/chain-registry/contents")
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ type model struct {
 
 func newModel(options []list.Item) model {
 	l := list.New(options, itemDelegate{}, defaultWidth, listHeight)
-	l.Title = "What do you want for dinner?"
+	l.Title = "Select chain?"
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 	l.Styles.Title = titleStyle
