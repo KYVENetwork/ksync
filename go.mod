@@ -8,6 +8,7 @@ require (
 	github.com/KYVENetwork/cometbft/v37 v37.0.3
 	github.com/KYVENetwork/cometbft/v38 v38.0.5
 	github.com/charmbracelet/bubbles v0.20.0
+	github.com/charmbracelet/bubbletea v1.2.4
 	github.com/charmbracelet/lipgloss v1.0.0
 	github.com/cometbft/cometbft-db v0.9.5
 	github.com/gin-gonic/gin v1.9.1
@@ -22,6 +23,7 @@ require (
 
 require (
 	github.com/Workiva/go-datastructures v1.1.5 // indirect
+	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aws/aws-sdk-go v1.40.45 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -30,7 +32,6 @@ require (
 	github.com/celestiaorg/nmt v0.21.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/charmbracelet/bubbletea v1.2.4 // indirect
 	github.com/charmbracelet/x/ansi v0.4.5 // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
@@ -107,6 +108,7 @@ require (
 	github.com/rs/cors v1.11.0 // indirect
 	github.com/sagikazarmark/locafero v0.6.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
+	github.com/sahilm/fuzzy v0.1.1 // indirect
 	github.com/sasha-s/go-deadlock v0.3.5 // indirect
 	github.com/segmentio/backo-go v1.1.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect

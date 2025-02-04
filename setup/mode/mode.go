@@ -20,6 +20,7 @@ var (
 	helpStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Margin(1, 0)
 	dotStyle     = helpStyle.UnsetMargins()
 	checkMark    = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).SetString("✓")
+	errorMark    = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).SetString("x")
 	setupMode    int
 )
 
@@ -192,10 +193,10 @@ func (m model) View() string {
 		} else if setupMode == 3 {
 			return fmt.Sprintf("%s Selected binary installation with block-sync from genesis to live height\n", checkMark)
 		} else {
-			return fmt.Sprintf("%s Selected exit\n", checkMark)
+			return fmt.Sprintf("%s Selected exit\n", errorMark)
 		}
 	} else if len(m.modes) == 0 {
-		return m.spinner.View() + " Loading chain information ..."
+		return m.spinner.View() + fmt.Sprintf("Loading chain information for %s ...", flags.Source)
 	}
 
 	s := fmt.Sprintf("Select the setup mode for your chain\n\n")

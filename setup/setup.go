@@ -6,12 +6,17 @@ import (
 	"github.com/KYVENetwork/ksync/setup/installations"
 	"github.com/KYVENetwork/ksync/setup/mode"
 	"github.com/KYVENetwork/ksync/setup/peers"
+	"github.com/KYVENetwork/ksync/setup/sources"
 	"github.com/KYVENetwork/ksync/sync/blocksync"
 	"os"
 	"strings"
 )
 
 func Start() error {
+	if err := sources.SelectSource(); err != nil {
+		return err
+	}
+
 	chainSchema, upgrades, setupMode, err := mode.SelectSetupMode()
 	if err != nil {
 		return err

@@ -10,9 +10,6 @@ import (
 
 func init() {
 	setupCmd.Flags().StringVarP(&flags.Source, "source", "b", "", "source is the name chain in the cosmos registry")
-	if err := setupCmd.MarkFlagRequired("source"); err != nil {
-		panic(fmt.Errorf("flag 'source' should be required: %w", err))
-	}
 
 	setupCmd.Flags().StringVarP(&flags.ChainId, "chain-id", "c", utils.DefaultChainId, fmt.Sprintf("KYVE chain id [\"%s\",\"%s\",\"%s\"]", utils.ChainIdMainnet, utils.ChainIdKaon, utils.ChainIdKorellia))
 
