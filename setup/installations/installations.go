@@ -29,7 +29,7 @@ var (
 )
 
 func InstallGenesisSyncBinaries(chainSchema *types.ChainSchema, upgrades []types.Upgrade) error {
-	program = tea.NewProgram(newModel(append([]types.Upgrade{{Name: "Cosmovisor"}}, upgrades...)))
+	program = tea.NewProgram(newModel(append([]types.Upgrade{{Name: "Cosmovisor", Version: "v1.7.0"}}, upgrades...)))
 
 	go func() {
 		program.Run()
@@ -184,7 +184,7 @@ func InstallStateSyncBinaries(chainSchema *types.ChainSchema, upgrades []types.U
 }
 
 func buildCosmovisor(outputPath string) error {
-	cmd := exec.Command("docker", "buildx", "build")
+	cmd := exec.Command("docker", "build")
 
 	if runtime.GOOS == "darwin" {
 		cmd.Args = append(cmd.Args, "--platform", "linux/amd64")
@@ -225,6 +225,7 @@ func buildCosmovisor(outputPath string) error {
 
 	program.Send(types.Upgrade{
 		Name:            "Cosmovisor",
+		Version:         "v1.7.0",
 		InstallDuration: time.Since(start),
 	})
 
@@ -303,6 +304,10 @@ type CmdWriter struct{}
 
 func (w *CmdWriter) Write(p []byte) (n int, err error) {
 	dockerLogs += string(p) + "\n"
+	lines := strings.Split(string(p), "\n")
+	for _, line := range lines {
+		program.Send(line)
+	}
 	return len(p), nil
 }
 
@@ -347,6 +352,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		return m, nil
+	case string:
+		m.logs = append(m.logs[1:], msg)
+		return m, nil
 	case error:
 		m.error = true
 		return m, tea.Quit
@@ -366,9 +374,9 @@ func (m model) View() string {
 
 	for index, upgrade := range m.installedUpgrades {
 		if upgrade.Name == "Cosmovisor" {
-			s += fmt.Sprintf("%s Installed %s %s\n", checkMark, upgrade.Name, dotStyle.Render(upgrade.InstallDuration.String()))
+			s += fmt.Sprintf("%s Installed %s %s %s\n", checkMark, upgrade.Name, dotStyle.Render(fmt.Sprintf("(%s)", upgrade.Version)), dotStyle.Render(upgrade.InstallDuration.String()))
 		} else {
-			s += fmt.Sprintf("%s Installed upgrade %s %s\n", checkMark, upgrade.Name, dotStyle.Render(upgrade.InstallDuration.String()))
+			s += fmt.Sprintf("%s Installed upgrade %s %s %s\n", checkMark, upgrade.Name, dotStyle.Render(fmt.Sprintf("(%s)", upgrade.Version)), dotStyle.Render(upgrade.InstallDuration.String()))
 		}
 		lastIndex = index
 	}
@@ -381,33 +389,33 @@ func (m model) View() string {
 		if upgrade.Name == "Cosmovisor" {
 			if lastIndex+1 == index {
 				if m.error {
-					s += fmt.Sprintf("%s Failed to install %s\n", errorMark, upgrade.Name)
+					s += fmt.Sprintf("%s Failed to install %s %s\n", errorMark, upgrade.Name, dotStyle.Render(fmt.Sprintf("(%s)", upgrade.Version)))
 				} else {
-					s += m.spinner.View() + fmt.Sprintf("Installing %s ...\n", upgrade.Name)
+					s += m.spinner.View() + fmt.Sprintf("Installing %s ... %s\n", upgrade.Name, dotStyle.Render(fmt.Sprintf("(%s)", upgrade.Version)))
 				}
 			} else {
-				s += fmt.Sprintf("  Scheduled %s\n", upgrade.Name)
+				s += fmt.Sprintf("  Scheduled %s %s\n", upgrade.Name, dotStyle.Render(fmt.Sprintf("(%s)", upgrade.Version)))
 			}
 		} else {
 			if lastIndex+1 == index {
 				if m.error {
-					s += fmt.Sprintf("%s Failed to install %s\n", errorMark, upgrade.Name)
+					s += fmt.Sprintf("%s Failed to install %s %s\n", errorMark, upgrade.Name, dotStyle.Render(fmt.Sprintf("(%s)", upgrade.Version)))
 				} else {
-					s += m.spinner.View() + fmt.Sprintf("Installing upgrade %s ...\n", upgrade.Name)
+					s += m.spinner.View() + fmt.Sprintf("Installing upgrade %s ... %s\n", upgrade.Name, dotStyle.Render(fmt.Sprintf("(%s)", upgrade.Version)))
 				}
 			} else {
-				s += fmt.Sprintf("  Scheduled upgrade %s\n", upgrade.Name)
+				s += fmt.Sprintf("  Scheduled upgrade %s %s\n", upgrade.Name, dotStyle.Render(fmt.Sprintf("(%s)", upgrade.Version)))
 			}
 		}
 	}
 
-	//if len(m.installedUpgrades) < len(m.upgrades) {
-	//	s += "\n"
-	//
-	//	for _, log := range m.logs {
-	//		s += log + "\n"
-	//	}
-	//}
+	if len(m.installedUpgrades) < len(m.upgrades) {
+		s += "\n"
+
+		for _, log := range m.logs {
+			s += dotStyle.Render(log) + "\n"
+		}
+	}
 
 	return s
 }
