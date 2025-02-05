@@ -8,6 +8,7 @@ import (
 	"github.com/KYVENetwork/ksync/setup/peers"
 	"github.com/KYVENetwork/ksync/setup/sources"
 	"github.com/KYVENetwork/ksync/sync/blocksync"
+	"github.com/KYVENetwork/ksync/sync/statesync"
 	"os"
 	"strings"
 )
@@ -52,18 +53,18 @@ func Start() error {
 
 	flags.DaemonName = chainSchema.DaemonName
 	flags.DaemonHome = strings.ReplaceAll(chainSchema.NodeHome, "$HOME", os.Getenv("HOME"))
+	flags.BinaryPath = fmt.Sprintf("%s/go/bin/cosmovisor", os.Getenv("HOME"))
+	flags.AutoSelectBinaryVersion = true
+	flags.Y = true
 
 	if setupMode == 1 {
 		fmt.Println("Successfully completed setup, to run Cosmovisor please export the following environment variables before:")
 		fmt.Println(fmt.Sprintf("export DAEMON_NAME=%s DAEMON_HOME=%s LD_LIBRARY_PATH=.", flags.DaemonName, flags.DaemonHome))
 		fmt.Println(fmt.Sprintf("%s/go/bin/cosmovisor run version", os.Getenv("HOME")))
 		return nil
-	}
-
-	if setupMode == 3 {
-		flags.BinaryPath = fmt.Sprintf("%s/go/bin/cosmovisor", os.Getenv("HOME"))
-		flags.AutoSelectBinaryVersion = true
-		flags.Y = true
+	} else if setupMode == 2 {
+		return statesync.Start()
+	} else if setupMode == 3 {
 		return blocksync.Start()
 	}
 

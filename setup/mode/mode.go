@@ -96,7 +96,8 @@ func SelectSetupMode() (*types.ChainSchema, []types.Upgrade, int, error) {
 			p.Wait()
 			return nil, nil, 0, err
 		}
-		modes = append(modes, fmt.Sprintf("2. Install binaries and state-sync to latest height %d", snapshotCollector.GetLatestAvailableHeight()))
+		flags.TargetHeight = snapshotCollector.GetLatestAvailableHeight()
+		modes = append(modes, fmt.Sprintf("2. Install binaries and state-sync to latest height %d", flags.TargetHeight))
 	}
 
 	if _, err := sourceInfo.GetSourceBlockPoolId(); err == nil {
@@ -159,15 +160,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 
 		case "enter":
-			if strings.Contains(m.modes[m.cursor], "Exit") {
-				setupMode = 0
-			} else {
-				setupMode = m.cursor + 1
+			if len(m.modes) > 0 {
+				if strings.Contains(m.modes[m.cursor], "Exit") {
+					setupMode = 0
+				} else {
+					setupMode = m.cursor + 1
+				}
+
+				m.quitting = true
+				return m, tea.Quit
 			}
 
-			m.quitting = true
-			return m, tea.Quit
-
+			return m, nil
 		case "up":
 			if m.cursor > 0 {
 				m.cursor--
