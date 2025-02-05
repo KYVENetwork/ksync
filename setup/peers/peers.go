@@ -57,6 +57,8 @@ func SavePeers(chainSchema *types.ChainSchema, seedsArr, persistentPeersArr []ty
 			config = append(config, fmt.Sprintf("seeds = \"%s\"", seeds))
 		} else if strings.HasPrefix(line, "persistent_peers = ") {
 			config = append(config, fmt.Sprintf("persistent_peers = \"%s\"", persistentPeers))
+		} else if strings.HasPrefix(line, "pyroscope_profile_types = ") {
+			config = append(config, "pyroscope_profile_types = \"\"")
 		} else {
 			config = append(config, line)
 		}
