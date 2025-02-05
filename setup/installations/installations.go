@@ -213,6 +213,8 @@ func buildCosmovisor(outputPath string) error {
 
 	start := time.Now()
 
+	dockerLogs = ""
+
 	if err := cmd.Run(); err != nil {
 		program.Send(fmt.Errorf(err.Error()))
 		program.Quit()
@@ -261,6 +263,8 @@ func buildUpgradeBinary(upgrade types.Upgrade, gitRepoUrl, daemonName, outputPat
 	binaryPath := fmt.Sprintf("build/%s", daemonName)
 	if daemonName == "nobled" {
 		binaryPath = "build"
+	} else if daemonName == "andromedad" {
+		binaryPath = "bin/andromedad"
 	}
 
 	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("BINARY_PATH=%s", binaryPath))
@@ -278,6 +282,8 @@ func buildUpgradeBinary(upgrade types.Upgrade, gitRepoUrl, daemonName, outputPat
 	cmd.Stderr = &writer
 
 	start := time.Now()
+
+	dockerLogs = ""
 
 	if err := cmd.Run(); err != nil {
 		program.Send(fmt.Errorf(err.Error()))
