@@ -10,6 +10,7 @@ ARG GO_VERSION
 ARG SUBFOLDER
 ARG TARGET_GOOS
 ARG TARGET_GOARCH
+ARG DAEMON_NAME
 ARG BUILD_CMD="build"
 
 ENV GOOS=$TARGET_GOOS
@@ -22,7 +23,7 @@ RUN apt update && apt upgrade -y
 RUN git clone --depth 1 --branch $VERSION $GIT_REPO repo \
     && cd repo/$SUBFOLDER \
     && make $BUILD_CMD ENV=mainnet GO_VERSION=$GO_VERSION LAVA_BINARY=lavad \
-    && mv $BINARY_PATH /app \
+    && mv $BINARY_PATH /app/$DAEMON_NAME \
     && cd /app \
     && rm -r repo
 

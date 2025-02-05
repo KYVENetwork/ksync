@@ -65,10 +65,6 @@ func FetchUpgrades(chainSchema *types.ChainSchema) ([]types.Upgrade, error) {
 			recommendedVersion = version.Tag
 		}
 
-		if !strings.HasPrefix(recommendedVersion, "v") {
-			recommendedVersion = "v" + recommendedVersion
-		}
-
 		upgrade.Version = recommendedVersion
 
 		if index == 0 {

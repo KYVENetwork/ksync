@@ -184,7 +184,7 @@ func InstallStateSyncBinaries(chainSchema *types.ChainSchema, upgrades []types.U
 }
 
 func buildCosmovisor(outputPath string) error {
-	cmd := exec.Command("docker", "build")
+	cmd := exec.Command("docker", "buildx", "build")
 
 	if runtime.GOOS == "darwin" {
 		cmd.Args = append(cmd.Args, "--platform", "linux/amd64")
@@ -192,8 +192,6 @@ func buildCosmovisor(outputPath string) error {
 		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOARCH=%s", runtime.GOARCH))
 	} else {
 		cmd.Args = append(cmd.Args, "--platform", fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH))
-		//cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOOS=%s", ""))
-		//cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOARCH=%s", ""))
 	}
 
 	cmd.Args = append(cmd.Args, "--build-arg", "BASE_IMAGE=golang:1.23")
@@ -203,6 +201,7 @@ func buildCosmovisor(outputPath string) error {
 	cmd.Args = append(cmd.Args, "--build-arg", "GO_VERSION=1.23")
 	cmd.Args = append(cmd.Args, "--build-arg", "SUBFOLDER=tools/cosmovisor")
 	cmd.Args = append(cmd.Args, "--build-arg", "BUILD_CMD=cosmovisor")
+	cmd.Args = append(cmd.Args, "--build-arg", "DAEMON_NAME=cosmovisor")
 
 	cmd.Args = append(cmd.Args, "--output", outputPath)
 	cmd.Args = append(cmd.Args, "-f", "setup/Dockerfile", ".")
@@ -251,15 +250,20 @@ func buildUpgradeBinary(upgrade types.Upgrade, gitRepoUrl, daemonName, outputPat
 		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOARCH=%s", runtime.GOARCH))
 	} else {
 		cmd.Args = append(cmd.Args, "--platform", fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH))
-		//cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOOS=%s", ""))
-		//cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("TARGET_GOARCH=%s", ""))
 	}
 
 	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("BASE_IMAGE=golang:%s", upgrade.GoVersion))
 	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("VERSION=%s", upgrade.Version))
 	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("GIT_REPO=%s", gitRepoUrl))
-	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("BINARY_PATH=%s", fmt.Sprintf("build/%s", daemonName)))
 	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("GO_VERSION=%s", upgrade.GoVersion))
+	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("DAEMON_NAME=%s", daemonName))
+
+	binaryPath := fmt.Sprintf("build/%s", daemonName)
+	if daemonName == "nobled" {
+		binaryPath = "build"
+	}
+
+	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("BINARY_PATH=%s", binaryPath))
 
 	if libwasmPath != "" {
 		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("LIBWASM_PATH=%s", libwasmPath))

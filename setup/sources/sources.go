@@ -21,19 +21,20 @@ var (
 	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
 	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
 	paginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
+	dotStyle          = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 	helpStyle         = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
 	checkMark         = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).SetString("✓")
 	errorMark         = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).SetString("x")
 )
 
 type item struct {
-	title string
-	desc  string
+	name    string
+	chainId string
 }
 
-func (i item) Title() string       { return i.title }
+func (i item) Title() string       { return i.name }
 func (i item) Description() string { return "" }
-func (i item) FilterValue() string { return i.title }
+func (i item) FilterValue() string { return i.name }
 
 type itemDelegate struct{}
 
@@ -46,7 +47,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		return
 	}
 
-	str := fmt.Sprintf("%d. %s", index+1, i.title)
+	str := fmt.Sprintf("%d. %s %s", index+1, i.name, dotStyle.Render(i.chainId))
 
 	fn := itemStyle.Render
 	if index == m.Index() {
@@ -63,36 +64,26 @@ func SelectSource() error {
 		return nil
 	}
 
-	sourcesResponse, err := utils.GetFromUrlWithErr("https://api.github.com/repos/cosmos/chain-registry/contents")
+	chainsResponse, err := utils.GetFromUrlWithErr("https://chains.cosmos.directory")
 	if err != nil {
 		return err
 	}
 
-	var sources []struct {
-		Name string `json:"name"`
-		Type string `json:"type"`
+	var chains struct {
+		Chains []struct {
+			Name    string `json:"name"`
+			ChainId string `json:"chain_id"`
+		} `json:"chains"`
 	}
 
-	if err := json.Unmarshal(sourcesResponse, &sources); err != nil {
+	if err := json.Unmarshal(chainsResponse, &chains); err != nil {
 		return err
 	}
 
 	options := make([]list.Item, 0)
 
-	for _, s := range sources {
-		if s.Type != "dir" {
-			continue
-		}
-
-		if strings.HasPrefix(s.Name, "_") {
-			continue
-		}
-
-		if strings.HasPrefix(s.Name, ".") {
-			continue
-		}
-
-		options = append(options, list.Item(item{title: s.Name, desc: ""}))
+	for _, c := range chains.Chains {
+		options = append(options, list.Item(item{name: c.Name, chainId: c.ChainId}))
 	}
 
 	if _, err := tea.NewProgram(newModel(options)).Run(); err != nil {
@@ -141,7 +132,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			i, ok := m.list.SelectedItem().(item)
 			if ok {
-				flags.Source = i.title
+				flags.Source = i.name
 			}
 			return m, tea.Quit
 		}
