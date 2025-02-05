@@ -306,7 +306,9 @@ func (w *CmdWriter) Write(p []byte) (n int, err error) {
 	dockerLogs += string(p) + "\n"
 	lines := strings.Split(string(p), "\n")
 	for _, line := range lines {
-		program.Send(line)
+		if line != "" && line != "\n" {
+			program.Send(line)
+		}
 	}
 	return len(p), nil
 }
