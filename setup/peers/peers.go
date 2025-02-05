@@ -103,12 +103,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 
-		case "up":
+		case "k", "up":
 			if m.cursor > 0 {
 				m.cursor--
 			}
 
-		case "down":
+		case "j", "down":
 			if m.cursor < len(m.peers)-1 {
 				m.cursor++
 			}
@@ -134,7 +134,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	if m.quitting {
-		return fmt.Sprintf("%s Selected %d out of %d %s\n", checkMark, len(m.selected), len(m.peers), m.name)
+		return fmt.Sprintf("%s Saved %d out of %d %s in config.toml\n", checkMark, len(m.selected), len(m.peers), m.name)
 	}
 
 	s := fmt.Sprintf("Select or deselect %s that should be included\n\n", m.name)

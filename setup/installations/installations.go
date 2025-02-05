@@ -56,17 +56,23 @@ func InstallGenesisSyncBinaries(chainSchema *types.ChainSchema, upgrades []types
 		cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", genesisPath))
 
 		if err := cmd.Run(); err != nil {
+			program.Quit()
+			program.Wait()
 			return fmt.Errorf("failed to run chain init: %w", err)
 		}
 
 		out, err := os.Create(fmt.Sprintf("%s/config/genesis.json", homePath))
 		if err != nil {
+			program.Quit()
+			program.Wait()
 			return err
 		}
 		defer out.Close()
 
 		resp, err := http.Get(chainSchema.Codebase.Genesis.GenesisUrl)
 		if err != nil {
+			program.Quit()
+			program.Wait()
 			return err
 		}
 		defer resp.Body.Close()
@@ -76,17 +82,23 @@ func InstallGenesisSyncBinaries(chainSchema *types.ChainSchema, upgrades []types
 		if strings.HasSuffix(chainSchema.Codebase.Genesis.GenesisUrl, ".gz") {
 			data, err = gzip.NewReader(resp.Body)
 			if err != nil {
+				program.Quit()
+				program.Wait()
 				return err
 			}
 		}
 
 		if _, err := io.Copy(out, data); err != nil {
+			program.Quit()
+			program.Wait()
 			return err
 		}
 	}
 
 	if _, err := os.Stat(fmt.Sprintf("%s/cosmovisor/current", homePath)); errors.Is(err, os.ErrNotExist) {
 		if err := os.Symlink(fmt.Sprintf("%s/cosmovisor/genesis", homePath), fmt.Sprintf("%s/cosmovisor/current", homePath)); err != nil {
+			program.Quit()
+			program.Wait()
 			return err
 		}
 	}

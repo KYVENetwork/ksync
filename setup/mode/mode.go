@@ -33,16 +33,22 @@ func SelectSetupMode() (*types.ChainSchema, []types.Upgrade, int, error) {
 
 	chainSchema, err := FetchChainSchema()
 	if err != nil {
+		p.Quit()
+		p.Wait()
 		return nil, nil, 0, err
 	}
 
 	sourceInfo, err := source.NewSource(chainSchema.ChainId)
 	if err != nil {
+		p.Quit()
+		p.Wait()
 		return nil, nil, 0, err
 	}
 
 	upgrades, err := FetchUpgrades(chainSchema)
 	if err != nil {
+		p.Quit()
+		p.Wait()
 		return nil, nil, 0, err
 	}
 
@@ -78,12 +84,16 @@ func SelectSetupMode() (*types.ChainSchema, []types.Upgrade, int, error) {
 		}
 	}()
 	if err != nil {
+		p.Quit()
+		p.Wait()
 		return nil, nil, 0, err
 	}
 
 	if poolId, err := sourceInfo.GetSourceSnapshotPoolId(); err == nil {
 		snapshotCollector, err := collector.NewKyveSnapshotCollector(poolId, chainRest)
 		if err != nil {
+			p.Quit()
+			p.Wait()
 			return nil, nil, 0, err
 		}
 		modes = append(modes, fmt.Sprintf("2. Install binaries and state-sync to latest height %d", snapshotCollector.GetLatestAvailableHeight()))
