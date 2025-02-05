@@ -2,6 +2,7 @@ package peers
 
 import (
 	"fmt"
+	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/types"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -53,7 +54,9 @@ func SavePeers(chainSchema *types.ChainSchema, seedsArr, persistentPeersArr []ty
 	config := make([]string, 0)
 
 	for _, line := range strings.Split(string(data), "\n") {
-		if strings.HasPrefix(line, "seeds = ") {
+		if strings.HasPrefix(line, "moniker = ") {
+			config = append(config, fmt.Sprintf("moniker = \"%s\"", flags.Moniker))
+		} else if strings.HasPrefix(line, "seeds = ") {
 			config = append(config, fmt.Sprintf("seeds = \"%s\"", seeds))
 		} else if strings.HasPrefix(line, "persistent_peers = ") {
 			config = append(config, fmt.Sprintf("persistent_peers = \"%s\"", persistentPeers))

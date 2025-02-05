@@ -20,6 +20,10 @@ func FetchChainSchema() (*types.ChainSchema, error) {
 		return nil, fmt.Errorf("failed to unmarshal chain response: %w", err)
 	}
 
+	if chainResponse.Status != "live" {
+		return nil, fmt.Errorf("chain status is not live, instead found \"%s\"", chainResponse.Status)
+	}
+
 	return &chainResponse, nil
 }
 

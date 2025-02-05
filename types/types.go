@@ -188,6 +188,7 @@ type FeeToken struct {
 }
 
 type ChainSchema struct {
+	Status     string `json:"status"`
 	ChainId    string `json:"chain_id"`
 	DaemonName string `json:"daemon_name"`
 	NodeHome   string `json:"node_home"`

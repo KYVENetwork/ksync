@@ -47,9 +47,8 @@ func InstallGenesisSyncBinaries(chainSchema *types.ChainSchema, upgrades []types
 	}
 
 	if _, err := os.Stat(fmt.Sprintf("%s/config/genesis.json", homePath)); errors.Is(err, os.ErrNotExist) {
-		moniker := flags.Moniker
-		if moniker == "" {
-			moniker = "ksync"
+		if flags.Moniker == "" {
+			flags.Moniker = "ksync"
 		}
 
 		cmd := exec.Command(fmt.Sprintf("%s/%s", genesisPath, chainSchema.DaemonName), "init", flags.Moniker, "--chain-id", chainSchema.ChainId)
