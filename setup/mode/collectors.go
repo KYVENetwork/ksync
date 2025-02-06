@@ -58,14 +58,11 @@ func FetchUpgrades(chainSchema *types.ChainSchema) ([]types.Upgrade, error) {
 	upgrades := make([]types.Upgrade, 0)
 
 	for index, version := range versionsResponse.Versions {
-		upgrade := types.Upgrade{}
+		upgrade := types.Upgrade{Version: version.Tag}
 
-		recommendedVersion := version.RecommendedVersion
-		if recommendedVersion == "" {
-			recommendedVersion = version.Tag
+		if upgrade.Version == "" {
+			upgrade.Version = version.RecommendedVersion
 		}
-
-		upgrade.Version = recommendedVersion
 
 		if index == 0 {
 			upgrade.Name = "genesis"
@@ -75,14 +72,14 @@ func FetchUpgrades(chainSchema *types.ChainSchema) ([]types.Upgrade, error) {
 
 		repo := strings.ReplaceAll(chainSchema.Codebase.GitRepoUrl, "https://github.com/", "https://raw.githubusercontent.com/")
 
-		goModUrl := fmt.Sprintf("%s/refs/tags/%s/go.mod", repo, recommendedVersion)
+		goModUrl := fmt.Sprintf("%s/refs/tags/%s/go.mod", repo, upgrade.Version)
 		if utils.Exceptions[chainSchema.ChainId].Subfolder != "" {
-			goModUrl = fmt.Sprintf("%s/refs/tags/%s/%s/go.mod", repo, recommendedVersion, utils.Exceptions[chainSchema.ChainId].Subfolder)
+			goModUrl = fmt.Sprintf("%s/refs/tags/%s/%s/go.mod", repo, upgrade.Version, utils.Exceptions[chainSchema.ChainId].Subfolder)
 		}
 
 		result, err = utils.GetFromUrlWithErr(goModUrl)
 		if err != nil {
-			return nil, fmt.Errorf("failed to query go.mod for version \"%s/refs/tags/%s/go.mod\": %w", repo, recommendedVersion, err)
+			return nil, fmt.Errorf("failed to query go.mod for version \"%s/refs/tags/%s/go.mod\": %w", repo, upgrade.Version, err)
 		}
 
 		for _, line := range strings.Split(string(result), "\n") {
