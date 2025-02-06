@@ -75,7 +75,12 @@ func FetchUpgrades(chainSchema *types.ChainSchema) ([]types.Upgrade, error) {
 
 		repo := strings.ReplaceAll(chainSchema.Codebase.GitRepoUrl, "https://github.com/", "https://raw.githubusercontent.com/")
 
-		result, err = utils.GetFromUrlWithErr(fmt.Sprintf("%s/refs/tags/%s/go.mod", repo, recommendedVersion))
+		goModUrl := fmt.Sprintf("%s/refs/tags/%s/go.mod", repo, recommendedVersion)
+		if utils.Exceptions[chainSchema.ChainId].Subfolder != "" {
+			goModUrl = fmt.Sprintf("%s/refs/tags/%s/%s/go.mod", repo, recommendedVersion, utils.Exceptions[chainSchema.ChainId].Subfolder)
+		}
+
+		result, err = utils.GetFromUrlWithErr(goModUrl)
 		if err != nil {
 			return nil, fmt.Errorf("failed to query go.mod for version \"%s/refs/tags/%s/go.mod\": %w", repo, recommendedVersion, err)
 		}

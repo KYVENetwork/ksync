@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/types"
+	"github.com/KYVENetwork/ksync/utils"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -42,7 +43,7 @@ func InstallGenesisSyncBinaries(chainSchema *types.ChainSchema, upgrades []types
 		return err
 	}
 
-	if err := buildUpgradeBinary(upgrades[0], chainSchema.Codebase.GitRepoUrl, chainSchema.DaemonName, genesisPath); err != nil {
+	if err := buildUpgradeBinary(upgrades[0], chainSchema, genesisPath); err != nil {
 		return err
 	}
 
@@ -105,7 +106,7 @@ func InstallGenesisSyncBinaries(chainSchema *types.ChainSchema, upgrades []types
 	for _, upgrade := range upgrades[1:] {
 		outputPath := fmt.Sprintf("%s/cosmovisor/upgrades/%s/bin", homePath, upgrade.Name)
 
-		if err := buildUpgradeBinary(upgrade, chainSchema.Codebase.GitRepoUrl, chainSchema.DaemonName, outputPath); err != nil {
+		if err := buildUpgradeBinary(upgrade, chainSchema, outputPath); err != nil {
 			return err
 		}
 	}
@@ -130,7 +131,7 @@ func InstallStateSyncBinaries(chainSchema *types.ChainSchema, upgrades []types.U
 		return err
 	}
 
-	if err := buildUpgradeBinary(upgrade, chainSchema.Codebase.GitRepoUrl, chainSchema.DaemonName, binaryPath); err != nil {
+	if err := buildUpgradeBinary(upgrade, chainSchema, binaryPath); err != nil {
 		return err
 	}
 
@@ -232,7 +233,7 @@ func buildCosmovisor(outputPath string) error {
 	return nil
 }
 
-func buildUpgradeBinary(upgrade types.Upgrade, gitRepoUrl, daemonName, outputPath string) error {
+func buildUpgradeBinary(upgrade types.Upgrade, chainSchema *types.ChainSchema, outputPath string) error {
 	libwasmPath := ""
 
 	if upgrade.LibwasmVersion != "" {
@@ -257,15 +258,19 @@ func buildUpgradeBinary(upgrade types.Upgrade, gitRepoUrl, daemonName, outputPat
 
 	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("BASE_IMAGE=golang:%s", upgrade.GoVersion))
 	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("VERSION=%s", upgrade.Version))
-	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("GIT_REPO=%s", gitRepoUrl))
+	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("GIT_REPO=%s", chainSchema.Codebase.GitRepoUrl))
 	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("GO_VERSION=%s", upgrade.GoVersion))
-	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("DAEMON_NAME=%s", daemonName))
+	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("DAEMON_NAME=%s", chainSchema.DaemonName))
 
-	binaryPath := fmt.Sprintf("build/%s", daemonName)
-	if daemonName == "nobled" {
-		binaryPath = "build"
-	} else if daemonName == "andromedad" {
-		binaryPath = "bin/andromedad"
+	exceptions := utils.Exceptions[chainSchema.ChainId]
+
+	if exceptions.Subfolder != "" {
+		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("SUBFOLDER=%s", exceptions.Subfolder))
+	}
+
+	binaryPath := fmt.Sprintf("build/%s", chainSchema.DaemonName)
+	if exceptions.BinaryPath != "" {
+		binaryPath = exceptions.BinaryPath
 	}
 
 	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("BINARY_PATH=%s", binaryPath))
