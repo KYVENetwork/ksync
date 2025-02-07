@@ -1,6 +1,7 @@
 package installations
 
 import (
+	"bytes"
 	"compress/gzip"
 	"errors"
 	"fmt"
@@ -18,6 +19,43 @@ import (
 	"strings"
 	"time"
 )
+
+const Dockerfile = `
+ARG BASE_IMAGE="golang:latest"
+
+FROM $BASE_IMAGE AS build
+
+ARG VERSION
+ARG GIT_REPO
+ARG BINARY_PATH
+ARG LIBWASM_PATH
+ARG GO_VERSION
+ARG SUBFOLDER
+ARG TARGET_GOOS
+ARG TARGET_GOARCH
+ARG DAEMON_NAME
+ARG BUILD_CMD="build"
+
+ENV GOOS=$TARGET_GOOS
+ENV GOARCH=$TARGET_GOARCH
+
+WORKDIR /app
+
+RUN apt update && apt upgrade -y
+
+RUN git clone --depth 1 --branch $VERSION $GIT_REPO repo \
+    && cd repo/$SUBFOLDER \
+    && make $BUILD_CMD ENV=mainnet GO_VERSION=$GO_VERSION LAVA_BINARY=lavad \
+    && mv $BINARY_PATH /app/$DAEMON_NAME \
+    && cd /app \
+    && rm -r repo
+
+RUN if [ -n "$LIBWASM_PATH" ] ; then cp $LIBWASM_PATH /app ; fi
+
+FROM scratch
+
+COPY --from=build /app /
+`
 
 var (
 	program      *tea.Program
@@ -213,7 +251,9 @@ func buildCosmovisor(outputPath string) error {
 	cmd.Args = append(cmd.Args, "--build-arg", "DAEMON_NAME=cosmovisor")
 
 	cmd.Args = append(cmd.Args, "--output", outputPath)
-	cmd.Args = append(cmd.Args, "-f", "setup/Dockerfile", ".")
+
+	cmd.Stdin = bytes.NewReader([]byte(Dockerfile))
+	cmd.Args = append(cmd.Args, "-")
 
 	var writer CmdWriter
 
@@ -294,7 +334,9 @@ func buildUpgradeBinary(upgrade types.Upgrade, chainSchema *types.ChainSchema, o
 	}
 
 	cmd.Args = append(cmd.Args, "--output", outputPath)
-	cmd.Args = append(cmd.Args, "-f", "setup/Dockerfile", ".")
+
+	cmd.Stdin = bytes.NewReader([]byte(Dockerfile))
+	cmd.Args = append(cmd.Args, "-")
 
 	var writer CmdWriter
 

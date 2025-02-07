@@ -18,6 +18,12 @@ func init() {
 
 	setupCmd.Flags().StringVarP(&flags.Moniker, "moniker", "m", "", "moniker name for initializing the chain")
 
+	setupCmd.Flags().StringVarP(&flags.AppFlags, "app-flags", "f", "", "custom flags which are applied to the app binary start command. Example: --app-flags=\"--x-crisis-skip-assert-invariants,--iavl-disable-fastnode\"")
+
+	setupCmd.Flags().BoolVar(&flags.OptOut, "opt-out", false, "disable the collection of anonymous usage data")
+	setupCmd.Flags().BoolVarP(&flags.Debug, "debug", "d", false, "run KSYNC in debug mode")
+	setupCmd.Flags().BoolVarP(&flags.AppLogs, "app-logs", "l", false, "show logs from cosmos app")
+
 	RootCmd.AddCommand(setupCmd)
 }
 
