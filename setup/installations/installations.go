@@ -95,12 +95,20 @@ func InstallGenesisSyncBinaries(chainSchema *types.ChainSchema, upgrades []types
 		}
 	}
 
-	if _, err := os.Stat(fmt.Sprintf("%s/cosmovisor/current", homePath)); errors.Is(err, os.ErrNotExist) {
-		if err := os.Symlink(fmt.Sprintf("%s/cosmovisor/genesis", homePath), fmt.Sprintf("%s/cosmovisor/current", homePath)); err != nil {
+	symlinkPath := fmt.Sprintf("%s/cosmovisor/current", homePath)
+
+	if _, err := os.Lstat(symlinkPath); err == nil {
+		if err := os.Remove(symlinkPath); err != nil {
 			program.Quit()
 			program.Wait()
-			return err
+			return fmt.Errorf("failed to remove symlink from path %s: %w", symlinkPath, err)
 		}
+	}
+
+	if err := os.Symlink(fmt.Sprintf("%s/cosmovisor/genesis", homePath), symlinkPath); err != nil {
+		program.Quit()
+		program.Wait()
+		return err
 	}
 
 	for _, upgrade := range upgrades[1:] {
