@@ -397,7 +397,7 @@ func (app *CosmosApp) LoadHomePath() error {
 		cmd.Env = append(cmd.Env, "COSMOVISOR_DISABLE_LOGS=true")
 
 		if flags.DaemonName != "" && flags.DaemonHome != "" {
-			fmt.Println(flags.DaemonName, flags.DaemonHome)
+			fmt.Println(flags.DaemonName, flags.DaemonHome, app.getLDLibraryPath())
 			cmd.Env = append(cmd.Env, fmt.Sprintf("DAEMON_NAME=%s", flags.DaemonName), fmt.Sprintf("DAEMON_HOME=%s", flags.DaemonHome))
 		}
 	}
