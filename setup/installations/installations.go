@@ -243,6 +243,10 @@ func buildUpgradeBinary(upgrade types.Upgrade, chainSchema *types.ChainSchema, o
 		libwasmVersions := strings.Split(upgrade.LibwasmVersion, ".")
 		if libwasmVersions[0] == "v1" && libwasmVersions[1] == "0" {
 			libwasmPath = fmt.Sprintf("/go/pkg/mod/github.com/!cosm!wasm/wasmvm@%s/api/libwasmvm.x86_64.so", upgrade.LibwasmVersion)
+
+			if strings.Contains(upgrade.LibwasmVersion, "beta") {
+				libwasmPath = fmt.Sprintf("/go/pkg/mod/github.com/!cosm!wasm/wasmvm@%s/api/libwasmvm.so", upgrade.LibwasmVersion)
+			}
 		}
 	}
 
