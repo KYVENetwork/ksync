@@ -18,4 +18,8 @@ var Exceptions = map[string]exception{
 		Subfolder:  "",
 		BinaryPath: "bin/andromedad",
 	},
+	"source-1": {
+		Subfolder:  "",
+		BinaryPath: "bin/sourced",
+	},
 }
