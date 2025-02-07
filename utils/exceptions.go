@@ -24,6 +24,6 @@ var Exceptions = map[string]exception{
 	},
 	"zetachain_7000-1": {
 		BuildCmd:   "install-zetacore",
-		BinaryPath: "/usr/local/go/bin/zetacored",
+		BinaryPath: "/app/go/bin/zetacored",
 	},
 }

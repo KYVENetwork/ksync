@@ -329,6 +329,10 @@ func buildUpgradeBinary(upgrade types.Upgrade, chainSchema *types.ChainSchema, o
 
 	cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("BINARY_PATH=%s", binaryPath))
 
+	if exceptions.BuildCmd != "" {
+		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("BUILD_CMD=%s", exceptions.BuildCmd))
+	}
+
 	if libwasmPath != "" {
 		cmd.Args = append(cmd.Args, "--build-arg", fmt.Sprintf("LIBWASM_PATH=%s", libwasmPath))
 	}
