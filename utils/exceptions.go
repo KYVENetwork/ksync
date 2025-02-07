@@ -2,28 +2,28 @@ package utils
 
 type exception struct {
 	Subfolder  string
+	BuildCmd   string
 	BinaryPath string
 }
 
 var Exceptions = map[string]exception{
 	"dydx-mainnet-1": {
-		Subfolder:  "protocol",
-		BinaryPath: "",
+		Subfolder: "protocol",
 	},
 	"noble-1": {
-		Subfolder:  "",
 		BinaryPath: "build",
 	},
 	"andromeda-1": {
-		Subfolder:  "",
 		BinaryPath: "bin/andromedad",
 	},
 	"source-1": {
-		Subfolder:  "",
 		BinaryPath: "bin/sourced",
 	},
 	"axelar-dojo-1": {
-		Subfolder:  "",
 		BinaryPath: "bin/axelard",
+	},
+	"zetachain_7000-1": {
+		BuildCmd:   "install-zetacore",
+		BinaryPath: "cmd/zetacored",
 	},
 }
