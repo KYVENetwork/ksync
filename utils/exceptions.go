@@ -22,4 +22,8 @@ var Exceptions = map[string]exception{
 		Subfolder:  "",
 		BinaryPath: "bin/sourced",
 	},
+	"axelar-dojo-1": {
+		Subfolder:  "",
+		BinaryPath: "bin/axelard",
+	},
 }
