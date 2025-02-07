@@ -54,6 +54,7 @@ func Start() error {
 	flags.DaemonName = chainSchema.DaemonName
 	flags.DaemonHome = strings.ReplaceAll(chainSchema.NodeHome, "$HOME", os.Getenv("HOME"))
 	flags.BinaryPath = fmt.Sprintf("%s/go/bin/cosmovisor", os.Getenv("HOME"))
+	flags.HomePath = flags.DaemonHome
 	flags.AutoSelectBinaryVersion = true
 	flags.Reset = true
 	flags.Y = true

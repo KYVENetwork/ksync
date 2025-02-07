@@ -397,7 +397,6 @@ func (app *CosmosApp) LoadHomePath() error {
 		cmd.Env = append(cmd.Env, "COSMOVISOR_DISABLE_LOGS=true")
 
 		if flags.DaemonName != "" && flags.DaemonHome != "" {
-			fmt.Println(flags.DaemonName, flags.DaemonHome, app.getLDLibraryPath())
 			cmd.Env = append(cmd.Env, fmt.Sprintf("DAEMON_NAME=%s", flags.DaemonName), fmt.Sprintf("DAEMON_HOME=%s", flags.DaemonHome))
 		}
 	}
@@ -553,12 +552,7 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 
 func (app *CosmosApp) getLDLibraryPath() string {
 	if app.isCosmovisor {
-		homePath := app.homePath
-		if homePath == "" {
-			homePath = os.Getenv("DAEMON_HOME")
-		}
-
-		upgradeFolder, err := os.Readlink(fmt.Sprintf("%s/cosmovisor/current", homePath))
+		upgradeFolder, err := os.Readlink(fmt.Sprintf("%s/cosmovisor/current", app.homePath))
 		if err != nil {
 			return ""
 		}
