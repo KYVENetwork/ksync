@@ -8,10 +8,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var chainId string
+
 func init() {
 	setupCmd.Flags().StringVarP(&flags.Source, "source", "b", "", "source is the name chain in the cosmos registry")
 
-	setupCmd.Flags().StringVarP(&flags.ChainId, "chain-id", "c", utils.DefaultChainId, fmt.Sprintf("KYVE chain id [\"%s\",\"%s\",\"%s\"]", utils.ChainIdMainnet, utils.ChainIdKaon, utils.ChainIdKorellia))
+	setupCmd.Flags().StringVarP(&chainId, "chain-id", "c", utils.ChainIdKaon, fmt.Sprintf("KYVE chain id [\"%s\",\"%s\",\"%s\"]", utils.ChainIdMainnet, utils.ChainIdKaon, utils.ChainIdKorellia))
 
 	setupCmd.Flags().StringVar(&flags.ChainRest, "chain-rest", "", "rest endpoint for KYVE chain")
 	setupCmd.Flags().StringVar(&flags.StorageRest, "storage-rest", "", "storage endpoint for requesting bundle data")
@@ -31,6 +33,7 @@ var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Setup and auto-install the required binaries for syncing",
 	RunE: func(_ *cobra.Command, _ []string) error {
+		flags.ChainId = chainId
 		return setup.Start()
 	},
 }
