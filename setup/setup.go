@@ -61,8 +61,8 @@ func Start() error {
 
 	if setupMode == 1 {
 		fmt.Println("Successfully completed setup, to run Cosmovisor please export the following environment variables before:")
-		fmt.Println(fmt.Sprintf("export DAEMON_NAME=%s DAEMON_HOME=%s LD_LIBRARY_PATH=%s/cosmovisor/current/bin", flags.DaemonName, flags.DaemonHome, flags.DaemonHome))
-		fmt.Println(fmt.Sprintf("%s/go/bin/cosmovisor run version", os.Getenv("HOME")))
+		fmt.Println(fmt.Sprintf("> export DAEMON_NAME=%s DAEMON_HOME=%s LD_LIBRARY_PATH=%s/cosmovisor/current/bin", flags.DaemonName, flags.DaemonHome, flags.DaemonHome))
+		fmt.Println(fmt.Sprintf("> %s/go/bin/cosmovisor run version", os.Getenv("HOME")))
 		return nil
 	} else if setupMode == 2 {
 		return statesync.Start()
