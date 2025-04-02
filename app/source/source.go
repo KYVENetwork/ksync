@@ -57,8 +57,14 @@ func (source *Source) GetSourceBlockPoolId() (int64, error) {
 	}
 
 	if flags.ChainId == utils.ChainIdMainnet {
+		if entry.Networks.Kyve == nil || entry.Networks.Kyve.Integrations.KSYNC.BlockSyncPool == nil {
+			return 0, fmt.Errorf("failed to get snapshot pool id from registry entry")
+		}
 		return int64(*entry.Networks.Kyve.Integrations.KSYNC.BlockSyncPool), nil
 	} else if flags.ChainId == utils.ChainIdKaon {
+		if entry.Networks.Kaon == nil || entry.Networks.Kaon.Integrations.KSYNC.BlockSyncPool == nil {
+			return 0, fmt.Errorf("failed to get snapshot pool id from registry entry")
+		}
 		return int64(*entry.Networks.Kaon.Integrations.KSYNC.BlockSyncPool), nil
 	}
 
@@ -76,8 +82,14 @@ func (source *Source) GetSourceSnapshotPoolId() (int64, error) {
 	}
 
 	if flags.ChainId == utils.ChainIdMainnet {
+		if entry.Networks.Kyve == nil || entry.Networks.Kyve.Integrations.KSYNC.StateSyncPool == nil {
+			return 0, fmt.Errorf("failed to get snapshot pool id from registry entry")
+		}
 		return int64(*entry.Networks.Kyve.Integrations.KSYNC.StateSyncPool), nil
 	} else if flags.ChainId == utils.ChainIdKaon {
+		if entry.Networks.Kaon == nil || entry.Networks.Kaon.Integrations.KSYNC.StateSyncPool == nil {
+			return 0, fmt.Errorf("failed to get snapshot pool id from registry entry")
+		}
 		return int64(*entry.Networks.Kaon.Integrations.KSYNC.StateSyncPool), nil
 	}
 
