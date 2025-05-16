@@ -22,10 +22,11 @@ import (
 )
 
 type CosmosApp struct {
-	binaryPath   string
-	isCosmovisor bool
-	homePath     string
-	chainRest    string
+	binaryPath      string
+	isCosmovisor    bool
+	isStoryProtocol bool
+	homePath        string
+	chainRest       string
 
 	cmd *exec.Cmd
 
@@ -84,6 +85,10 @@ func (app *CosmosApp) GetChainRest() string {
 
 func (app *CosmosApp) IsCosmovisor() bool {
 	return app.isCosmovisor
+}
+
+func (app *CosmosApp) IsStoryProtocol() bool {
+	return app.isStoryProtocol
 }
 
 func (app *CosmosApp) IsReset() bool {
@@ -378,6 +383,7 @@ func (app *CosmosApp) LoadBinaryPath() error {
 
 	app.binaryPath = binaryPath
 	app.isCosmovisor = strings.HasSuffix(binaryPath, "cosmovisor")
+	app.isStoryProtocol = strings.HasSuffix(binaryPath, "storyd")
 
 	logger.Logger.Info().Msgf("loaded cosmos app at path \"%s\" from app binary", binaryPath)
 	return nil
@@ -459,6 +465,16 @@ func (app *CosmosApp) LoadConsensusEngine() error {
 		if err := app.ConsensusEngine.CloseDBs(); err != nil {
 			return fmt.Errorf("failed to close dbs in engine: %w", err)
 		}
+	}
+
+	if app.isStoryProtocol {
+		engine, err := cometbft_v38.NewEngine(app.homePath)
+		if err != nil {
+			return fmt.Errorf("failed to create engine: %w", err)
+		}
+
+		app.ConsensusEngine = engine
+		return nil
 	}
 
 	// we first try to detect the engine by checking the build dependencies
