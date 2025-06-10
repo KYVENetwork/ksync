@@ -414,6 +414,11 @@ func (app *CosmosApp) LoadHomePath() error {
 		return fmt.Errorf("failed to get output of binary: %w", err)
 	}
 
+	// determine if app is story protocol by looking at default home path
+	if strings.Contains(string(out), ".story") {
+		app.isStoryProtocol = true
+	}
+
 	// here we search for a specific line in the binary output when simply
 	// executed without arguments. In the output, the default home path
 	// is printed, which is parsed and used by KSYNC
