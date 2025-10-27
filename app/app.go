@@ -7,6 +7,7 @@ import (
 	"github.com/KYVENetwork/ksync/engines/celestia-core-v34"
 	"github.com/KYVENetwork/ksync/engines/cometbft-v37"
 	"github.com/KYVENetwork/ksync/engines/cometbft-v38"
+	"github.com/KYVENetwork/ksync/engines/dydx-cometbft"
 	"github.com/KYVENetwork/ksync/engines/tendermint-v34"
 	"github.com/KYVENetwork/ksync/flags"
 	"github.com/KYVENetwork/ksync/logger"
@@ -463,13 +464,39 @@ func (app *CosmosApp) LoadChainRest() (err error) {
 	return nil
 }
 
-func (app *CosmosApp) LoadConsensusEngine() error {
+func (app *CosmosApp) LoadConsensusEngine() (err error) {
 	// if there is already a consensus engine running we close the dbs
 	// before loading a new one
 	if app.ConsensusEngine != nil {
 		if err := app.ConsensusEngine.CloseDBs(); err != nil {
 			return fmt.Errorf("failed to close dbs in engine: %w", err)
 		}
+	}
+
+	if flags.Engine != "" {
+		app.ConsensusEngine, err = func() (types.Engine, error) {
+			switch flags.Engine {
+			case utils.EngineCelestiaCoreV34:
+				return celestia_core_v34.NewEngine(app.homePath)
+			case utils.EngineTendermintV34:
+				return tendermint_v34.NewEngine(app.homePath)
+			case utils.EngineCometBFTV37:
+				return cometbft_v37.NewEngine(app.homePath)
+			case utils.EngineCometBFTV38:
+				return cometbft_v38.NewEngine(app.homePath)
+			case utils.EngineDydxCometBFT:
+				return dydx_cometbft.NewEngine(app.homePath)
+			default:
+				return nil, fmt.Errorf("failed to load consensus engine from flag --engine \"%s\"", flags.Engine)
+			}
+		}()
+
+		if err != nil {
+			return err
+		}
+
+		logger.Logger.Info().Msgf("loaded consensus engine \"%s\" from engine flag", app.ConsensusEngine.GetName())
+		return nil
 	}
 
 	if app.isStoryProtocol {

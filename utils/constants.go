@@ -26,6 +26,7 @@ const (
 	EngineCelestiaCoreV34 = "CELESTIA-CORE-V34"
 	EngineCometBFTV37     = "COMETBFT-V37"
 	EngineCometBFTV38     = "COMETBFT-V38"
+	EngineDydxCometBFT    = "DYDX-COMETBFT"
 )
 
 const (
